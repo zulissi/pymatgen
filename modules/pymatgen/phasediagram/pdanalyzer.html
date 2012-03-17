@@ -1,0 +1,331 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.phasediagram.pdanalyzer &mdash; pymatgen 1.5.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.5.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../../static/favicon.ico"/>
+    <link rel="top" title="pymatgen 1.5.0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">pymatgen 1.5.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for pymatgen.phasediagram.pdanalyzer</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module provides classes for analyzing phase diagrams.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+
+<span class="n">__author__</span><span class="o">=</span><span class="s">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot;Copyright 2011, The Materials Project&quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;1.0&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s">&quot;shyue@mit.edu&quot;</span>
+<span class="n">__status__</span> <span class="o">=</span> <span class="s">&quot;Production&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span><span class="s">&quot;$Sep 23, 2011M$&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="kn">import</span> <span class="n">Composition</span>
+<span class="kn">from</span> <span class="nn">pymatgen.phasediagram.pdmaker</span> <span class="kn">import</span> <span class="n">PhaseDiagram</span><span class="p">,</span> <span class="n">GrandPotentialPhaseDiagram</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.reaction_calculator</span> <span class="kn">import</span> <span class="n">Reaction</span>
+
+<div class="viewcode-block" id="PDAnalyzer"><a class="viewcode-back" href="../../../pymatgen.phasediagram.html#pymatgen.phasediagram.pdanalyzer.PDAnalyzer">[docs]</a><span class="k">class</span> <span class="nc">PDAnalyzer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A class for performing analyses on Phase Diagrams.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="n">numerical_tol</span> <span class="o">=</span> <span class="mf">1e-8</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pd</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            pd - Phase Diagram to analyze.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pd</span> <span class="o">=</span> <span class="n">pd</span>
+
+    <span class="k">def</span> <span class="nf">_make_comp_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">complist</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Helper function to generates a normalized composition matrix from a list of composition.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">comp</span><span class="o">.</span><span class="n">get_atomic_fraction</span><span class="p">(</span><span class="n">el</span><span class="p">)</span> <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">elements</span><span class="p">]</span> <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="n">complist</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">_in_facet</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">facet</span><span class="p">,</span> <span class="n">comp</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Checks if a composition is in a facet using the standard barycentric coordinate system algorithm.</span>
+<span class="sd">        The general concept is that the facets from a convex hull form a simplex in n-dimensional space.</span>
+<span class="sd">        Taking an arbitrary vertex as an origin, we compute the basis for the simplex from this origin by</span>
+<span class="sd">        subtracting all other vertices from the origin. We then project the composition into this </span>
+<span class="sd">        coordinate system and determine the coefficients in this coordinate system.  If the coeffs satisfy</span>
+<span class="sd">        that all coeffs &gt;= 0 and sum(coeffs) &lt;= 1, the composition is in the facet.</span>
+<span class="sd">        For example, take a 4-comp PD where the facets are tetrahedrons. For a tetrahedron, let&#39;s label</span>
+<span class="sd">        the vertices as O, A, B anc C.  Let&#39;s call our comp coordinate as X.</span>
+<span class="sd">        We form the composition matrix M with vectors OA, OB and OB, transponse it, and solve for </span>
+<span class="sd">            M&#39;.a = OX</span>
+<span class="sd">        where a are the coefficients.</span>
+<span class="sd">        if (a &gt;= 0).all() and sum(a) &lt;= 1, X is in the tetrahedron.</span>
+<span class="sd">        Note that in reality, the test needs to provide a tolerance (set to 1e-8 by default) for numerical errors.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">elements</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">origin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">qhull_data</span><span class="p">[</span><span class="n">facet</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="mi">0</span><span class="p">:</span><span class="n">dim</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">cm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">qhull_data</span><span class="p">[</span><span class="n">facet</span><span class="p">[</span><span class="n">i</span><span class="p">]][</span><span class="mi">0</span><span class="p">:</span><span class="n">dim</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">-</span> <span class="n">origin</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">facet</span><span class="p">))])</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="p">[</span><span class="n">comp</span><span class="o">.</span><span class="n">get_atomic_fraction</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">elements</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">elements</span><span class="p">))]</span>
+            <span class="n">compm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="o">-</span> <span class="n">origin</span>
+            <span class="n">coeffs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">cm</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span> <span class="n">compm</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">coeffs</span> <span class="o">&gt;=</span> <span class="o">-</span><span class="n">PDAnalyzer</span><span class="o">.</span><span class="n">numerical_tol</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span> <span class="ow">and</span> <span class="nb">sum</span><span class="p">(</span><span class="n">coeffs</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">PDAnalyzer</span><span class="o">.</span><span class="n">numerical_tol</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">True</span>
+
+    <span class="k">def</span> <span class="nf">_get_facets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">comp</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the facets that a composition falls into.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">memberfacets</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">facet</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">facets</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_in_facet</span><span class="p">(</span><span class="n">facet</span><span class="p">,</span> <span class="n">comp</span><span class="p">):</span>
+                <span class="n">memberfacets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">facet</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">memberfacets</span>
+    
+    <span class="k">def</span> <span class="nf">_get_facet</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">comp</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the facets that a composition falls into.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">facet</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">facets</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_in_facet</span><span class="p">(</span><span class="n">facet</span><span class="p">,</span> <span class="n">comp</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">facet</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&quot;No facet found for comp = {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">comp</span><span class="p">))</span>
+
+<div class="viewcode-block" id="PDAnalyzer.get_decomposition"><a class="viewcode-back" href="../../../pymatgen.phasediagram.html#pymatgen.phasediagram.pdanalyzer.PDAnalyzer.get_decomposition">[docs]</a>    <span class="k">def</span> <span class="nf">get_decomposition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">comp</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Provides the decomposition at a particular composition</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            comp - A composition</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Decomposition as a dict of {PDEntry: amount}</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">facet</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_facet</span><span class="p">(</span><span class="n">comp</span><span class="p">)</span>
+        <span class="n">complist</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">qhull_entries</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">composition</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">facet</span><span class="p">]</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_comp_matrix</span><span class="p">(</span><span class="n">complist</span><span class="p">)</span>
+        <span class="n">compm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_comp_matrix</span><span class="p">([</span><span class="n">comp</span><span class="p">])</span>
+        <span class="n">decompamts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">transpose</span><span class="p">()),</span><span class="n">compm</span><span class="o">.</span><span class="n">transpose</span><span class="p">())</span>
+        <span class="n">decomp</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+        <span class="c">#Scrub away zero amounts</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">decompamts</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">decompamts</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span> <span class="o">&gt;</span> <span class="n">PDAnalyzer</span><span class="o">.</span><span class="n">numerical_tol</span><span class="p">:</span>
+                <span class="n">decomp</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">qhull_entries</span><span class="p">[</span><span class="n">facet</span><span class="p">[</span><span class="n">i</span><span class="p">]]]</span> <span class="o">=</span> <span class="n">decompamts</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">decomp</span>
+    </div>
+<div class="viewcode-block" id="PDAnalyzer.get_decomp_and_e_above_hull"><a class="viewcode-back" href="../../../pymatgen.phasediagram.html#pymatgen.phasediagram.pdanalyzer.PDAnalyzer.get_decomp_and_e_above_hull">[docs]</a>    <span class="k">def</span> <span class="nf">get_decomp_and_e_above_hull</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entry</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Provides the decomposition and energy above convex hull for an entry</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            entry:</span>
+<span class="sd">                A PDEntry like object</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            (decomp, energy above convex hull)  Stable entries should have energy above hull of 0.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">comp</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">composition</span>
+        <span class="n">eperatom</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">energy_per_atom</span>
+        <span class="n">decomp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_decomposition</span><span class="p">(</span><span class="n">comp</span><span class="p">)</span>
+        <span class="n">hullenergy</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="n">entry</span><span class="o">.</span><span class="n">energy_per_atom</span><span class="o">*</span><span class="n">amt</span> <span class="k">for</span> <span class="n">entry</span><span class="p">,</span> <span class="n">amt</span> <span class="ow">in</span> <span class="n">decomp</span><span class="o">.</span><span class="n">items</span><span class="p">()])</span>
+        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">eperatom</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">PDAnalyzer</span><span class="o">.</span><span class="n">numerical_tol</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">decomp</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">decomp</span><span class="p">,</span> <span class="n">eperatom</span> <span class="o">-</span> <span class="n">hullenergy</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PDAnalyzer.get_e_above_hull"><a class="viewcode-back" href="../../../pymatgen.phasediagram.html#pymatgen.phasediagram.pdanalyzer.PDAnalyzer.get_e_above_hull">[docs]</a>    <span class="k">def</span> <span class="nf">get_e_above_hull</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entry</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Provides the energy above convex hull for an entry</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            entry - A PDEntry like object</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Energy above convex hull of entry. Stable entries should have energy above hull of 0.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_decomp_and_e_above_hull</span><span class="p">(</span><span class="n">entry</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+
+</div>
+<div class="viewcode-block" id="PDAnalyzer.get_equilibrium_reaction_energy"><a class="viewcode-back" href="../../../pymatgen.phasediagram.html#pymatgen.phasediagram.pdanalyzer.PDAnalyzer.get_equilibrium_reaction_energy">[docs]</a>    <span class="k">def</span> <span class="nf">get_equilibrium_reaction_energy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entry</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Provides the reaction energy of a stable entry from the neighboring equilibrium stable entries.</span>
+<span class="sd">        (also known as the inverse distance to hull).</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            entry:</span>
+<span class="sd">                A PDEntry like object</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Equilibrium reaction energy of entry.  Stable entries should have equilibrium reaction energy &lt;= 0.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">entry</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">stable_entries</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Equilibrium reaction energy is available only for stable entries.&quot;</span><span class="p">)</span>
+        <span class="n">entries</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">all_entries</span> <span class="k">if</span> <span class="n">e</span> <span class="o">!=</span> <span class="n">entry</span><span class="p">]</span>
+        <span class="n">modpd</span> <span class="o">=</span> <span class="n">PhaseDiagram</span><span class="p">(</span><span class="n">entries</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">elements</span><span class="p">)</span>
+        <span class="n">analyzer</span> <span class="o">=</span> <span class="n">PDAnalyzer</span><span class="p">(</span><span class="n">modpd</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">get_decomp_and_e_above_hull</span><span class="p">(</span><span class="n">entry</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+    </div>
+<div class="viewcode-block" id="PDAnalyzer.get_transition_chempots"><a class="viewcode-back" href="../../../pymatgen.phasediagram.html#pymatgen.phasediagram.pdanalyzer.PDAnalyzer.get_transition_chempots">[docs]</a>    <span class="k">def</span> <span class="nf">get_transition_chempots</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the critical chemical potentials for an element in the Phase Diagram.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            element:</span>
+<span class="sd">                An element.  Has to be in the PD in the first place.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            A sorted sequence of critical chemical potentials, from less negative to more negative.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">element</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">elements</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;get_transition_chempots can only be called with elements in the phase diagram.&quot;</span><span class="p">)</span>
+        <span class="n">ind</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">elements</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+        <span class="n">critical_chempots</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">facet</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">facets</span><span class="p">:</span>
+            <span class="n">complist</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">qhull_entries</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">composition</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">facet</span><span class="p">]</span>
+            <span class="n">energylist</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">qhull_entries</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">energy_per_atom</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">facet</span><span class="p">]</span>
+            <span class="n">m</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_comp_matrix</span><span class="p">(</span><span class="n">complist</span><span class="p">)</span>
+            <span class="n">chempots</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">m</span><span class="p">),</span><span class="n">energylist</span><span class="p">)</span>
+            <span class="n">critical_chempots</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chempots</span><span class="p">[</span><span class="n">ind</span><span class="p">])</span>
+                
+        <span class="n">clean_pots</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">critical_chempots</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">clean_pots</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">clean_pots</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">c</span><span class="o">-</span><span class="n">clean_pots</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">&gt;</span> <span class="n">PDAnalyzer</span><span class="o">.</span><span class="n">numerical_tol</span><span class="p">:</span>
+                    <span class="n">clean_pots</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+        <span class="n">clean_pots</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">clean_pots</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="PDAnalyzer.get_element_profile"><a class="viewcode-back" href="../../../pymatgen.phasediagram.html#pymatgen.phasediagram.pdanalyzer.PDAnalyzer.get_element_profile">[docs]</a>    <span class="k">def</span> <span class="nf">get_element_profile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">comp</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Provides the element evolution data for a composition.</span>
+<span class="sd">        For example, can be used to analyze Li conversion voltages by varying uLi and looking at the phases formed.</span>
+<span class="sd">        Also can be used to analyze O2 evolution by varying uO2.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            element:</span>
+<span class="sd">                An element. Must be in the phase diagram.</span>
+<span class="sd">            comp:</span>
+<span class="sd">                A Composition</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Evolution data as a list of dictionaries of the following format: [ {&#39;chempot&#39;: -10.487582010000001, &#39;evolution&#39;: -2.0, &#39;reaction&#39;: Reaction Object], ...]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">element</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">elements</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;get_transition_chempots can only be called with elements in the phase diagram.&quot;</span><span class="p">)</span>
+        <span class="n">chempots</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_transition_chempots</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+        <span class="n">stable_entries</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">stable_entries</span>
+        <span class="n">gccomp</span> <span class="o">=</span> <span class="n">Composition</span><span class="p">({</span><span class="n">el</span><span class="p">:</span><span class="n">amt</span> <span class="k">for</span> <span class="n">el</span><span class="p">,</span> <span class="n">amt</span> <span class="ow">in</span> <span class="n">comp</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">el</span> <span class="o">!=</span> <span class="n">element</span><span class="p">})</span>
+        <span class="n">elref</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">el_refs</span><span class="p">[</span><span class="n">element</span><span class="p">]</span>
+        <span class="n">elcomp</span> <span class="o">=</span> <span class="n">Composition</span><span class="o">.</span><span class="n">from_formula</span><span class="p">(</span><span class="n">element</span><span class="o">.</span><span class="n">symbol</span><span class="p">)</span>
+        <span class="n">prev_decomp</span> <span class="o">=</span> <span class="p">[];</span>
+        <span class="n">evolution</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">def</span> <span class="nf">are_same_decomp</span><span class="p">(</span><span class="n">decomp1</span><span class="p">,</span> <span class="n">decomp2</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="n">decomp2</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">comp</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">decomp1</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="bp">False</span>
+            <span class="k">return</span> <span class="bp">True</span>
+        
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">chempots</span><span class="p">:</span>
+            <span class="n">gcpd</span> <span class="o">=</span> <span class="n">GrandPotentialPhaseDiagram</span><span class="p">(</span><span class="n">stable_entries</span><span class="p">,</span> <span class="p">{</span><span class="n">element</span><span class="p">:</span><span class="n">c</span><span class="o">-</span><span class="mf">0.01</span><span class="p">},</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pd</span><span class="o">.</span><span class="n">elements</span><span class="p">)</span>
+            <span class="n">analyzer</span> <span class="o">=</span> <span class="n">PDAnalyzer</span><span class="p">(</span><span class="n">gcpd</span><span class="p">)</span>
+            <span class="n">decomp</span> <span class="o">=</span> <span class="p">[</span><span class="n">gcentry</span><span class="o">.</span><span class="n">original_entry</span><span class="o">.</span><span class="n">composition</span> <span class="k">for</span> <span class="n">gcentry</span><span class="p">,</span> <span class="n">amt</span> <span class="ow">in</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">get_decomposition</span><span class="p">(</span><span class="n">gccomp</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">amt</span> <span class="o">&gt;</span> <span class="mf">1e-5</span><span class="p">]</span>
+            <span class="n">decomp_entries</span> <span class="o">=</span> <span class="p">[</span><span class="n">gcentry</span><span class="o">.</span><span class="n">original_entry</span> <span class="k">for</span> <span class="n">gcentry</span><span class="p">,</span> <span class="n">amt</span> <span class="ow">in</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">get_decomposition</span><span class="p">(</span><span class="n">gccomp</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">amt</span> <span class="o">&gt;</span> <span class="mf">1e-5</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">are_same_decomp</span><span class="p">(</span><span class="n">prev_decomp</span><span class="p">,</span> <span class="n">decomp</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">elcomp</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">decomp</span><span class="p">:</span>
+                    <span class="n">decomp</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">elcomp</span><span class="p">)</span>
+                <span class="n">rxn</span> <span class="o">=</span> <span class="n">Reaction</span><span class="p">([</span><span class="n">comp</span><span class="p">],</span> <span class="n">decomp</span><span class="p">)</span>
+                <span class="n">rxn</span><span class="o">.</span><span class="n">normalize_to</span><span class="p">(</span><span class="n">comp</span><span class="p">)</span>
+                <span class="n">prev_decomp</span> <span class="o">=</span> <span class="n">decomp</span>
+                <span class="n">evolution</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s">&#39;chempot&#39;</span><span class="p">:</span><span class="n">c</span><span class="p">,</span> <span class="s">&#39;evolution&#39;</span> <span class="p">:</span> <span class="o">-</span> <span class="n">rxn</span><span class="o">.</span><span class="n">coeffs</span><span class="p">[</span><span class="n">rxn</span><span class="o">.</span><span class="n">all_comp</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">elcomp</span><span class="p">)],</span> <span class="s">&#39;element_reference&#39;</span><span class="p">:</span> <span class="n">elref</span><span class="p">,</span> <span class="s">&#39;reaction&#39;</span><span class="p">:</span><span class="n">rxn</span><span class="p">,</span> <span class="s">&#39;entries&#39;</span><span class="p">:</span><span class="n">decomp_entries</span><span class="p">})</span>
+            
+        <span class="k">return</span> <span class="n">evolution</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">pymatgen 1.5.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Michael Kocher, Geoffroy Hautier, Dan Gunter, William Davidson Richards.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,563 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.analysis.structure_fitter &mdash; pymatgen 1.5.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.5.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../../static/favicon.ico"/>
+    <link rel="top" title="pymatgen 1.5.0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">pymatgen 1.5.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for pymatgen.analysis.structure_fitter</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module provides classes to perform fitting of two structures.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+
+<span class="n">__author__</span><span class="o">=</span><span class="s">&quot;Shyue Ping Ong, Geoffroy Hautier&quot;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot;Copyright 2011, The Materials Project&quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;1.0&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s">&quot;shyue@mit.edu&quot;</span>
+<span class="n">__status__</span> <span class="o">=</span> <span class="s">&quot;Production&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span><span class="s">&quot;$Sep 23, 2011M$&quot;</span>
+
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.core.lattice</span> <span class="kn">import</span> <span class="n">Lattice</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="kn">import</span> <span class="n">Structure</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.operations</span> <span class="kn">import</span> <span class="n">SymmOp</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.structure_modifier</span> <span class="kn">import</span> <span class="n">StructureEditor</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
+<div class="viewcode-block" id="StructureFitter"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.structure_fitter.StructureFitter">[docs]</a><span class="k">class</span> <span class="nc">StructureFitter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class to perform fitting of two structures</span>
+<span class="sd">    </span>
+<span class="sd">    Attributes:</span>
+<span class="sd">        fit_found - True if a fit was found</span>
+<span class="sd">        mapping_op - Operation that maps the two structures onto one another.  None if no fit was found.</span>
+<span class="sd">        structure_a - First structure</span>
+<span class="sd">        structure_b - Second structure</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">FAST_FIT</span> <span class="o">=</span> <span class="mi">25000</span>
+    <span class="n">NORMAL_FIT</span> <span class="o">=</span> <span class="mi">50000</span>
+    <span class="n">ACCURATE_FIT</span> <span class="o">=</span> <span class="mi">100000</span>
+    <span class="n">EXTREME_FIT</span> <span class="o">=</span> <span class="mi">10000000</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure_a</span><span class="p">,</span> <span class="n">structure_b</span><span class="p">,</span> <span class="n">tolerance_cell_misfit</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">tolerance_atomic_misfit</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">supercells_allowed</span> <span class="o">=</span> <span class="bp">True</span><span class="p">,</span> <span class="n">anonymized</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span> <span class="n">fitting_accuracy</span> <span class="o">=</span> <span class="n">FAST_FIT</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Fits two structures.</span>
+<span class="sd">        All fitting parameters have been set with defaults that should work in most cases.</span>
+<span class="sd">        To use, initialize the structure fitter with parameters, and then run fit()</span>
+<span class="sd">        E.g.,</span>
+<span class="sd">        fitter = StructureFitter(a, b)</span>
+<span class="sd">        print fitter</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            structure_a : </span>
+<span class="sd">                First structure</span>
+<span class="sd">            structure_b : </span>
+<span class="sd">                Second structure to try to match with first structure</span>
+<span class="sd">            tolerance_cell_misfit : </span>
+<span class="sd">                Tolerance for cell misfit. Default = 0.1</span>
+<span class="sd">            tolerance_atomic_misfit : </span>
+<span class="sd">                Tolerance for atomic misfit. Default = 1.0.</span>
+<span class="sd">            supercells_allowed : </span>
+<span class="sd">                Whether supercell structures are allowed.  Default = True.</span>
+<span class="sd">            anonymized : </span>
+<span class="sd">                Whether to attempt matching of different species.  Setting this to true</span>
+<span class="sd">                will allow any two structures with the same framework, but different species</span>
+<span class="sd">                to match to each other. Default = False.</span>
+<span class="sd">            fitting_accuracy : </span>
+<span class="sd">                An integer setting for the fitting accuracy.  Corresponds to the max number</span>
+<span class="sd">                of candidate rotations considered.  Use the static variables, </span>
+<span class="sd">                StructureFitter.FAST_FIT</span>
+<span class="sd">                StructureFitter.NORMAL_FIT</span>
+<span class="sd">                StructureFitter.ACCURATE_FIT</span>
+<span class="sd">                to set the tradeoff between accuracy and speed.  The default, FAST_FIT, should</span>
+<span class="sd">                work reasonably well in most instances.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tolerance_cell_misfit</span> <span class="o">=</span> <span class="n">tolerance_cell_misfit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tolerance_atomic_misfit</span> <span class="o">=</span> <span class="n">tolerance_atomic_misfit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_supercells_allowed</span> <span class="o">=</span> <span class="n">supercells_allowed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_anonymized</span> <span class="o">=</span> <span class="n">anonymized</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_rotations</span> <span class="o">=</span> <span class="n">fitting_accuracy</span>
+        <span class="c">#Sort structures first so that they have the same arrangement of species</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_structure_a</span> <span class="o">=</span> <span class="n">structure_a</span><span class="o">.</span><span class="n">get_sorted_structure</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_structure_b</span> <span class="o">=</span> <span class="n">structure_b</span><span class="o">.</span><span class="n">get_sorted_structure</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mapping_op</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_anonymized</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_structure_a</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_structure_b</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">fit_found</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">el_mapping</span> <span class="o">=</span> <span class="p">{</span><span class="n">el</span><span class="p">:</span><span class="n">el</span> <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_structure_a</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">elements</span><span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">comp_a</span> <span class="o">=</span> <span class="n">structure_a</span><span class="o">.</span><span class="n">composition</span>
+            <span class="n">comp_b</span> <span class="o">=</span> <span class="n">structure_b</span><span class="o">.</span><span class="n">composition</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">comp_a</span><span class="o">.</span><span class="n">elements</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">comp_b</span><span class="o">.</span><span class="n">elements</span><span class="p">):</span>
+                <span class="n">el_a</span> <span class="o">=</span> <span class="n">comp_a</span><span class="o">.</span><span class="n">elements</span>
+                <span class="c">#Create permutations of the specie/elements in structure A </span>
+                <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">permutations</span><span class="p">(</span><span class="n">el_a</span><span class="p">):</span>
+                    <span class="c"># Create mapping of the specie/elements in structure B to that of A.</span>
+                    <span class="c"># Then create a modified structure with those elements and try to fit it.</span>
+                    <span class="n">el_mapping</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">comp_b</span><span class="o">.</span><span class="n">elements</span><span class="p">,</span> <span class="n">p</span><span class="p">))</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Using specie mapping &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">el_mapping</span><span class="p">))</span>
+                    <span class="n">mod</span> <span class="o">=</span> <span class="n">StructureEditor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_structure_b</span><span class="p">)</span>
+                    <span class="n">mod</span><span class="o">.</span><span class="n">replace_species</span><span class="p">(</span><span class="n">el_mapping</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_structure_a</span><span class="p">,</span> <span class="n">mod</span><span class="o">.</span><span class="n">modified_structure</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mapping_op</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+                        <span class="c">#Store successful element mapping</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">el_mapping</span> <span class="o">=</span> <span class="p">{</span><span class="n">el_a</span><span class="p">:</span><span class="n">el_b</span> <span class="k">for</span> <span class="n">el_b</span><span class="p">,</span> <span class="n">el_a</span> <span class="ow">in</span> <span class="n">el_mapping</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+                        <span class="k">break</span>                
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;No. of elements in structures are unequal.  Cannot be fitted!&quot;</span><span class="p">)</span>          
+
+        
+<div class="viewcode-block" id="StructureFitter.fit"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.structure_fitter.StructureFitter.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span> 
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compares two structures and give the possible affine mapping that</span>
+<span class="sd">        transforms one into another.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">biggest_dist</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Structure a&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">a</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Structure b&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">b</span><span class="p">))</span>
+        
+        <span class="c"># Check composition first.  If compositions are not the same, do not need to fit further.</span>
+        <span class="k">if</span> <span class="n">a</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">reduced_formula</span> <span class="o">!=</span> <span class="n">b</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">reduced_formula</span> <span class="ow">or</span> <span class="p">((</span><span class="n">a</span><span class="o">.</span><span class="n">num_sites</span> <span class="o">!=</span> <span class="n">b</span><span class="o">.</span><span class="n">num_sites</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_supercells_allowed</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;Compositions do not match&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">None</span>
+        
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;Compositions match&#39;</span><span class="p">)</span>
+
+        <span class="c"># Fitting is done by matching sites in one structure (to_fit)</span>
+        <span class="c"># to the other (fixed).  </span>
+        <span class="c"># We set the structure with fewer sites as fixed, </span>
+        <span class="c"># and scale the structures to the same density</span>
+        <span class="p">(</span><span class="n">fixed</span><span class="p">,</span> <span class="n">to_fit</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scale_structures</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="n">b</span><span class="p">)</span>
+        <span class="c"># Defines the atom misfit tolerance</span>
+        <span class="n">tol_atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tolerance_atomic_misfit</span> <span class="o">*</span> <span class="p">(</span> <span class="mi">3</span> <span class="o">*</span> <span class="mf">0.7405</span> <span class="o">*</span> <span class="n">fixed</span><span class="o">.</span><span class="n">volume</span> <span class="o">/</span> <span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">fixed</span><span class="o">.</span><span class="n">num_sites</span><span class="p">))</span> <span class="o">**</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Atomic misfit tolerance = </span><span class="si">%.4f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">tol_atoms</span><span class="p">)</span> <span class="p">)</span>
+        <span class="n">tol_atoms_plus</span> <span class="o">=</span> <span class="mf">1.1</span> <span class="o">*</span> <span class="n">tol_atoms</span>
+        
+        <span class="n">max_sites</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s">&#39;inf&#39;</span><span class="p">)</span>
+        <span class="c"># determine which type of sites to use for the mapping</span>
+        <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">to_fit</span><span class="o">.</span><span class="n">species_and_occu</span><span class="p">:</span>
+            <span class="n">sp_sites</span> <span class="o">=</span> <span class="p">[</span><span class="n">site</span> <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">to_fit</span> <span class="k">if</span> <span class="n">site</span><span class="o">.</span><span class="n">species_and_occu</span> <span class="o">==</span> <span class="n">sp</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sp_sites</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">max_sites</span><span class="p">:</span>
+                <span class="n">fit_sites</span> <span class="o">=</span> <span class="n">sp_sites</span>
+                <span class="n">max_sites</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">sp_sites</span><span class="p">)</span>
+        
+        <span class="c"># Set the arbitrary origin</span>
+        <span class="n">origin</span> <span class="o">=</span> <span class="n">fit_sites</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Origin = &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">origin</span><span class="p">)</span> <span class="p">)</span>
+        <span class="c"># now that candidate rotations have been found, shift origin of to_fit</span>
+        <span class="c"># because the symmetry operations will be applied from this origin</span>
+
+        <span class="n">oshift</span> <span class="o">=</span> <span class="n">SymmOp</span><span class="o">.</span><span class="n">from_rotation_matrix_and_translation_vector</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="o">-</span><span class="n">origin</span><span class="o">.</span><span class="n">coords</span><span class="p">)</span>
+        <span class="n">shifted_to_fit</span> <span class="o">=</span> <span class="n">apply_operation</span><span class="p">(</span><span class="n">to_fit</span><span class="p">,</span> <span class="n">oshift</span><span class="p">)</span>    
+        <span class="n">found_map</span> <span class="o">=</span> <span class="bp">False</span>
+
+        <span class="c"># This is cheating, but let&#39;s try a simple rotation first.  In many situations,</span>
+        <span class="c"># E.g., when a structure has been topotatically delithiated or substituted, you actually</span>
+        <span class="c"># can get a very fast answer without having to try all rotations.</span>
+        <span class="n">simple_rot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_rot_matrix</span><span class="p">(</span><span class="n">fixed</span><span class="p">,</span> <span class="n">to_fit</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">simple_rot</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">rot</span> <span class="o">=</span> <span class="n">SymmOp</span><span class="o">.</span><span class="n">from_rotation_matrix_and_translation_vector</span><span class="p">(</span><span class="n">simple_rot</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]))</span>
+            <span class="p">(</span><span class="n">found_map</span><span class="p">,</span> <span class="n">mapping_op</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_test_rot</span><span class="p">(</span><span class="n">rot</span><span class="p">,</span> <span class="n">origin</span><span class="p">,</span> <span class="n">fixed</span><span class="p">,</span> <span class="n">shifted_to_fit</span><span class="p">,</span> <span class="n">tol_atoms</span><span class="p">,</span> <span class="n">tol_atoms_plus</span><span class="p">)</span>
+            
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">found_map</span><span class="p">:</span> <span class="c">#If simple rotation matching does not work, we have to search and try all rotations.</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Identity matching failed. Finding candidate rotations.&quot;</span><span class="p">)</span>
+            <span class="c">#Get candidate rotations</span>
+            <span class="n">cand_rot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_candidate_rotations</span><span class="p">(</span><span class="n">origin</span><span class="p">,</span> <span class="n">fixed</span><span class="p">,</span> <span class="n">to_fit</span><span class="p">)</span>
+            
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot; FOUND {} candidate rotations &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cand_rot</span><span class="p">)))</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cand_rot</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;No candidate rotations found, returning null. &quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="bp">None</span>
+            
+            <span class="c"># sort the operations, the first ones are the ones with small shear</span>
+            <span class="c"># this assures us that we find the smallest cell misfit fits</span>
+            <span class="n">sorted_cand_rot</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">cand_rot</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">r</span><span class="p">:</span> <span class="n">cand_rot</span><span class="p">[</span><span class="n">r</span><span class="p">])</span>
+            
+            <span class="k">for</span> <span class="n">rot</span> <span class="ow">in</span> <span class="n">sorted_cand_rot</span><span class="p">:</span>
+                <span class="p">(</span><span class="n">found_map</span><span class="p">,</span> <span class="n">mapping_op</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_test_rot</span><span class="p">(</span><span class="n">rot</span><span class="p">,</span> <span class="n">origin</span><span class="p">,</span> <span class="n">fixed</span><span class="p">,</span> <span class="n">shifted_to_fit</span><span class="p">,</span> <span class="n">tol_atoms</span><span class="p">,</span> <span class="n">tol_atoms_plus</span><span class="p">)</span>
+                
+                <span class="k">if</span> <span class="n">found_map</span><span class="p">:</span>
+                    <span class="k">break</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Identity matching found.&quot;</span><span class="p">)</span>
+        
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Done testing all candidate rotations&quot;</span><span class="p">)</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_atomic_misfit</span> <span class="o">=</span> <span class="n">biggest_dist</span> <span class="o">/</span> <span class="p">((</span><span class="mi">3</span> <span class="o">*</span> <span class="mf">0.7405</span> <span class="o">*</span> <span class="n">a</span><span class="o">.</span><span class="n">volume</span> <span class="o">/</span> <span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">a</span><span class="o">.</span><span class="n">num_sites</span><span class="p">))</span> <span class="o">**</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="mi">3</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">mapping_op</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">rot</span> <span class="o">=</span> <span class="n">mapping_op</span><span class="o">.</span><span class="n">rotation_matrix</span> <span class="c"># maps toFit to fixed</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="n">sqrt_matrix</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">rot</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span><span class="n">rot</span><span class="p">))</span>
+            <span class="n">scale_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+            <span class="n">newrot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">scale_matrix</span><span class="p">,</span> <span class="n">rot</span><span class="p">)</span>
+            <span class="c"># we need to now make sure fitterdata.MappingOp maps b -&gt; a and not</span>
+            <span class="c"># the other way around</span>
+            <span class="n">mshift</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">rot</span><span class="p">,</span> <span class="n">oshift</span><span class="o">.</span><span class="n">translation_vector</span><span class="p">)</span>
+            <span class="n">finaltranslation</span> <span class="o">=</span> <span class="n">mapping_op</span><span class="o">.</span><span class="n">translation_vector</span> <span class="o">+</span> <span class="n">mshift</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">composite_op</span> <span class="o">=</span> <span class="n">SymmOp</span><span class="o">.</span><span class="n">from_rotation_matrix_and_translation_vector</span><span class="p">(</span><span class="n">newrot</span><span class="p">,</span> <span class="n">finaltranslation</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mapping_op</span> <span class="o">=</span> <span class="n">composite_op</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">fixed_is_a</span> <span class="k">else</span> <span class="n">composite_op</span><span class="o">.</span><span class="n">inverse</span>
+            <span class="c">#self._mapping_op = mapping_op</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cell_misfit</span> <span class="o">=</span> <span class="n">shear_invariant</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">_get_rot_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fixed</span><span class="p">,</span> <span class="n">to_fit</span><span class="p">):</span>
+        <span class="n">a1</span> <span class="o">=</span> <span class="n">fixed</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">angles</span>
+        <span class="n">a2</span> <span class="o">=</span> <span class="n">to_fit</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">angles</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">a1</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">a2</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">None</span>
+        <span class="n">to_fit_unit_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">row</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">to_fit</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">matrix</span><span class="p">])</span>
+        <span class="n">fixed_unit_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">row</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">fixed</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">matrix</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">to_fit_unit_matrix</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">fixed_unit_matrix</span><span class="o">.</span><span class="n">transpose</span><span class="p">()))</span>
+        
+    
+    <span class="k">def</span> <span class="nf">_test_rot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rot</span><span class="p">,</span> <span class="n">origin</span><span class="p">,</span> <span class="n">fixed</span><span class="p">,</span> <span class="n">to_fit</span><span class="p">,</span> <span class="n">tol_atoms</span><span class="p">,</span> <span class="n">tol_atoms_plus</span><span class="p">):</span>
+        <span class="n">found_map</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">mapping_op</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">fixed</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Trying candidate rotation : </span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">rot</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">site</span><span class="o">.</span><span class="n">species_and_occu</span> <span class="o">==</span> <span class="n">origin</span><span class="o">.</span><span class="n">species_and_occu</span><span class="p">:</span>
+                <span class="n">shift</span> <span class="o">=</span> <span class="n">site</span><span class="o">.</span><span class="n">coords</span>
+                <span class="n">op</span> <span class="o">=</span> <span class="n">SymmOp</span><span class="o">.</span><span class="n">from_rotation_matrix_and_translation_vector</span><span class="p">(</span><span class="n">rot</span><span class="o">.</span><span class="n">rotation_matrix</span><span class="p">,</span> <span class="n">shift</span><span class="p">)</span>
+                <span class="n">nstruct</span> <span class="o">=</span> <span class="n">apply_operation</span><span class="p">(</span><span class="n">to_fit</span><span class="p">,</span> <span class="n">op</span><span class="p">)</span>
+                <span class="n">correspondance</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+                <span class="n">all_match</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="n">biggest_dist</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="c"># check to see if transformed struct matches fixed structure</span>
+                <span class="k">for</span> <span class="n">trans</span> <span class="ow">in</span> <span class="n">nstruct</span><span class="p">:</span>
+                    <span class="n">cands</span> <span class="o">=</span> <span class="n">fixed</span><span class="o">.</span><span class="n">get_sites_in_sphere</span><span class="p">(</span><span class="n">trans</span><span class="o">.</span><span class="n">coords</span><span class="p">,</span> <span class="n">tol_atoms_plus</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cands</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;No candidates found1&quot;</span><span class="p">)</span>
+                        <span class="n">all_match</span> <span class="o">=</span> <span class="bp">False</span>
+                        <span class="k">break</span>
+                    <span class="n">cands</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">cands</span><span class="p">,</span> <span class="n">key</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">a</span><span class="p">:</span> <span class="n">a</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="p">(</span><span class="n">closest</span><span class="p">,</span> <span class="n">closest_dist</span><span class="p">)</span> <span class="o">=</span> <span class="n">cands</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">closest_dist</span> <span class="o">&gt;</span> <span class="n">tol_atoms</span> <span class="ow">or</span> <span class="n">closest</span><span class="o">.</span><span class="n">species_and_occu</span> <span class="o">!=</span> <span class="n">trans</span><span class="o">.</span><span class="n">species_and_occu</span><span class="p">:</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Closest dist too large! closest dist = {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">closest_dist</span><span class="p">))</span>
+                        <span class="n">all_match</span> <span class="o">=</span> <span class="bp">False</span>
+                        <span class="k">break</span>
+                    <span class="n">correspondance</span><span class="p">[</span><span class="n">trans</span><span class="p">]</span> <span class="o">=</span> <span class="n">closest</span>
+                    <span class="k">if</span> <span class="n">closest_dist</span> <span class="o">&gt;</span> <span class="n">biggest_dist</span><span class="p">:</span>
+                        <span class="n">biggest_dist</span> <span class="o">=</span> <span class="n">closest_dist</span>
+                
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">all_match</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">are_sites_unique</span><span class="p">(</span><span class="n">correspondance</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="bp">False</span><span class="p">):</span>
+                    <span class="n">all_match</span> <span class="o">=</span> <span class="bp">False</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">correspondance</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="o">+</span> <span class="s">&quot; fits on &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>
+                    
+                <span class="c"># now check to see if the converse is true -- do all of the</span>
+                <span class="c"># sites of fixed match up with a site in toFit</span>
+                <span class="c"># this used to not be here. This fixes a bug.</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Checking inverse mapping&quot;</span><span class="p">)</span>
+                <span class="n">inv_correspondance</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+
+                <span class="c"># it used to be fixed.getNumSites() != nStruct.getNumSites()</span>
+                <span class="c"># so only when the number of sites are different but it&#39;s</span>
+                <span class="c"># actually better to allways check the reverse. This</span>
+                <span class="c"># elimininates weird situations where two atoms fit to one (reduced in the</span>
+                <span class="c"># unit cell)</span>
+                <span class="k">for</span> <span class="n">fixed_site</span> <span class="ow">in</span> <span class="n">fixed</span><span class="p">:</span>
+                    <span class="n">cands</span> <span class="o">=</span> <span class="n">nstruct</span><span class="o">.</span><span class="n">get_sites_in_sphere</span><span class="p">(</span><span class="n">fixed_site</span><span class="o">.</span><span class="n">coords</span><span class="p">,</span> <span class="n">tol_atoms_plus</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cands</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> 
+                        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Rejected because inverse mapping does not fit - Step 1&quot;</span><span class="p">)</span>
+                        <span class="n">all_match</span> <span class="o">=</span> <span class="bp">False</span>
+                        <span class="k">break</span>
+                    
+                    <span class="n">cands</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">cands</span><span class="p">,</span> <span class="n">key</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">a</span><span class="p">:</span> <span class="n">a</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="p">(</span><span class="n">closest</span><span class="p">,</span> <span class="n">closest_dist</span><span class="p">)</span> <span class="o">=</span> <span class="n">cands</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    
+                    <span class="k">if</span> <span class="n">closest_dist</span> <span class="o">&gt;</span> <span class="n">tol_atoms</span> <span class="ow">or</span> <span class="n">closest</span><span class="o">.</span><span class="n">species_and_occu</span> <span class="o">!=</span> <span class="n">fixed_site</span><span class="o">.</span><span class="n">species_and_occu</span><span class="p">:</span>
+                        <span class="n">all_match</span> <span class="o">=</span> <span class="bp">False</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Rejected because inverse mapping does not fit - Step 2&quot;</span><span class="p">)</span>
+                        <span class="k">break</span>
+                    <span class="n">inv_correspondance</span><span class="p">[</span><span class="n">fixed_site</span><span class="p">]</span> <span class="o">=</span> <span class="n">closest</span>
+                
+                <span class="k">if</span> <span class="n">all_match</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">are_sites_unique</span><span class="p">(</span><span class="n">inv_correspondance</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="bp">False</span><span class="p">):</span>
+                        <span class="n">all_match</span> <span class="o">=</span> <span class="bp">False</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Rejected because two atoms fit to the same site for the inverse&quot;</span><span class="p">)</span>
+                
+                <span class="k">if</span> <span class="n">all_match</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">inv_correspondance</span> <span class="o">=</span> <span class="n">inv_correspondance</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Correspondance for the inverse&quot;</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">inv_correspondance</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;{} fits on {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="n">v</span><span class="p">))</span>
+                        
+                <span class="c"># The smallest correspondance array shouldn&#39;t have any equivalent sites</span>
+                <span class="k">if</span> <span class="n">fixed</span><span class="o">.</span><span class="n">num_sites</span> <span class="o">!=</span> <span class="n">to_fit</span><span class="o">.</span><span class="n">num_sites</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Testing sites unique&quot;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">are_sites_unique</span><span class="p">(</span><span class="n">correspondance</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span> 
+                        <span class="n">all_match</span> <span class="o">=</span> <span class="bp">False</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Rejected because the smallest correspondance array has equivallent sites&quot;</span><span class="p">)</span>
+                        <span class="k">break</span>
+    
+                <span class="k">if</span> <span class="n">all_match</span><span class="p">:</span>
+                    <span class="n">found_map</span> <span class="o">=</span> <span class="bp">True</span>
+                    <span class="n">mapping_op</span> <span class="o">=</span> <span class="n">op</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">correspondance</span> <span class="o">=</span> <span class="n">correspondance</span>
+                    <span class="k">break</span>
+                
+        <span class="k">return</span> <span class="p">(</span><span class="n">found_map</span><span class="p">,</span> <span class="n">mapping_op</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        
+        <span class="n">output</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;Fitting structures&quot;</span><span class="p">]</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">Structure 1:&quot;</span><span class="p">)</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_structure_a</span><span class="p">))</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">Structure 2:&quot;</span><span class="p">)</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_structure_b</span><span class="p">))</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">Fitting parameters:&quot;</span><span class="p">)</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\t</span><span class="s">Tolerance cell misfit = &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tolerance_cell_misfit</span><span class="p">))</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\t</span><span class="s">Supercells allowed = &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_supercells_allowed</span><span class="p">))</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\t</span><span class="s">Anonymized  = &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_anonymized</span><span class="p">))</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">Fitting &quot;</span> <span class="o">+</span> <span class="p">(</span><span class="s">&quot;succeeded &quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mapping_op</span> <span class="o">!=</span> <span class="bp">None</span> <span class="k">else</span> <span class="s">&quot;failed&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mapping_op</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\t</span><span class="s">Mapping op = &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_mapping_op</span><span class="p">))</span>
+            <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\t</span><span class="s">Cell misfit = &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cell_misfit</span><span class="p">))</span>
+            <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\t</span><span class="s">Atomic misfit = &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_atomic_misfit</span><span class="p">))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_anonymized</span><span class="p">:</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;Element mapping&quot;</span><span class="p">)</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">k</span><span class="p">)</span> <span class="o">+</span> <span class="s">&quot; -&gt; &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">el_mapping</span><span class="o">.</span><span class="n">items</span><span class="p">()]))</span>  
+        <span class="k">return</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_scale_structures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+        <span class="c"># which structure do we want to fit to the other ?</span>
+        <span class="c"># assume that structure b has less sites and switch if needed</span>
+               
+        <span class="bp">self</span><span class="o">.</span><span class="n">fixed_is_a</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">num_sites</span>  <span class="o">&gt;</span> <span class="n">b</span><span class="o">.</span><span class="n">num_sites</span> 
+        <span class="p">(</span><span class="n">fixed</span><span class="p">,</span> <span class="n">to_fit</span><span class="p">)</span> <span class="o">=</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">fixed_is_a</span> <span class="k">else</span> <span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">a</span><span class="p">)</span>
+            
+        <span class="c"># scale the structures to the same density</span>
+        <span class="n">rho_a</span> <span class="o">=</span> <span class="n">fixed</span><span class="o">.</span><span class="n">num_sites</span> <span class="o">/</span> <span class="n">fixed</span><span class="o">.</span><span class="n">volume</span>
+        <span class="n">rho_b</span> <span class="o">=</span> <span class="n">to_fit</span><span class="o">.</span><span class="n">num_sites</span> <span class="o">/</span> <span class="n">to_fit</span><span class="o">.</span><span class="n">volume</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="p">(</span><span class="n">rho_b</span> <span class="o">/</span> <span class="n">rho_a</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="mi">3</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="n">scale</span>
+        <span class="n">to_fit</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">Lattice</span><span class="p">(</span><span class="n">to_fit</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">matrix</span> <span class="o">*</span> <span class="n">scale</span><span class="p">),</span> <span class="n">to_fit</span><span class="o">.</span><span class="n">species_and_occu</span><span class="p">,</span> <span class="n">to_fit</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">fixed</span><span class="p">,</span> <span class="n">to_fit</span><span class="p">)</span>
+        
+    
+    <span class="k">def</span> <span class="nf">_get_candidate_rotations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">origin</span><span class="p">,</span> <span class="n">fixed</span><span class="p">,</span> <span class="n">to_fit</span><span class="p">):</span>
+        <span class="n">tol_shear</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tolerance_cell_misfit</span>
+        <span class="n">fixed_basis</span> <span class="o">=</span> <span class="n">fixed</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">matrix</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
+        <span class="c"># need to generate candidate rotations ...</span>
+        <span class="n">lengths</span> <span class="o">=</span> <span class="n">fixed</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">abc</span>
+        
+        <span class="n">shells</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+            <span class="n">dr</span> <span class="o">=</span> <span class="n">lengths</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">tol_shear</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">shell</span> <span class="o">=</span> <span class="n">to_fit</span><span class="o">.</span><span class="n">get_neighbors_in_shell</span><span class="p">(</span><span class="n">origin</span><span class="o">.</span><span class="n">coords</span><span class="p">,</span> <span class="n">lengths</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">dr</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;shell {} radius={} dr={}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">lengths</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">dr</span><span class="p">))</span>
+            <span class="n">shell</span> <span class="o">=</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">species_and_occu</span> <span class="o">==</span> <span class="n">origin</span><span class="o">.</span><span class="n">species_and_occu</span><span class="p">,</span> <span class="n">shell</span><span class="p">)</span>
+            <span class="n">shell</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">shell</span><span class="p">,</span> <span class="n">key</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">shells</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">site</span> <span class="k">for</span> <span class="p">(</span><span class="n">site</span><span class="p">,</span> <span class="n">dist</span><span class="p">)</span> <span class="ow">in</span> <span class="n">shell</span><span class="p">])</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;No. in shell = {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shells</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])))</span>
+        <span class="c"># now generate candidate rotations</span>
+        <span class="n">cand_rot</span> <span class="o">=</span> <span class="p">{}</span> <span class="c">#Dict of SymmOp : float</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">shells</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">shells</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">shells</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="n">total_rots</span> <span class="o">=</span> <span class="n">a</span> <span class="o">*</span> <span class="n">b</span> <span class="o">*</span> <span class="n">c</span>
+        <span class="k">if</span> <span class="n">total_rots</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_rotations</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Total rots = {}. Using all rotations.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">total_rots</span><span class="p">))</span>
+            <span class="n">test_rotations</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="o">*</span><span class="n">shells</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Total rots = {m} exceed max_rotations = {n}. Using {n} randomly selected rotations.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">m</span> <span class="o">=</span> <span class="n">total_rots</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_rotations</span><span class="p">))</span>
+            <span class="k">def</span> <span class="nf">random_rot</span><span class="p">():</span>
+                <span class="n">considered_rots</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">considered_rots</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_rotations</span><span class="p">:</span>
+                    <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span> <span class="o">=</span> <span class="p">[</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="p">[</span><span class="n">a</span><span class="p">,</span><span class="n">b</span><span class="p">,</span><span class="n">c</span><span class="p">]]</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">z</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">considered_rots</span><span class="p">:</span>
+                        <span class="n">considered_rots</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">z</span><span class="p">))</span>
+                        <span class="k">yield</span> <span class="p">(</span><span class="n">shells</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">x</span><span class="p">],</span> <span class="n">shells</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="n">y</span><span class="p">],</span> <span class="n">shells</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="n">z</span><span class="p">])</span>
+            <span class="n">test_rotations</span> <span class="o">=</span> <span class="n">random_rot</span><span class="p">()</span>
+            
+        <span class="k">for</span> <span class="n">pool</span> <span class="ow">in</span> <span class="n">test_rotations</span><span class="p">:</span>
+            <span class="c"># now, can a unitary transformation bring the cell vectors together</span>
+            <span class="n">cell_v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">nn</span><span class="o">.</span><span class="n">coords</span> <span class="o">-</span> <span class="n">origin</span><span class="o">.</span><span class="n">coords</span> <span class="k">for</span> <span class="n">nn</span> <span class="ow">in</span> <span class="n">pool</span><span class="p">])</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
+            <span class="n">det</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">det</span><span class="p">(</span><span class="n">cell_v</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">det</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.001</span> <span class="ow">or</span> <span class="nb">abs</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">det</span><span class="p">)</span> <span class="o">-</span> <span class="n">fixed</span><span class="o">.</span><span class="n">volume</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.01</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">rot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">fixed_basis</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">cell_v</span><span class="p">))</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">SymmOp</span><span class="o">.</span><span class="n">from_rotation_matrix_and_translation_vector</span><span class="p">(</span><span class="n">rot</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]))</span>
+            
+            <span class="k">if</span> <span class="n">r</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">cand_rot</span><span class="p">:</span>
+                <span class="n">transf</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">rotation_matrix</span>
+                <span class="n">transf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">transf</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span> <span class="n">transf</span><span class="p">)</span>
+                <span class="n">transf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="k">if</span> <span class="n">almost_identity</span><span class="p">(</span><span class="n">transf</span><span class="p">)</span> <span class="k">else</span> <span class="n">transf</span>
+                <span class="n">pbis</span> <span class="o">=</span> <span class="n">sqrt_matrix</span><span class="p">(</span><span class="n">transf</span><span class="p">)</span>
+                <span class="n">shear_inv</span> <span class="o">=</span> <span class="n">shear_invariant</span><span class="p">(</span><span class="n">pbis</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">shear_inv</span> <span class="o">&lt;</span> <span class="n">tol_shear</span><span class="p">:</span>
+                    <span class="n">cand_rot</span><span class="p">[</span><span class="n">r</span><span class="p">]</span> <span class="o">=</span> <span class="n">shear_inv</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Shear {} exceeds tol of {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">shear_inv</span><span class="p">,</span> <span class="n">tol_shear</span><span class="p">))</span>
+            
+        <span class="k">return</span> <span class="n">cand_rot</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="StructureFitter.fit_found"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.structure_fitter.StructureFitter.fit_found">[docs]</a>    <span class="k">def</span> <span class="nf">fit_found</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        True if a fit was found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapping_op</span> <span class="o">!=</span> <span class="bp">None</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="StructureFitter.mapping_op"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.structure_fitter.StructureFitter.mapping_op">[docs]</a>    <span class="k">def</span> <span class="nf">mapping_op</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Operation mapping the two structures.  None if no fit was found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>    
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mapping_op</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="StructureFitter.structure_a"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.structure_fitter.StructureFitter.structure_a">[docs]</a>    <span class="k">def</span> <span class="nf">structure_a</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        First input structure</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_structure_a</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="StructureFitter.structure_b"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.structure_fitter.StructureFitter.structure_b">[docs]</a>    <span class="k">def</span> <span class="nf">structure_b</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Second input structure</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_structure_b</span>
+</div></div>
+<div class="viewcode-block" id="apply_operation"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.structure_fitter.apply_operation">[docs]</a><span class="k">def</span> <span class="nf">apply_operation</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">symmop</span><span class="p">):</span>
+    <span class="n">editor</span> <span class="o">=</span> <span class="n">StructureEditor</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
+    <span class="n">editor</span><span class="o">.</span><span class="n">apply_operation</span><span class="p">(</span><span class="n">symmop</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">editor</span><span class="o">.</span><span class="n">modified_structure</span>
+</div>
+<div class="viewcode-block" id="sqrt_matrix"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.structure_fitter.sqrt_matrix">[docs]</a><span class="k">def</span> <span class="nf">sqrt_matrix</span><span class="p">(</span><span class="n">input_matrix</span><span class="p">):</span>
+    <span class="n">d</span><span class="p">,</span><span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eig</span><span class="p">(</span><span class="n">input_matrix</span><span class="p">)</span>
+    <span class="n">diagonalbis</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">**</span><span class="mf">0.5</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],[</span><span class="mi">0</span><span class="p">,</span><span class="n">d</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">**</span><span class="mf">0.5</span><span class="p">,</span><span class="mi">0</span><span class="p">],[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">d</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mf">0.5</span><span class="p">]])</span> 
+    <span class="n">temp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">diagonalbis</span><span class="p">,</span><span class="n">v</span><span class="o">.</span><span class="n">transpose</span><span class="p">())</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">temp</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span>
+</div>
+<div class="viewcode-block" id="shear_invariant"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.structure_fitter.shear_invariant">[docs]</a><span class="k">def</span> <span class="nf">shear_invariant</span><span class="p">(</span><span class="n">matrix</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="n">matrix</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">matrix</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">matrix</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="n">matrix</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">6</span><span class="o">*</span><span class="p">(</span><span class="n">matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="n">matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="o">+</span><span class="n">matrix</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">matrix</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span>
+</div>
+<div class="viewcode-block" id="are_sites_unique"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.structure_fitter.are_sites_unique">[docs]</a><span class="k">def</span> <span class="nf">are_sites_unique</span><span class="p">(</span><span class="n">sites</span><span class="p">,</span> <span class="n">allow_periodic_image</span> <span class="o">=</span> <span class="bp">True</span><span class="p">):</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">site1</span><span class="p">,</span> <span class="n">site2</span><span class="p">)</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">combinations</span><span class="p">(</span><span class="n">sites</span><span class="p">,</span><span class="mi">2</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">allow_periodic_image</span> <span class="ow">and</span> <span class="n">site1</span><span class="o">.</span><span class="n">is_periodic_image</span><span class="p">(</span><span class="n">site2</span><span class="p">))</span> <span class="ow">or</span> <span class="p">(</span><span class="n">site1</span><span class="o">.</span><span class="n">species_and_occu</span> <span class="o">==</span> <span class="n">site2</span><span class="o">.</span><span class="n">species_and_occu</span> <span class="ow">and</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">site1</span><span class="o">.</span><span class="n">coords</span> <span class="o">-</span> <span class="n">site2</span><span class="o">.</span><span class="n">coords</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()):</span>
+            <span class="k">return</span> <span class="bp">False</span>
+    <span class="k">return</span> <span class="bp">True</span>
+</div>
+<div class="viewcode-block" id="closest_site_to_point"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.structure_fitter.closest_site_to_point">[docs]</a><span class="k">def</span> <span class="nf">closest_site_to_point</span><span class="p">(</span><span class="n">pt</span><span class="p">,</span> <span class="n">list_of_sites</span><span class="p">):</span>
+    <span class="n">closest_dist</span> <span class="o">=</span> <span class="mf">1e10</span>
+    <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">list_of_sites</span><span class="p">:</span>
+        <span class="n">dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">coords</span> <span class="o">-</span> <span class="n">pt</span><span class="p">)</span>       
+        <span class="k">if</span> <span class="n">dist</span> <span class="o">&lt;</span> <span class="n">closest_dist</span><span class="p">:</span>
+            <span class="n">closest</span> <span class="o">=</span> <span class="n">c</span>
+            <span class="n">closest_dist</span> <span class="o">=</span> <span class="n">dist</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">closest</span><span class="p">,</span> <span class="n">closest_dist</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="almost_identity"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.structure_fitter.almost_identity">[docs]</a><span class="k">def</span> <span class="nf">almost_identity</span><span class="p">(</span><span class="n">mat</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is to resolve a very very strange bug in numpy that causes random eigen vectors to be returned</span>
+<span class="sd">    for matrices very very close to the identity matrix.  See test_eig for examples.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">mat</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mf">1e-10</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+</pre></div></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">pymatgen 1.5.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Michael Kocher, Geoffroy Hautier, Dan Gunter, William Davidson Richards.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>

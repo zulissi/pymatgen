@@ -1,0 +1,282 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.core.operations &mdash; pymatgen 1.5.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.5.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../../static/favicon.ico"/>
+    <link rel="top" title="pymatgen 1.5.0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">pymatgen 1.5.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for pymatgen.core.operations</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module provides classes that operate on points or vectors in 3D space.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+
+<span class="n">__author__</span><span class="o">=</span><span class="s">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot;Copyright 2011, The Materials Project&quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;1.0&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s">&quot;shyue@mit.edu&quot;</span>
+<span class="n">__status__</span> <span class="o">=</span> <span class="s">&quot;Production&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span><span class="s">&quot;Sep 23, 2011&quot;</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">sin</span><span class="p">,</span> <span class="n">cos</span><span class="p">,</span> <span class="n">pi</span>
+
+<div class="viewcode-block" id="SymmOp"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.operations.SymmOp">[docs]</a><span class="k">class</span> <span class="nc">SymmOp</span> <span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A symmetry operation in cartesian space.</span>
+<span class="sd">    Consists of a rotation plus a translation.</span>
+<span class="sd">    Implementation is as an affine transformation matrix of rank 4 for efficiency.</span>
+<span class="sd">    Read: http://en.wikipedia.org/wiki/Affine_transformation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">affine_transformation_matrix</span><span class="p">,</span> <span class="n">tol</span> <span class="o">=</span> <span class="mf">0.01</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initializes the SymmOp from a 4x4 affine transformation matrix.</span>
+<span class="sd">        In general, this constructor should not be used unless you are </span>
+<span class="sd">        transferring rotations.  Use the static constructors instead to</span>
+<span class="sd">        generate a SymmOp from proper rotations and translation.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            affine_transformation_matrix: A 4x4 numpy.array representing an affine transformation.</span>
+<span class="sd">            tol: Tolerance for determining if matrices are equal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">affine_transformation_matrix</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span><span class="mi">4</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Affine Matrix must be a 4x4 numpy array!&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_matrix</span> <span class="o">=</span> <span class="n">affine_transformation_matrix</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tol</span> <span class="o">=</span> <span class="n">tol</span>
+    
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="SymmOp.from_rotation_matrix_and_translation_vector"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.operations.SymmOp.from_rotation_matrix_and_translation_vector">[docs]</a>    <span class="k">def</span> <span class="nf">from_rotation_matrix_and_translation_vector</span><span class="p">(</span><span class="n">rotation_matrix</span> <span class="o">=</span> <span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">)),</span> <span class="n">translation_vec</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">),</span> <span class="n">tol</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates a symmetry operation from a rotation matrix and a translation vector.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            rotation_matrix: </span>
+<span class="sd">                A 3x3 numpy.array specifying a rotation matrix</span>
+<span class="sd">            translation_vec: </span>
+<span class="sd">                A rank 1 numpy.array specifying a translation vector</span>
+<span class="sd">            tol: </span>
+<span class="sd">                tolerance to determine if rotation matrix is valid</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">rotation_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">rotation_matrix</span><span class="p">)</span>
+        <span class="n">translation_vec</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">translation_vec</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">rotation_matrix</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="mi">3</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Rotation Matrix must be a 3x3 numpy array.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">translation_vec</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Translation vector must be a rank 1 numpy array with 3 elements.&quot;</span><span class="p">)</span>
+        <span class="n">affine_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+        <span class="n">affine_matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">][:,</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">rotation_matrix</span>
+        <span class="n">affine_matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">][:,</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">translation_vec</span>
+        <span class="k">return</span> <span class="n">SymmOp</span><span class="p">(</span><span class="n">affine_matrix</span><span class="p">,</span> <span class="n">tol</span><span class="p">)</span>
+               </div>
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matrix</span> <span class="o">-</span> <span class="n">other</span><span class="o">.</span><span class="n">_matrix</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tol</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="mi">7</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__str__</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;Rot:&quot;</span><span class="p">]</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">][:,</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">]))</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;tau&quot;</span><span class="p">)</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">][:,</span><span class="mi">3</span><span class="p">]))</span>
+        <span class="k">return</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="SymmOp.operate"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.operations.SymmOp.operate">[docs]</a>    <span class="k">def</span> <span class="nf">operate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">point</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Apply the operation on a point.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            point - a cartesian coordinate represented as a rank 1 numpy array of 3 elements.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">affine_point</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">point</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">point</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">point</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">affine_point</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">point</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matrix</span><span class="p">,</span> <span class="n">affine_point</span><span class="p">)[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="SymmOp.apply_rotation_only"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.operations.SymmOp.apply_rotation_only">[docs]</a>    <span class="k">def</span> <span class="nf">apply_rotation_only</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vector</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Vectors should only be operated by the rotation matrix and not the translation vector</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            vector - a rank 1 numpy array of 3 elements representing a vector.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rotation_matrix</span><span class="p">,</span> <span class="n">vector</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="SymmOp.are_symmetrically_related"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.operations.SymmOp.are_symmetrically_related">[docs]</a>    <span class="k">def</span> <span class="nf">are_symmetrically_related</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">point_a</span><span class="p">,</span> <span class="n">point_b</span><span class="p">,</span> <span class="n">tol</span> <span class="o">=</span> <span class="mf">0.001</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Checks if two points are symmetrically related.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            point_a - Point a</span>
+<span class="sd">            point_b - Point b</span>
+<span class="sd">            tol - tolerance for checking.</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            True if self.operate(point_a) == point_b or vice versa.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">operate</span><span class="p">(</span><span class="n">point_a</span><span class="p">)</span> <span class="o">-</span> <span class="n">point_b</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+            <span class="k">return</span> <span class="bp">True</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">operate</span><span class="p">(</span><span class="n">point_b</span><span class="p">)</span> <span class="o">-</span> <span class="n">point_a</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+            <span class="k">return</span> <span class="bp">True</span>
+        <span class="k">return</span> <span class="bp">False</span>
+    </div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="SymmOp.affine_matrix"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.operations.SymmOp.affine_matrix">[docs]</a>    <span class="k">def</span> <span class="nf">affine_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A 4x4 numpy.array representing the symmetry operation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matrix</span>
+    </div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="SymmOp.rotation_matrix"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.operations.SymmOp.rotation_matrix">[docs]</a>    <span class="k">def</span> <span class="nf">rotation_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A 3x3 numpy.array representing the rotation matrix</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">][:,</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">]</span>
+    </div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="SymmOp.translation_vector"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.operations.SymmOp.translation_vector">[docs]</a>    <span class="k">def</span> <span class="nf">translation_vector</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A rank 1 numpy.array of dim 3 representing the translation vector.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">][:,</span><span class="mi">3</span><span class="p">]</span>
+    </div>
+    <span class="k">def</span> <span class="nf">__mul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a new SymmOp which is equivalent to apply the &quot;other&quot; SymmOp followed by this one.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">new_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matrix</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">_matrix</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">SymmOp</span><span class="p">(</span><span class="n">new_matrix</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="SymmOp.inverse"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.operations.SymmOp.inverse">[docs]</a>    <span class="k">def</span> <span class="nf">inverse</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns inverse of transformation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">invr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_matrix</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">SymmOp</span><span class="p">(</span><span class="n">invr</span><span class="p">)</span>
+</div>
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="SymmOp.from_axis_angle_and_translation"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.operations.SymmOp.from_axis_angle_and_translation">[docs]</a>    <span class="k">def</span> <span class="nf">from_axis_angle_and_translation</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="n">angle</span><span class="p">,</span> <span class="n">angle_in_radians</span> <span class="o">=</span> <span class="bp">False</span><span class="p">,</span> <span class="n">translation_vec</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generates a SymmOp for a rotation about a given axis plus a translation.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            axis - The axis of rotation in cartesian space. For example, [1,0,0] indicates rotation about x-axis.</span>
+<span class="sd">            angle - The angle of rotation.</span>
+<span class="sd">            angle_in_radians - Set to True if angles are given in radians.  Else, units of degrees is assumed.</span>
+<span class="sd">            translation_vec - A translation vector.  Defaults to zero.</span>
+<span class="sd">            </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">axis</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+            <span class="n">axis</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">translation_vec</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+            <span class="n">translation_vec</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">translation_vec</span><span class="p">)</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">angle</span> <span class="k">if</span> <span class="n">angle_in_radians</span> <span class="k">else</span> <span class="n">angle</span> <span class="o">*</span> <span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span>
+        <span class="n">cosa</span> <span class="o">=</span> <span class="n">cos</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+        <span class="n">sina</span> <span class="o">=</span> <span class="n">sin</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> 
+        <span class="n">u</span> <span class="o">=</span> <span class="n">axis</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span><span class="mi">3</span><span class="p">))</span> 
+        <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">cosa</span> <span class="o">+</span> <span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">cosa</span><span class="p">)</span>
+        <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">u</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">cosa</span><span class="p">)</span> <span class="o">-</span> <span class="n">u</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">sina</span>
+        <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">u</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">cosa</span><span class="p">)</span> <span class="o">+</span> <span class="n">u</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">sina</span>
+        <span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">u</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">cosa</span><span class="p">)</span> <span class="o">+</span> <span class="n">u</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="n">sina</span>     
+        <span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">cosa</span> <span class="o">+</span> <span class="n">u</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">cosa</span><span class="p">)</span>     
+        <span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">u</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">u</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">cosa</span><span class="p">)</span> <span class="o">-</span> <span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">sina</span>     
+        <span class="n">r</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">u</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">cosa</span><span class="p">)</span> <span class="o">-</span> <span class="n">u</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">sina</span>     
+        <span class="n">r</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">u</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">u</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">cosa</span><span class="p">)</span> <span class="o">+</span> <span class="n">u</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">sina</span>     
+        <span class="n">r</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">cosa</span> <span class="o">+</span> <span class="n">u</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">cosa</span><span class="p">)</span>    
+        
+        <span class="k">return</span> <span class="n">SymmOp</span><span class="o">.</span><span class="n">from_rotation_matrix_and_translation_vector</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">translation_vec</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">pymatgen 1.5.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Michael Kocher, Geoffroy Hautier, Dan Gunter, William Davidson Richards.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>

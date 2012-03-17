@@ -1,0 +1,212 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.alchemy.transmuters &mdash; pymatgen 1.5.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.5.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../../static/favicon.ico"/>
+    <link rel="top" title="pymatgen 1.5.0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">pymatgen 1.5.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for pymatgen.alchemy.transmuters</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">This module implements various transmuter classes.</span>
+<span class="sd">Transmuters are essentially classes that generate TransformedStructures from</span>
+<span class="sd">various data sources. They enable the high-throughput generation of new</span>
+<span class="sd">structures and input files.</span>
+
+<span class="sd">It also includes the helper function, batch_write_vasp_input to generate an entire</span>
+<span class="sd">directory of vasp input files for running.</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+
+<span class="n">__author__</span><span class="o">=</span><span class="s">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot;Copyright 2012, The Materials Project&quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;0.1&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s">&quot;shyue@mit.edu&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span> <span class="s">&quot;Mar 4, 2012&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">collections</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.alchemy.materials</span> <span class="kn">import</span> <span class="n">CifTransformedStructure</span><span class="p">,</span> <span class="n">PoscarTransformedStructure</span>
+
+
+<div class="viewcode-block" id="CifTransmuter"><a class="viewcode-back" href="../../../pymatgen.alchemy.html#pymatgen.alchemy.transmuters.CifTransmuter">[docs]</a><span class="k">class</span> <span class="nc">CifTransmuter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The CifTransmuter generates new structures from cifs that may contain</span>
+<span class="sd">    multiple structures.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transformations</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            transformations:</span>
+<span class="sd">                List of standard_transformations objects.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transformations</span> <span class="o">=</span> <span class="n">transformations</span>
+        
+<div class="viewcode-block" id="CifTransmuter.transmute"><a class="viewcode-back" href="../../../pymatgen.alchemy.html#pymatgen.alchemy.transmuters.CifTransmuter.transmute">[docs]</a>    <span class="k">def</span> <span class="nf">transmute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cif_filenames</span><span class="p">,</span> <span class="n">primitive</span> <span class="o">=</span> <span class="bp">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Transmute a list of cifs defined by cif_filenames.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            cif_filenames:</span>
+<span class="sd">                Sequence of cif filenames. Each cif may or may not contain multiple </span>
+<span class="sd">                structures.</span>
+<span class="sd">            primitive:</span>
+<span class="sd">                Whether to convert all cells to primitive. Defaults to true.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">transformed_structures</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">cif_filenames</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">structure_data</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">read_data</span> <span class="o">=</span> <span class="bp">False</span>
+                <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s">&quot;^\s*data&quot;</span><span class="p">,</span> <span class="n">line</span><span class="p">):</span>
+                        <span class="n">structure_data</span><span class="o">.</span><span class="n">append</span><span class="p">([])</span>
+                        <span class="n">read_data</span> <span class="o">=</span> <span class="bp">True</span>
+                    <span class="k">if</span> <span class="n">read_data</span><span class="p">:</span>
+                        <span class="n">structure_data</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+                <span class="n">transformed_structures</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">CifTransformedStructure</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transformations</span><span class="p">,</span> <span class="n">primitive</span><span class="p">)</span> <span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">structure_data</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">transformed_structures</span>
+</div></div>
+<div class="viewcode-block" id="PoscarTransmuter"><a class="viewcode-back" href="../../../pymatgen.alchemy.html#pymatgen.alchemy.transmuters.PoscarTransmuter">[docs]</a><span class="k">class</span> <span class="nc">PoscarTransmuter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The PoscarTransmuter generates new structures from a sequence of Poscar file names.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transformations</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            transformations:</span>
+<span class="sd">                List of standard_transformations objects.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transformations</span> <span class="o">=</span> <span class="n">transformations</span>
+        
+<div class="viewcode-block" id="PoscarTransmuter.transmute"><a class="viewcode-back" href="../../../pymatgen.alchemy.html#pymatgen.alchemy.transmuters.PoscarTransmuter.transmute">[docs]</a>    <span class="k">def</span> <span class="nf">transmute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">poscar_filenames</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Transmute a list of poscars defined by poscars_filenames.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            poscar_filenames:</span>
+<span class="sd">                Sequence of poscar filenames.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">transformed_structures</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">poscar_filenames</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">transformed_structures</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">PoscarTransformedStructure</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transformations</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">transformed_structures</span>
+        
+</div></div>
+<div class="viewcode-block" id="batch_write_vasp_input"><a class="viewcode-back" href="../../../pymatgen.alchemy.html#pymatgen.alchemy.transmuters.batch_write_vasp_input">[docs]</a><span class="k">def</span> <span class="nf">batch_write_vasp_input</span><span class="p">(</span><span class="n">transformed_structures</span><span class="p">,</span> <span class="n">vasp_input_set</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">,</span> <span class="n">create_directory</span> <span class="o">=</span> <span class="bp">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Batch write vasp input for a sequence of transformed structures to output_dir,</span>
+<span class="sd">    following the format output_dir/{formula}_{number}.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        transformed_structures:</span>
+<span class="sd">            Sequence of TransformedStructures.</span>
+<span class="sd">        vasp_input_set:</span>
+<span class="sd">            pymatgen.io.vaspio_set.VaspInputSet like object that creates</span>
+<span class="sd">            vasp input files from structures</span>
+<span class="sd">        output_dir:</span>
+<span class="sd">            Directory to output files</span>
+<span class="sd">        create_directory:</span>
+<span class="sd">            Create the directory if not present. Defaults to True.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">dnames_count</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">transformed_structures</span><span class="p">:</span>
+        <span class="n">formula</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&quot;\s+&quot;</span><span class="p">,</span> <span class="s">&quot;&quot;</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">final_structure</span><span class="o">.</span><span class="n">formula</span><span class="p">)</span>
+        <span class="n">dirname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output_dir</span><span class="p">,</span> <span class="s">&#39;{}_{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">formula</span><span class="p">,</span> <span class="n">dnames_count</span><span class="p">[</span><span class="n">formula</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">s</span><span class="o">.</span><span class="n">write_vasp_input</span><span class="p">(</span><span class="n">vasp_input_set</span><span class="p">,</span> <span class="n">dirname</span><span class="p">,</span> <span class="n">create_directory</span> <span class="o">=</span> <span class="bp">True</span><span class="p">)</span>
+        <span class="n">dnames_count</span><span class="p">[</span><span class="n">formula</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        </div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">pymatgen 1.5.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Michael Kocher, Geoffroy Hautier, Dan Gunter, William Davidson Richards.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>

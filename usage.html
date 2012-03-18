@@ -113,8 +113,8 @@ choices. JSON is much more efficient as a format, with extremely fast read/write
 speed, but is much less readable. YAML is much slower in terms of io, but is
 human readable.</p>
 </div>
-<div class="section" id="creating-structures">
-<h1>Creating Structures<a class="headerlink" href="#creating-structures" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="structures">
+<h1>Structures<a class="headerlink" href="#structures" title="Permalink to this headline">¶</a></h1>
 <p>For most applications, you will be creating and manipulating Structure objects.
 There are several ways to create these objects:</p>
 <div class="section" id="creating-a-structure-manually">
@@ -122,7 +122,11 @@ There are several ways to create these objects:</p>
 <p>This is generally the most painful method. Though sometimes necessary, it is
 seldom the method you would use.  An example of creating the basic silicon
 crystal is provided below:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">si</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s">&quot;Si&quot;</span><span class="p">)</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="kn">import</span> <span class="n">Element</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.lattice</span> <span class="kn">import</span> <span class="n">Lattice</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="kn">import</span> <span class="n">Structure</span>
+
+<span class="n">si</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s">&quot;Si&quot;</span><span class="p">)</span>
 <span class="n">coords</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
 <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">])</span>
 <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.75</span><span class="p">,</span><span class="mf">0.5</span><span class="p">,</span><span class="mf">0.75</span><span class="p">])</span>
@@ -155,9 +159,8 @@ output formats, e.g. the CifWriter in pymatgen.io.cifio. In particular, the
 pymatgen.io.vaspio_set provides a powerful way to generate complete sets of VASP
 input files from a Structure.</p>
 </div>
-</div>
 <div class="section" id="things-you-can-do-with-structures">
-<h1>Things you can do with Structures<a class="headerlink" href="#things-you-can-do-with-structures" title="Permalink to this headline">¶</a></h1>
+<h2>Things you can do with Structures<a class="headerlink" href="#things-you-can-do-with-structures" title="Permalink to this headline">¶</a></h2>
 <p>This section is a work in progress.  But just to give an overview of the kind of
 analysis you can do:</p>
 <ol class="arabic simple">
@@ -167,6 +170,75 @@ better, using the pymatgen.transformations and pymatgen.alchemy packages.</li>
 pymatgen.analysis.ewald package, compare two structures for similarity using
 pymatgen.analysis.structure_fitter.</li>
 </ol>
+</div>
+</div>
+<div class="section" id="pymatgen-borg-high-throughput-data-assimilation">
+<h1>pymatgen.borg - High-throughput data assimilation<a class="headerlink" href="#pymatgen-borg-high-throughput-data-assimilation" title="Permalink to this headline">¶</a></h1>
+<p>The borg package is still a work in progress, but a lot can already be done with
+it. The basic concept is to provide a convenient means to
+assimilate large quantities of data in a directory structure. For now, the main
+application is the assimilation of entire directory structures of VASP
+calculations into usable pymatgen entries, which can then be used for phase
+diagram and other analyses.  The outline of how it works is as follows:</p>
+<ol class="arabic simple">
+<li>Drones are defined in the pymatgen.borg.hive module. A Drone is essentially
+an object which defines how a directory is parsed into a pymatgen object. For
+example, the VaspToComputedEntryDrone defines how a directory containing a
+vasp run (with a vasprun.xml file) is converted into ComputedEntry.</li>
+<li>The BorgQueen object in pymatgen.borg.queen module uses Drones to assimilate
+an entire subdirectory structure. Parallel processing is used where possible
+to speed up the process.</li>
+</ol>
+<div class="section" id="simple-example">
+<h2>Simple Example<a class="headerlink" href="#simple-example" title="Permalink to this headline">¶</a></h2>
+<p>Let&#8217;s say you want to make the Li-O phase diagram. You calculated all
+Li, O, and Li-O compounds you are interested in and the runs are in the directory
+&#8220;Li-O_runs&#8221;. You can then generate the phase diagram using the following few lines
+of code:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">pymatgen.borg.hive</span> <span class="kn">import</span> <span class="n">VaspToComputedEntryDrone</span>
+<span class="kn">from</span> <span class="nn">pymatgen.borg.queen</span> <span class="kn">import</span> <span class="n">BorgQueen</span>
+<span class="kn">from</span> <span class="nn">pymatgen.phasediagram.pdmaker</span> <span class="kn">import</span> <span class="n">PhaseDiagram</span>
+<span class="kn">from</span> <span class="nn">pymatgen.phasediagram.plotter</span> <span class="kn">import</span> <span class="n">PDPlotter</span>
+
+<span class="c"># These three lines assimilate the data into ComputedEntries.</span>
+<span class="n">drone</span> <span class="o">=</span> <span class="n">VaspToComputedEntryDrone</span><span class="p">()</span>
+<span class="n">queen</span> <span class="o">=</span> <span class="n">BorgQueen</span><span class="p">(</span><span class="n">drone</span><span class="p">,</span> <span class="s">&quot;Li-O_runs&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<span class="n">entries</span> <span class="o">=</span> <span class="n">queen</span><span class="o">.</span><span class="n">get_data</span><span class="p">()</span>
+
+<span class="c"># It&#39;s a good idea to perform a save_data, especially if you just assimilated</span>
+<span class="c"># a large quantity of data which took some time. This allows you to reload the</span>
+<span class="c"># data using a BorgQueen initialized with only the drone argument and calling</span>
+<span class="c"># queen.load_data(&quot;Li-O_entries.json&quot;)</span>
+<span class="n">queen</span><span class="o">.</span><span class="n">save_data</span><span class="p">(</span><span class="s">&quot;Li-O_entries.json&quot;</span><span class="p">)</span>
+
+<span class="c"># These few lines generates the phase diagram using the ComputedEntries.</span>
+<span class="n">pd</span> <span class="o">=</span> <span class="n">PhaseDiagram</span><span class="p">(</span><span class="n">entries</span><span class="p">)</span>
+<span class="n">plotter</span> <span class="o">=</span> <span class="n">PDPlotter</span><span class="p">(</span><span class="n">pd</span><span class="p">)</span>
+<span class="n">plotter</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Another example of a cool thing you can do with the loaded entries is to calculate
+reaction energies. For example, reusing the Li-O data we have saved in the above
+step,</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">pymatgen.borg.hive</span> <span class="kn">import</span> <span class="n">VaspToComputedEntryDrone</span>
+<span class="kn">from</span> <span class="nn">pymatgen.borg.queen</span> <span class="kn">import</span> <span class="n">BorgQueen</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.reaction_calculator</span> <span class="kn">import</span> <span class="n">ComputedReaction</span>
+
+<span class="c"># These three lines assimilate the data into ComputedEntries.</span>
+<span class="n">drone</span> <span class="o">=</span> <span class="n">VaspToComputedEntryDrone</span><span class="p">()</span>
+<span class="n">queen</span> <span class="o">=</span> <span class="n">BorgQueen</span><span class="p">(</span><span class="n">drone</span><span class="p">)</span>
+<span class="n">queen</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="s">&quot;Li-O_entries.json&quot;</span><span class="p">)</span>
+<span class="n">entries</span> <span class="o">=</span> <span class="n">queen</span><span class="o">.</span><span class="n">get_data</span><span class="p">()</span>
+
+<span class="c">#Extract the correct entries and compute the reaction.</span>
+<span class="n">rcts</span> <span class="o">=</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">e</span><span class="p">:</span> <span class="n">e</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">reduced_formula</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;Li&quot;</span><span class="p">,</span> <span class="s">&quot;O2&quot;</span><span class="p">],</span> <span class="n">entries</span><span class="p">)</span>
+<span class="n">prods</span> <span class="o">=</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">e</span><span class="p">:</span> <span class="n">e</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">reduced_formula</span> <span class="o">==</span> <span class="s">&quot;Li2O&quot;</span><span class="p">,</span> <span class="n">entries</span><span class="p">)</span>
+<span class="n">rxn</span> <span class="o">=</span> <span class="n">ComputedReaction</span><span class="p">(</span><span class="n">rcts</span><span class="p">,</span> <span class="n">prods</span><span class="p">)</span>
+<span class="k">print</span> <span class="n">rxn</span>
+<span class="k">print</span> <span class="n">rxn</span><span class="o">.</span><span class="n">calculated_reaction_energy</span>
+</pre></div>
+</div>
+</div>
 </div>
 <div class="section" id="example-scripts">
 <h1>Example scripts<a class="headerlink" href="#example-scripts" title="Permalink to this headline">¶</a></h1>
@@ -194,12 +266,16 @@ lines of code. For example, to read a POSCAR and write a cif:</p>
   <ul>
 <li><a class="reference internal" href="#">Overview</a></li>
 <li><a class="reference internal" href="#side-note-to-dict-from-dict">Side-note : to_dict/from_dict</a></li>
-<li><a class="reference internal" href="#creating-structures">Creating Structures</a><ul>
+<li><a class="reference internal" href="#structures">Structures</a><ul>
 <li><a class="reference internal" href="#creating-a-structure-manually">Creating a Structure manually</a></li>
 <li><a class="reference internal" href="#creating-structures-using-the-pymatgen-io-packages">Creating Structures using the pymatgen.io packages</a></li>
+<li><a class="reference internal" href="#things-you-can-do-with-structures">Things you can do with Structures</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#things-you-can-do-with-structures">Things you can do with Structures</a></li>
+<li><a class="reference internal" href="#pymatgen-borg-high-throughput-data-assimilation">pymatgen.borg - High-throughput data assimilation</a><ul>
+<li><a class="reference internal" href="#simple-example">Simple Example</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#example-scripts">Example scripts</a></li>
 </ul>
 

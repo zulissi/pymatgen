@@ -1,0 +1,165 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.transformations.transmuter_transformations &mdash; pymatgen 1.6.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.6.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../../static/favicon.ico"/>
+    <link rel="top" title="pymatgen 1.6.0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">pymatgen 1.6.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for pymatgen.transformations.transmuter_transformations</h1><div class="highlight"><pre>
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">This module performs common batches of transformations on a transmuter object.</span>
+<span class="sd">Basically just wrappers to perform common sets of operations</span>
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="kn">from</span> <span class="nn">pymatgen.transformations.standard_transformations</span> <span class="kn">import</span> <span class="n">SubstitutionTransformation</span><span class="p">,</span> <span class="n">ChargeBalanceTransformation</span><span class="p">,</span> <span class="n">OrderDisorderedStructureTransformation</span>
+
+<div class="viewcode-block" id="MultipleSubstitutionTransformation"><a class="viewcode-back" href="../../../pymatgen.transformations.html#pymatgen.transformations.transmuter_transformations.MultipleSubstitutionTransformation">[docs]</a><span class="k">class</span> <span class="nc">MultipleSubstitutionTransformation</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Performs multiple substitutions on a transmuter. For example, can do a fractional replacement of Ge in LiGePS with a list of species,</span>
+<span class="sd">    creating one structure for each substitution. Ordering is done using a dummy element so only one ordering must be done per substitution</span>
+<span class="sd">    oxidation state. Charge balancing of the structure is optionally performed.</span>
+<span class="sd">    </span>
+<span class="sd">    Note:</span>
+<span class="sd">    There are no checks to make sure that removal fractions are possible and rounding may occur</span>
+<span class="sd">    Currently charge balancing only works for removal of species</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sp_to_replace</span><span class="p">,</span> <span class="n">r_fraction</span><span class="p">,</span> <span class="n">substitution_dict</span><span class="p">,</span> <span class="n">charge_balance_species</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Performs multiple fractional substitutions on a transmuter</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            sp_to_replace</span>
+<span class="sd">                species to be replaced</span>
+<span class="sd">            r_fraction</span>
+<span class="sd">                fraction of that specie to replace</span>
+<span class="sd">            substitution_dict</span>
+<span class="sd">                dictionary of the format</span>
+<span class="sd">                {2: [&quot;Mg&quot;, &quot;Ti&quot;, &quot;V&quot;, &quot;As&quot;, &quot;Cr&quot;, &quot;Ta&quot;, &quot;N&quot;, &quot;Nb&quot;], </span>
+<span class="sd">                3: [&quot;Ru&quot;, &quot;Fe&quot;, &quot;Co&quot;, &quot;Ce&quot;, &quot;As&quot;, &quot;Cr&quot;, &quot;Ta&quot;, &quot;N&quot;, &quot;Nb&quot;],</span>
+<span class="sd">                4: [&quot;Ru&quot;, &quot;V&quot;, &quot;Cr&quot;, &quot;Ta&quot;, &quot;N&quot;, &quot;Nb&quot;], </span>
+<span class="sd">                5: [&quot;Ru&quot;, &quot;W&quot;, &quot;Mn&quot;]</span>
+<span class="sd">                }</span>
+<span class="sd">                The number is the charge used for each of the list of elements (an element can be present in multiple lists)</span>
+<span class="sd">            charge_balance_species:</span>
+<span class="sd">                if specified, will balance the charge on the structure using that specie</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sp_to_replace</span> <span class="o">=</span> <span class="n">sp_to_replace</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_r_fraction</span> <span class="o">=</span> <span class="n">r_fraction</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_substitution_dict</span> <span class="o">=</span> <span class="n">substitution_dict</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_charge_balance_species</span> <span class="o">=</span> <span class="n">charge_balance_species</span>
+        
+<div class="viewcode-block" id="MultipleSubstitutionTransformation.apply_transformation"><a class="viewcode-back" href="../../../pymatgen.transformations.html#pymatgen.transformations.transmuter_transformations.MultipleSubstitutionTransformation.apply_transformation">[docs]</a>    <span class="k">def</span> <span class="nf">apply_transformation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transmuter</span><span class="p">,</span> <span class="n">order</span> <span class="o">=</span> <span class="bp">True</span><span class="p">):</span>
+        <span class="n">substitutions</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_substitution_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">mapping</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">if</span> <span class="n">x</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">:</span>
+                <span class="n">sign</span> <span class="o">=</span> <span class="s">&#39;+&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">sign</span> <span class="o">=</span> <span class="s">&#39;-&#39;</span>
+            <span class="n">mapping</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_sp_to_replace</span><span class="p">]</span> <span class="o">=</span><span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_sp_to_replace</span><span class="p">:</span><span class="mi">1</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_r_fraction</span><span class="p">,</span> <span class="s">&#39;X{}{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">),</span><span class="n">sign</span><span class="p">):</span><span class="bp">self</span><span class="o">.</span><span class="n">_r_fraction</span><span class="p">}</span>
+            <span class="n">substitutions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">SubstitutionTransformation</span><span class="p">(</span><span class="n">mapping</span><span class="p">))</span>
+        <span class="n">transmuter</span><span class="o">.</span><span class="n">branch_collection</span><span class="p">(</span><span class="n">substitutions</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_charge_balance_species</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">cbt</span> <span class="o">=</span> <span class="n">ChargeBalanceTransformation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_charge_balance_species</span><span class="p">)</span>
+            <span class="n">transmuter</span><span class="o">.</span><span class="n">append_transformation</span><span class="p">(</span><span class="n">cbt</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">order</span><span class="p">:</span>
+            <span class="n">odst</span> <span class="o">=</span> <span class="n">OrderDisorderedStructureTransformation</span><span class="p">()</span>
+            <span class="n">transmuter</span><span class="o">.</span><span class="n">append_transformation</span><span class="p">(</span><span class="n">odst</span><span class="p">)</span>
+        
+        <span class="n">substitutions</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">oxistate</span><span class="p">,</span> <span class="n">element_list</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_substitution_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">element_list</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">x</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">:</span>
+                    <span class="n">sign</span> <span class="o">=</span> <span class="s">&#39;+&#39;</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">sign</span> <span class="o">=</span> <span class="s">&#39;-&#39;</span>
+                <span class="n">substitutions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">SubstitutionTransformation</span><span class="p">(</span> <span class="p">{</span><span class="s">&#39;X{}+&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">oxistate</span><span class="p">)):</span> <span class="s">&#39;{}{}{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">element</span><span class="p">,</span><span class="nb">str</span><span class="p">(</span><span class="n">oxistate</span><span class="p">),</span><span class="n">sign</span><span class="p">)})</span> <span class="p">)</span>
+        <span class="n">transmuter</span><span class="o">.</span><span class="n">branch_collection</span><span class="p">(</span><span class="n">substitutions</span><span class="p">)</span>
+        
+            </div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">pymatgen 1.6.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Michael Kocher, Geoffroy Hautier, Dan Gunter, William Davidson Richards.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>

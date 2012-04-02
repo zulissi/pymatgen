@@ -172,6 +172,49 @@ pymatgen.analysis.structure_fitter.</li>
 </ol>
 </div>
 </div>
+<div class="section" id="entries-basic-analysis-unit">
+<span id="entries"></span><h1>Entries - Basic analysis unit<a class="headerlink" href="#entries-basic-analysis-unit" title="Permalink to this headline">¶</a></h1>
+<p>Beyond the core Element, Site and Structure objects, most analyses within in
+pymatgen (e.g., creating a PhaseDiagram) is performed using Entry objects. An
+Entry in its most basic form contains a calculated energy and a composition,
+and may optionally contain other input or calculated data. In most instances,
+you will use the ComputedEntry or ComputedStructureEntry objects defined in the
+pymatgen.entries.computed_entries module. ComputedEntry objects can be created
+by either manually parsing calculated data calculations, or by using the
+pymatgen.borg package.</p>
+<div class="section" id="compatibility-mixing-gga-and-gga-u-runs">
+<span id="compatibility"></span><h2>Compatibility - Mixing GGA and GGA+U runs<a class="headerlink" href="#compatibility-mixing-gga-and-gga-u-runs" title="Permalink to this headline">¶</a></h2>
+<p>The Ceder group has developed a scheme where by GGA and GGA+U calculations can
+be &#8220;mixed&#8221; such that analyses may be performed using the type of calculation
+most appropriate for each entry. For instance, to generate a Fe-P-O phase diagram,
+metallic phases such as Fe and FexPy are most appropriately modelled using
+standard GGA, while a hubbard U should be applied for the oxides such as FexOy
+and FexPyOz.</p>
+<p>In the pymatgen.io.vaspio_set module, pre-defined parameter sets have been coded
+to allow users to generate VASP input files that are consistent with input
+parameters that are compatible with the Materials Project data. Users who wish to
+perform analysis using runs calculated using these parameters should post-process
+entries generated from these runs using the appropriate compatibility. For
+example, if a user wants to generate a phase diagram from a list of entries
+generated from Fe-P-O vasp runs, he should use the following procedure:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">pymatgen.entries.compatibility</span> <span class="kn">import</span> <span class="n">MaterialsProjectCompatibility</span>
+<span class="kn">from</span> <span class="nn">pymatgen.phasediagram.pdmaker</span> <span class="kn">import</span> <span class="n">PhaseDiagram</span>
+<span class="kn">from</span> <span class="nn">pymatgen.phasediagram.plotter</span> <span class="kn">import</span> <span class="n">PDPlotter</span>
+
+<span class="c"># Get unprocessed_entries using pymatgen.borg or other means.</span>
+
+<span class="c"># Process the entries for compatibility</span>
+<span class="n">compat</span> <span class="o">=</span> <span class="n">MaterialsProjectCompatibility</span><span class="p">()</span>
+<span class="n">processed_entries</span> <span class="o">=</span> <span class="n">compat</span><span class="o">.</span><span class="n">process_entries</span><span class="p">(</span><span class="n">unprocessed_entries</span><span class="p">)</span>
+
+<span class="c"># These few lines generates the phase diagram using the ComputedEntries.</span>
+<span class="n">pd</span> <span class="o">=</span> <span class="n">PhaseDiagram</span><span class="p">(</span><span class="n">processed_entries</span><span class="p">)</span>
+<span class="n">plotter</span> <span class="o">=</span> <span class="n">PDPlotter</span><span class="p">(</span><span class="n">pd</span><span class="p">)</span>
+<span class="n">plotter</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
 <div class="section" id="pymatgen-borg-high-throughput-data-assimilation">
 <h1>pymatgen.borg - High-throughput data assimilation<a class="headerlink" href="#pymatgen-borg-high-throughput-data-assimilation" title="Permalink to this headline">¶</a></h1>
 <p>The borg package is still a work in progress, but a lot can already be done with
@@ -190,7 +233,7 @@ an entire subdirectory structure. Parallel processing is used where possible
 to speed up the process.</li>
 </ol>
 <div class="section" id="simple-example-making-a-phase-diagram">
-<h2>Simple Example - Making a phase diagram<a class="headerlink" href="#simple-example-making-a-phase-diagram" title="Permalink to this headline">¶</a></h2>
+<h2>Simple example - Making a phase diagram<a class="headerlink" href="#simple-example-making-a-phase-diagram" title="Permalink to this headline">¶</a></h2>
 <p>Let&#8217;s say you want to make the Li-O phase diagram. You have calculated all
 Li, O, and Li-O compounds you are interested in and the runs are in the directory
 &#8220;Li-O_runs&#8221;. You can then generate the phase diagram using the following few lines
@@ -217,6 +260,10 @@ of code:</p>
 <span class="n">plotter</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
 </div>
+<p>In this example, neither Li nor O requires a Hubbard U. However, if you are making
+a phase diagram from a mix of GGA and GGA+U entries, you may need to post-process
+the assimilated entries with a Compatibility object before running the phase
+diagram code. See earlier section on <a class="reference internal" href="#entries">entries</a> and <a class="reference internal" href="#compatibility">compatibility</a>.</p>
 </div>
 <div class="section" id="another-example-calculating-reaction-energies">
 <h2>Another example - Calculating reaction energies<a class="headerlink" href="#another-example-calculating-reaction-energies" title="Permalink to this headline">¶</a></h2>
@@ -275,8 +322,12 @@ lines of code. For example, to read a POSCAR and write a cif:</p>
 <li><a class="reference internal" href="#things-you-can-do-with-structures">Things you can do with Structures</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#entries-basic-analysis-unit">Entries - Basic analysis unit</a><ul>
+<li><a class="reference internal" href="#compatibility-mixing-gga-and-gga-u-runs">Compatibility - Mixing GGA and GGA+U runs</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#pymatgen-borg-high-throughput-data-assimilation">pymatgen.borg - High-throughput data assimilation</a><ul>
-<li><a class="reference internal" href="#simple-example-making-a-phase-diagram">Simple Example - Making a phase diagram</a></li>
+<li><a class="reference internal" href="#simple-example-making-a-phase-diagram">Simple example - Making a phase diagram</a></li>
 <li><a class="reference internal" href="#another-example-calculating-reaction-energies">Another example - Calculating reaction energies</a></li>
 </ul>
 </li>

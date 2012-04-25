@@ -61,8 +61,7 @@ the pymatgen code base.</p>
 <p>Pymatgen is structured in a highly object-oriented manner. Almost everything
 (Element, Site, Structure, etc.) is an object.  Currently, the code is heavily
 biased towards the representation and manipulation of crystals with periodic
-boundary conditions, though flexibility has been built in for molecules and other
-materials.</p>
+boundary conditions, though flexibility has been built in for molecules.</p>
 <p>The core modules are in the (yes, you guess it) pymatgen.core package. Given the
 importance of this package for the overall functioning of the code, we have
 provided a quick summary of the various modules here:</p>
@@ -76,11 +75,11 @@ numbers, atomic masses, melting points, boiling points, just to name a few.</li>
 essentially defines the lattice vectors in three dimensions. The Lattice
 object provides convenience methods for performing fractional to cartesian
 coordinates and vice version, lattice parameter and angles computations, etc.</li>
-<li>pymatgen.core.structure : Defines the Site, PeriodicSite, Structure and
-Composition objects. A Site is essentially a coordinate point containing an
-Element or Specie. A PeriodicSite contains a Lattice as well. A Structure is
-simply a list of Sites having the same Lattice. Finally, a Composition is
-mapping of Element/Specie to amounts.</li>
+<li>pymatgen.core.structure : Defines the Site, PeriodicSite, Structure,
+Molecule, and Composition objects. A Site is essentially a coordinate point
+containing an Element or Specie. A PeriodicSite contains a Lattice as well.
+A Structure and Molecule are simply a list of PeriodicSites and Site
+respectively. Finally, a Composition is mapping of Element/Specie to amounts.</li>
 </ol>
 </div>
 <div class="section" id="side-note-to-dict-from-dict">
@@ -88,10 +87,10 @@ mapping of Element/Specie to amounts.</li>
 <p>As you explore the code, you may notice that many of the objects have a to_dict
 property and a from_dict static method implemented.  For most of the non-basic
 objects, we have designed pymatgen such that it is easy to save objects for
-subsequent use. While python does provide pickling functionality, pickle tends to
-be extremely fragile with respect to code changes. Pymatgen&#8217;s to_dict provide a
-means to save your work in a more robust manner, which also has the added benefit
-of being more readable. The dictionary representation is also particularly useful
+subsequent use. While python does provide pickling functionality, pickle tends
+to be extremely fragile with respect to code changes. Pymatgen&#8217;s to_dict provide
+a means to save your work in a more robust manner, which also has the added
+benefit of being more readable. The dict representation is also particularly useful
 for entering such objects into certain databases, such as MongoDb.</p>
 <p>The output from a to_dict method is always json/yaml serializable. So if you
 want to save a structure, you may do the following:</p>
@@ -110,28 +109,27 @@ follows:</p>
 <p>You may replace any of the above json commands with yaml in the PyYAML package
 to create a yaml file instead. There are certain tradeoffs between the two
 choices. JSON is much more efficient as a format, with extremely fast read/write
-speed, but is much less readable. YAML is much slower in terms of io, but is
-human readable.</p>
+speed, but is much less readable. YAML is an order of magnitude or more slower
+in terms of parsing, but is more human readable.</p>
 </div>
 <div class="section" id="structures">
 <h1>Structures<a class="headerlink" href="#structures" title="Permalink to this headline">¶</a></h1>
 <p>For most applications, you will be creating and manipulating Structure objects.
-There are several ways to create these objects:</p>
+The construction of Molecule follows a similar API. There are several ways to
+create these objects:</p>
 <div class="section" id="creating-a-structure-manually">
 <h2>Creating a Structure manually<a class="headerlink" href="#creating-a-structure-manually" title="Permalink to this headline">¶</a></h2>
 <p>This is generally the most painful method. Though sometimes necessary, it is
 seldom the method you would use.  An example of creating the basic silicon
 crystal is provided below:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="kn">import</span> <span class="n">Element</span>
-<span class="kn">from</span> <span class="nn">pymatgen.core.lattice</span> <span class="kn">import</span> <span class="n">Lattice</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">pymatgen.core.lattice</span> <span class="kn">import</span> <span class="n">Lattice</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="kn">import</span> <span class="n">Structure</span>
 
-<span class="n">si</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s">&quot;Si&quot;</span><span class="p">)</span>
 <span class="n">coords</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
 <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">])</span>
 <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.75</span><span class="p">,</span><span class="mf">0.5</span><span class="p">,</span><span class="mf">0.75</span><span class="p">])</span>
 <span class="n">lattice</span> <span class="o">=</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">from_parameters</span><span class="p">(</span><span class="n">a</span> <span class="o">=</span> <span class="mf">3.84</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="mf">3.84</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="mf">3.84</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">=</span> <span class="mi">120</span><span class="p">,</span> <span class="n">beta</span> <span class="o">=</span> <span class="mi">90</span><span class="p">,</span> <span class="n">gamma</span> <span class="o">=</span> <span class="mi">60</span><span class="p">)</span>
-<span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="p">[</span><span class="n">si</span><span class="p">,</span> <span class="n">si</span><span class="p">],</span> <span class="n">coords</span><span class="p">)</span>
+<span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;Si&quot;</span><span class="p">,</span> <span class="s">&quot;Si&quot;</span><span class="p">],</span> <span class="n">coords</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -157,7 +155,17 @@ as well as other information associated with these files.</p>
 <p>Many of these io packages also provide the means to write a Structure to various
 output formats, e.g. the CifWriter in pymatgen.io.cifio. In particular, the
 pymatgen.io.vaspio_set provides a powerful way to generate complete sets of VASP
-input files from a Structure.</p>
+input files from a Structure. In general, most file format conversions can be
+done with a few quick lines of code. For example, to read a POSCAR and write a
+cif:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">pymatgen.io.vaspio</span> <span class="kn">import</span> <span class="n">Poscar</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.cifio</span> <span class="kn">import</span> <span class="n">CifWriter</span>
+
+<span class="n">p</span> <span class="o">=</span> <span class="n">Poscar</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="s">&#39;POSCAR&#39;</span><span class="p">)</span>
+<span class="n">w</span> <span class="o">=</span> <span class="n">CifWriter</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">struct</span><span class="p">)</span>
+<span class="n">w</span><span class="o">.</span><span class="n">write_file</span><span class="p">(</span><span class="s">&#39;mystructure.cif&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
 </div>
 <div class="section" id="things-you-can-do-with-structures">
 <h2>Things you can do with Structures<a class="headerlink" href="#things-you-can-do-with-structures" title="Permalink to this headline">¶</a></h2>
@@ -340,18 +348,14 @@ of transformations on all of them.</li>
 </div>
 <div class="section" id="example-scripts">
 <h1>Example scripts<a class="headerlink" href="#example-scripts" title="Permalink to this headline">¶</a></h1>
-<p>Some example scripts have been provided in the scripts directory. In general,
-most file format conversions, manipulations and io can be done with a few quick
-lines of code. For example, to read a POSCAR and write a cif:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">pymatgen.io.vaspio</span> <span class="kn">import</span> <span class="n">Poscar</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.cifio</span> <span class="kn">import</span> <span class="n">CifWriter</span>
-
-<span class="n">p</span> <span class="o">=</span> <span class="n">Poscar</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="s">&#39;POSCAR&#39;</span><span class="p">)</span>
-<span class="n">w</span> <span class="o">=</span> <span class="n">CifWriter</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">struct</span><span class="p">)</span>
-<span class="n">w</span><span class="o">.</span><span class="n">write_file</span><span class="p">(</span><span class="s">&#39;mystructure.cif&#39;</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>More examples will be added soon.</p>
+<p>A good way to explore the functionality of pymatgen is to look at examples. We
+have written some example scripts to perform some commonly desired
+functionality, e.g., file format conversion, determining the spacegroup of a
+structure, plotting the DOS of a VASP run, visualizing a structure using VTK,
+etc. These example scripts can be found in the <a class="reference external" href="https://github.com/materialsproject/pymatgen/tree/master/scripts">scripts directory of pymatgen&#8217;s
+github repo</a>
+or the <a class="reference external" href="http://pypi.python.org/pypi/pymatgen">downloaded source from PyPI</a>.</p>
+<p>More examples will be added to the scripts directory in future.</p>
 </div>
 
 

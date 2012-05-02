@@ -1,0 +1,305 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.electronic_structure.plotter &mdash; pymatgen 1.9.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.9.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../../static/favicon.ico"/>
+    <link rel="top" title="pymatgen 1.9.0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">pymatgen 1.9.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for pymatgen.electronic_structure.plotter</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">This module implements plotter for DOS.</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot;Copyright 2012, The Materials Project&quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;0.1&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s">&quot;shyue@mit.edu&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span> <span class="s">&quot;May 1, 2012&quot;</span>
+
+
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.electronic_structure.core</span> <span class="kn">import</span> <span class="n">Spin</span>
+<span class="kn">from</span> <span class="nn">pymatgen.util.io_utils</span> <span class="kn">import</span> <span class="n">clean_json</span>
+
+
+<div class="viewcode-block" id="DosPlotter"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.DosPlotter">[docs]</a><span class="k">class</span> <span class="nc">DosPlotter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for plotting DOSes.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zero_at_efermi</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">stack</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                 <span class="n">sigma</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            zero_at_efermi:</span>
+<span class="sd">                Whether to shift all Dos to have zero energy at the fermi energy.</span>
+<span class="sd">                Defaults to True.</span>
+<span class="sd">            stack:</span>
+<span class="sd">                Whether to plot the DOS as a stacked area graph</span>
+<span class="sd">            key_sort_func:</span>
+<span class="sd">                function used to sort the dos_dict keys.</span>
+<span class="sd">            sigma:</span>
+<span class="sd">                A float specifying a standard deviation for Gaussian smearing the </span>
+<span class="sd">                DOS for nicer looking plots. Defaults to None for no smearing.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">zero_at_efermi</span> <span class="o">=</span> <span class="n">zero_at_efermi</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stack</span> <span class="o">=</span> <span class="n">stack</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">=</span> <span class="n">sigma</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_doses</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+
+<div class="viewcode-block" id="DosPlotter.add_dos"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.DosPlotter.add_dos">[docs]</a>    <span class="k">def</span> <span class="nf">add_dos</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">dos</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds a dos for plotting.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            label:</span>
+<span class="sd">                label for the DOS. Must be unique.</span>
+<span class="sd">            dos:</span>
+<span class="sd">                Dos object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">energies</span> <span class="o">=</span> <span class="n">dos</span><span class="o">.</span><span class="n">energies</span> <span class="o">-</span> <span class="n">dos</span><span class="o">.</span><span class="n">efermi</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">zero_at_efermi</span> <span class="k">else</span> <span class="n">dos</span><span class="o">.</span><span class="n">energies</span>
+        <span class="n">densities</span> <span class="o">=</span> <span class="n">dos</span><span class="o">.</span><span class="n">get_smeared_densities</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="k">else</span> <span class="n">dos</span><span class="o">.</span><span class="n">densities</span>
+        <span class="n">efermi</span> <span class="o">=</span> <span class="n">dos</span><span class="o">.</span><span class="n">efermi</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_doses</span><span class="p">[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;energies&#39;</span><span class="p">:</span><span class="n">energies</span><span class="p">,</span> <span class="s">&#39;densities&#39;</span><span class="p">:</span> <span class="n">densities</span><span class="p">,</span> <span class="s">&#39;efermi&#39;</span><span class="p">:</span><span class="n">efermi</span><span class="p">}</span>
+</div>
+<div class="viewcode-block" id="DosPlotter.add_dos_dict"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.DosPlotter.add_dos_dict">[docs]</a>    <span class="k">def</span> <span class="nf">add_dos_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dos_dict</span><span class="p">,</span> <span class="n">key_sort_func</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Add a dictionary of doses, with an optional sorting function for the </span>
+<span class="sd">        keys.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            dos_dict:</span>
+<span class="sd">                dict of {label: Dos}</span>
+<span class="sd">            key_sort_func:</span>
+<span class="sd">                function used to sort the dos_dict keys.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">key_sort_func</span><span class="p">:</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">dos_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="n">key_sort_func</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="n">dos_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_dos</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">dos_dict</span><span class="p">[</span><span class="n">label</span><span class="p">])</span>
+</div>
+<div class="viewcode-block" id="DosPlotter.get_dos_dict"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.DosPlotter.get_dos_dict">[docs]</a>    <span class="k">def</span> <span class="nf">get_dos_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the added doses as a json-serializable dict. Note that if you</span>
+<span class="sd">        have specified smearing for the DOS plot, the densities returned will</span>
+<span class="sd">        be the smeared densities, not the original densities.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Dict of dos data. Generally of the form, {label: {&#39;energies&#39;:..,</span>
+<span class="sd">            &#39;densities&#39;: {&#39;up&#39;:...}, &#39;efermi&#39;:efermi}}</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">clean_json</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_doses</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="DosPlotter.get_plot"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.DosPlotter.get_plot">[docs]</a>    <span class="k">def</span> <span class="nf">get_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">xlim</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get a matplotlib plot showing the DOS.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            xlim:</span>
+<span class="sd">                Specifies the x-axis limits. Set to None for automatic </span>
+<span class="sd">                determination.</span>
+<span class="sd">            ylim:</span>
+<span class="sd">                Specifies the y-axis limits. </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">pymatgen.util.plotting_utils</span> <span class="kn">import</span> <span class="n">get_publication_quality_plot</span>
+        <span class="n">plt</span> <span class="o">=</span> <span class="n">get_publication_quality_plot</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">8</span><span class="p">)</span>
+        <span class="n">color_order</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;r&#39;</span><span class="p">,</span> <span class="s">&#39;b&#39;</span><span class="p">,</span> <span class="s">&#39;g&#39;</span><span class="p">,</span> <span class="s">&#39;c&#39;</span><span class="p">]</span>
+
+        <span class="n">y</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">alldensities</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">allenergies</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Note that this complicated processing of energies is to allow for</span>
+<span class="sd">        stacked plots in matplotlib.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">dos</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_doses</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">energies</span> <span class="o">=</span> <span class="n">dos</span><span class="p">[</span><span class="s">&#39;energies&#39;</span><span class="p">]</span>
+            <span class="n">densities</span> <span class="o">=</span> <span class="n">dos</span><span class="p">[</span><span class="s">&#39;densities&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">y</span><span class="p">:</span>
+                <span class="n">y</span> <span class="o">=</span> <span class="p">{</span><span class="n">Spin</span><span class="o">.</span><span class="n">up</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">energies</span><span class="o">.</span><span class="n">shape</span><span class="p">),</span> <span class="n">Spin</span><span class="o">.</span><span class="n">down</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">energies</span><span class="o">.</span><span class="n">shape</span><span class="p">)}</span>
+            <span class="n">newdens</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">spin</span> <span class="ow">in</span> <span class="p">[</span><span class="n">Spin</span><span class="o">.</span><span class="n">up</span><span class="p">,</span> <span class="n">Spin</span><span class="o">.</span><span class="n">down</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">spin</span> <span class="ow">in</span> <span class="n">densities</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stack</span><span class="p">:</span>
+                        <span class="n">y</span><span class="p">[</span><span class="n">spin</span><span class="p">]</span> <span class="o">+=</span> <span class="n">densities</span><span class="p">[</span><span class="n">spin</span><span class="p">]</span>
+                        <span class="n">newdens</span><span class="p">[</span><span class="n">spin</span><span class="p">]</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">spin</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">newdens</span><span class="p">[</span><span class="n">spin</span><span class="p">]</span> <span class="o">=</span> <span class="n">densities</span><span class="p">[</span><span class="n">spin</span><span class="p">]</span>
+            <span class="n">allenergies</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">energies</span><span class="p">)</span>
+            <span class="n">alldensities</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">newdens</span><span class="p">)</span>
+
+        <span class="n">keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_doses</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">keys</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+        <span class="n">alldensities</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+        <span class="n">allenergies</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+        <span class="n">allpts</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">keys</span><span class="p">):</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">spin</span> <span class="ow">in</span> <span class="p">[</span><span class="n">Spin</span><span class="o">.</span><span class="n">up</span><span class="p">,</span> <span class="n">Spin</span><span class="o">.</span><span class="n">down</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">spin</span> <span class="ow">in</span> <span class="n">alldensities</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
+                    <span class="n">densities</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">spin</span><span class="p">)</span> <span class="o">*</span> <span class="n">alldensities</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">spin</span><span class="p">])</span>
+                    <span class="n">energies</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">allenergies</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="n">spin</span> <span class="o">==</span> <span class="n">Spin</span><span class="o">.</span><span class="n">down</span><span class="p">:</span>
+                        <span class="n">energies</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+                        <span class="n">densities</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+                    <span class="n">x</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">energies</span><span class="p">)</span>
+                    <span class="n">y</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">densities</span><span class="p">)</span>
+            <span class="n">allpts</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stack</span><span class="p">:</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color_order</span><span class="p">[</span><span class="n">i</span> <span class="o">%</span> <span class="mi">4</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color_order</span><span class="p">[</span><span class="n">i</span> <span class="o">%</span> <span class="mi">4</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">zero_at_efermi</span><span class="p">:</span>
+                <span class="n">ylim</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">()</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_doses</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s">&#39;efermi&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">_doses</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s">&#39;efermi&#39;</span><span class="p">]],</span> <span class="n">ylim</span><span class="p">,</span> <span class="n">color_order</span><span class="p">[</span><span class="n">i</span> <span class="o">%</span> <span class="mi">4</span><span class="p">]</span> <span class="o">+</span> <span class="s">&#39;--&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s">&#39;Energies (eV)&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s">&#39;Density of states&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">xlim</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="n">xlim</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ylim</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="n">ylim</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">xlim</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">()</span>
+            <span class="n">relevanty</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">allpts</span> <span class="k">if</span> <span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">xlim</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> <span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">xlim</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">((</span><span class="nb">min</span><span class="p">(</span><span class="n">relevanty</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">relevanty</span><span class="p">)))</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">zero_at_efermi</span><span class="p">:</span>
+            <span class="n">ylim</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">()</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">ylim</span><span class="p">,</span> <span class="s">&#39;k--&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+        <span class="n">leg</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span><span class="o">.</span><span class="n">get_legend</span><span class="p">()</span>
+        <span class="n">ltext</span> <span class="o">=</span> <span class="n">leg</span><span class="o">.</span><span class="n">get_texts</span><span class="p">()</span>  <span class="c"># all the text.Text instance in the legend</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">setp</span><span class="p">(</span><span class="n">ltext</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">plt</span>
+</div>
+<div class="viewcode-block" id="DosPlotter.save_plot"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.DosPlotter.save_plot">[docs]</a>    <span class="k">def</span> <span class="nf">save_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">img_format</span><span class="o">=</span><span class="s">&quot;eps&quot;</span><span class="p">,</span> <span class="n">xlim</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save matplotlib plot to a file.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            filename:</span>
+<span class="sd">                Filename to write to.</span>
+<span class="sd">            img_format:</span>
+<span class="sd">                Image format to use. Defaults to EPS.</span>
+<span class="sd">            xlim:</span>
+<span class="sd">                Specifies the x-axis limits. Set to None for automatic </span>
+<span class="sd">                determination.</span>
+<span class="sd">            ylim:</span>
+<span class="sd">                Specifies the y-axis limits. </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">plt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_plot</span><span class="p">(</span><span class="n">xlim</span><span class="p">,</span> <span class="n">ylim</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">format</span><span class="o">=</span><span class="n">img_format</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="DosPlotter.show"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.DosPlotter.show">[docs]</a>    <span class="k">def</span> <span class="nf">show</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">xlim</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">ylim</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Show the plot using matplotlib.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            xlim:</span>
+<span class="sd">                Specifies the x-axis limits. Set to None for automatic </span>
+<span class="sd">                determination.</span>
+<span class="sd">            ylim:</span>
+<span class="sd">                Specifies the y-axis limits. </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">plt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_plot</span><span class="p">(</span><span class="n">xlim</span><span class="p">,</span> <span class="n">ylim</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div></div></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">pymatgen 1.9.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Michael Kocher, Geoffroy Hautier, Dan Gunter, William Davidson Richards.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,269 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.matproj.rest &mdash; pymatgen 2.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '2.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../static/jquery.js"></script>
+    <script type="text/javascript" src="../../../static/underscore.js"></script>
+    <script type="text/javascript" src="../../../static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../../static/favicon.ico"/>
+    <link rel="top" title="pymatgen 2.0.0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">pymatgen 2.0.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for pymatgen.matproj.rest</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">This module provides classes to interface with the Materials Project http REST</span>
+<span class="sd">interface to enable the creation of data structures and pymatgen objects using</span>
+<span class="sd">Materials Project data. </span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot;Copyright 2012, The Materials Project&quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;0.1&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s">&quot;shyue@mit.edu&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span> <span class="s">&quot;Jun 8, 2012&quot;</span>
+
+<span class="kn">import</span> <span class="nn">urllib</span>
+<span class="kn">import</span> <span class="nn">urllib2</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">PMGJSONDecoder</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">from</span> <span class="nn">pymatgen.entries.compatibility</span> <span class="kn">import</span> <span class="n">MaterialsProjectCompatibility</span>
+
+
+<div class="viewcode-block" id="MPRestAdaptor"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRestAdaptor">[docs]</a><span class="k">class</span> <span class="nc">MPRestAdaptor</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A class to conveniently interface with the Materials Project REST interface.</span>
+<span class="sd">    </span>
+<span class="sd">    TODO</span>
+<span class="sd">    dos - Vasp DOS</span>
+<span class="sd">    bandstructure - Vasp Bandstructure</span>
+<span class="sd">    bandgap - Vasp bandgap</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">supported_properties</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;structure&quot;</span><span class="p">,</span> <span class="s">&quot;initial_structure&quot;</span><span class="p">,</span> <span class="s">&quot;final_structure&quot;</span><span class="p">,</span> <span class="s">&quot;energy&quot;</span><span class="p">,</span> <span class="s">&quot;energy_per_atom&quot;</span><span class="p">,</span> <span class="s">&quot;formation_energy_per_atom&quot;</span><span class="p">,</span>
+         <span class="s">&quot;nsites&quot;</span><span class="p">,</span> <span class="s">&quot;formula&quot;</span><span class="p">,</span> <span class="s">&quot;pretty_formula&quot;</span><span class="p">,</span> <span class="s">&quot;is_hubbard&quot;</span><span class="p">,</span>
+         <span class="s">&quot;elements&quot;</span><span class="p">,</span> <span class="s">&quot;nelements&quot;</span><span class="p">,</span> <span class="s">&quot;e_above_hull&quot;</span><span class="p">,</span> <span class="s">&quot;hubbards&quot;</span><span class="p">,</span> <span class="s">&quot;is_compatible&quot;</span><span class="p">,</span> <span class="s">&quot;entry&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">api_key</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">url</span> <span class="o">=</span> <span class="s">&quot;http://127.0.0.1:8000/rest&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">api_key</span> <span class="o">=</span> <span class="n">api_key</span>
+
+<div class="viewcode-block" id="MPRestAdaptor.get_data"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRestAdaptor.get_data">[docs]</a>    <span class="k">def</span> <span class="nf">get_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chemsys_formula_id</span><span class="p">,</span> <span class="n">prop</span><span class="o">=</span><span class="s">&quot;&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Flexible method to get any data using the Materials Project REST</span>
+<span class="sd">        interface.</span>
+<span class="sd">        </span>
+<span class="sd">        Format of REST return is *always* a list of dict (regardless of the</span>
+<span class="sd">        number of pieces of data returned. The general format is as follows:</span>
+<span class="sd">        </span>
+<span class="sd">        [{</span>
+<span class="sd">            &#39;material_id&#39;: material_id,</span>
+<span class="sd">            &#39;property_name&#39; : value</span>
+<span class="sd">        },</span>
+<span class="sd">        ...</span>
+<span class="sd">        ]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="s">&quot;{}/{}/vasp/{}?API_KEY={}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="p">,</span> <span class="n">chemsys_formula_id</span><span class="p">,</span> <span class="n">prop</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_key</span><span class="p">)</span>
+        <span class="n">req</span> <span class="o">=</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">req</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">PMGJSONDecoder</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">data</span><span class="p">[</span><span class="s">&#39;valid_response&#39;</span><span class="p">]:</span>
+            <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="s">&#39;response&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">MPRestError</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;error&#39;</span><span class="p">])</span>
+</div>
+<div class="viewcode-block" id="MPRestAdaptor.get_structure_by_material_id"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRestAdaptor.get_structure_by_material_id">[docs]</a>    <span class="k">def</span> <span class="nf">get_structure_by_material_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">material_id</span><span class="p">,</span> <span class="n">final</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get a Structure corresponding to a material_id.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            material_id:</span>
+<span class="sd">                Materials Project material_id (an int).</span>
+<span class="sd">            final:</span>
+<span class="sd">                Whether to get the final structure, or the initial</span>
+<span class="sd">                (pre-relaxation) structure. Defaults to True.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Structure object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">prop</span> <span class="o">=</span> <span class="s">&quot;final_structure&quot;</span> <span class="k">if</span> <span class="n">final</span> <span class="k">else</span> <span class="s">&quot;initial_structure&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_data</span><span class="p">(</span><span class="n">material_id</span><span class="p">,</span> <span class="n">prop</span><span class="o">=</span><span class="n">prop</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">prop</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="MPRestAdaptor.get_entry_by_material_id"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRestAdaptor.get_entry_by_material_id">[docs]</a>    <span class="k">def</span> <span class="nf">get_entry_by_material_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">material_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get a ComputedEntry corresponding to a material_id.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            material_id:</span>
+<span class="sd">                Materials Project material_id (an int).</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            ComputedEntry object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_data</span><span class="p">(</span><span class="n">material_id</span><span class="p">,</span> <span class="n">prop</span><span class="o">=</span><span class="s">&quot;entry&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s">&quot;entry&quot;</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="MPRestAdaptor.get_entries_in_chemsys"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRestAdaptor.get_entries_in_chemsys">[docs]</a>    <span class="k">def</span> <span class="nf">get_entries_in_chemsys</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elements</span><span class="p">,</span> <span class="n">compatible_only</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get a list of ComputedEntries in a chemical system. For example,</span>
+<span class="sd">        elements = [&quot;Li&quot;, &quot;Fe&quot;, &quot;O&quot;] will return a list of all entries in the</span>
+<span class="sd">        Li-Fe-O chemical system, i.e., all LixOy, FexOy, LixFey, LixFeyOz, Li,</span>
+<span class="sd">        Fe and O phases. Extremely useful for creating phase diagrams of entire</span>
+<span class="sd">        chemical systems.</span>
+<span class="sd">         </span>
+<span class="sd">        Args:</span>
+<span class="sd">            elements:</span>
+<span class="sd">                List of element symbols, e.g., [&quot;Li&quot;, &quot;Fe&quot;, &quot;O&quot;].</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            List of ComputedEntries.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_data</span><span class="p">(</span><span class="s">&quot;-&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">elements</span><span class="p">),</span> <span class="n">prop</span><span class="o">=</span><span class="s">&quot;entry&quot;</span><span class="p">)</span>
+        <span class="n">entries</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span><span class="p">[</span><span class="s">&#39;entry&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">compatible_only</span><span class="p">:</span>
+            <span class="n">entries</span> <span class="o">=</span> <span class="n">MaterialsProjectCompatibility</span><span class="p">()</span><span class="o">.</span><span class="n">process_entries</span><span class="p">(</span><span class="n">entries</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">entries</span>
+</div>
+<div class="viewcode-block" id="MPRestAdaptor.mpquery"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRestAdaptor.mpquery">[docs]</a>    <span class="k">def</span> <span class="nf">mpquery</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">criteria</span><span class="p">,</span> <span class="n">properties</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Performs an advanced mpquery, which is a Mongo-like syntax for directly</span>
+<span class="sd">        querying the Materials Project database via the mpquery rest interface.</span>
+<span class="sd">        Please refer to the Moogle advanced help on the mpquery language and</span>
+<span class="sd">        supported criteria and properties. Essentially, any supported properties</span>
+<span class="sd">        within MPRestAdaptor should be supported in mpquery.</span>
+<span class="sd">        </span>
+<span class="sd">        Mpquery allows an advanced developer to perform queries which are</span>
+<span class="sd">        otherwise too cumbersome to perform using the standard convenience</span>
+<span class="sd">        methods.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            criteria:</span>
+<span class="sd">                Criteria of the query as a mongo-style dict. For example, </span>
+<span class="sd">                {&#39;elements&#39;:{&#39;$in&#39;:[&#39;Li&#39;, &#39;Na&#39;, &#39;K&#39;], &#39;$all&#39;: [&#39;O&#39;]},</span>
+<span class="sd">                &#39;nelements&#39;:2} selects all Li, Na and K oxides</span>
+<span class="sd">                </span>
+<span class="sd">            properties:</span>
+<span class="sd">                Properties to request for as a list. For example,</span>
+<span class="sd">                [&#39;formula&#39;, &#39;formation_energy_per_atom&#39;] returns the formula</span>
+<span class="sd">                and formation energy per atom.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            List of dict of data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">urlencode</span><span class="p">({</span><span class="s">&#39;criteria&#39;</span><span class="p">:</span> <span class="n">criteria</span><span class="p">,</span> <span class="s">&#39;properties&#39;</span><span class="p">:</span> <span class="n">properties</span><span class="p">,</span> <span class="s">&#39;API_KEY&#39;</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">api_key</span><span class="p">})</span>
+        <span class="n">req</span> <span class="o">=</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="s">&quot;{}/mpquery&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="p">),</span> <span class="n">params</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">req</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">data</span>
+
+</div></div>
+<div class="viewcode-block" id="MPRestError"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRestError">[docs]</a><span class="k">class</span> <span class="nc">MPRestError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    Exception class for MPRestAdaptor.</span>
+<span class="sd">    Raised when the query has problems, e.g., bad query format.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;MPRestError Error : &quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">msg</span>
+</div>
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">adaptor</span> <span class="o">=</span> <span class="n">MPRestAdaptor</span><span class="p">(</span><span class="s">&quot;test_dev&quot;</span><span class="p">)</span>
+    <span class="n">entries</span> <span class="o">=</span> <span class="n">adaptor</span><span class="o">.</span><span class="n">get_entry_in_chemsys</span><span class="p">([</span><span class="s">&quot;Li&quot;</span><span class="p">,</span> <span class="s">&quot;Fe&quot;</span><span class="p">,</span> <span class="s">&quot;O&quot;</span><span class="p">])</span>
+    <span class="kn">from</span> <span class="nn">pymatgen.phasediagram.pdmaker</span> <span class="kn">import</span> <span class="n">PhaseDiagram</span>
+    <span class="n">pd</span> <span class="o">=</span> <span class="n">PhaseDiagram</span><span class="p">(</span><span class="n">entries</span><span class="p">)</span>
+    <span class="kn">from</span> <span class="nn">pymatgen.phasediagram.plotter</span> <span class="kn">import</span> <span class="n">PDPlotter</span>
+    <span class="n">plotter</span> <span class="o">=</span> <span class="n">PDPlotter</span><span class="p">(</span><span class="n">pd</span><span class="p">)</span>
+    <span class="n">plotter</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">pymatgen 2.0.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Michael Kocher, Geoffroy Hautier, Will Richards, Dan Gunter, Shreyas Cholia, Vincent L Chevrier, Rickard Armiento.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

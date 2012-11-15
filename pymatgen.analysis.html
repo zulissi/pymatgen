@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>analysis Package &mdash; pymatgen 2.2.4 documentation</title>
+    <title>analysis Package &mdash; pymatgen 2.2.5dev documentation</title>
     
     <link rel="stylesheet" href="static/nature.css" type="text/css" />
     <link rel="stylesheet" href="static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '2.2.4',
+        VERSION:     '2.2.5dev',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="static/underscore.js"></script>
     <script type="text/javascript" src="static/doctools.js"></script>
     <link rel="shortcut icon" href="static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.2.4 documentation" href="index.html" />
+    <link rel="top" title="pymatgen 2.2.5dev documentation" href="index.html" />
     <link rel="up" title="pymatgen Package" href="pymatgen.html" />
     <link rel="next" title="apps Package" href="pymatgen.apps.html" />
     <link rel="prev" title="alchemy Package" href="pymatgen.alchemy.html" />
@@ -53,7 +53,7 @@
         <li class="right" >
           <a href="pymatgen.alchemy.html" title="alchemy Package"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">pymatgen 2.2.4 documentation</a> &raquo;</li>
+        <li><a href="index.html">pymatgen 2.2.5dev documentation</a> &raquo;</li>
           <li><a href="modules.html" >pymatgen</a> &raquo;</li>
           <li><a href="pymatgen.html" accesskey="U">pymatgen Package</a> &raquo;</li> 
       </ul>
@@ -71,15 +71,25 @@
 <span class="target" id="module-pymatgen.analysis"></span></div>
 <div class="section" id="module-pymatgen.analysis.bond_valence">
 <span id="bond-valence-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">bond_valence</span></tt> Module<a class="headerlink" href="#module-pymatgen.analysis.bond_valence" title="Permalink to this headline">¶</a></h2>
-<p>Bond valence analysis module. Bond valence is calculated as:
-vi = exp((R0 - Ri) / b)
-and
-V = sum(vi)</p>
+<p>This module implements classes to perform bond valence analyses.</p>
 <dl class="class">
 <dt id="pymatgen.analysis.bond_valence.BVAnalyzer">
-<em class="property">class </em><tt class="descname">BVAnalyzer</tt><big>(</big><em>symm_tol=0.1</em>, <em>max_radius=4</em><big>)</big><a class="reference internal" href="modules/pymatgen/analysis/bond_valence.html#BVAnalyzer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.bond_valence.BVAnalyzer" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descname">BVAnalyzer</tt><big>(</big><em>symm_tol=0.1</em>, <em>max_radius=4</em>, <em>max_permutations=100000</em>, <em>distance_scale_factor=1.015</em><big>)</big><a class="reference internal" href="modules/pymatgen/analysis/bond_valence.html#BVAnalyzer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.bond_valence.BVAnalyzer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
-<p>Bond valence analyzer for assigning oxidation states to structures.</p>
+<p>This class implements a maximum a posteriori (MAP) estimation method to
+determine oxidation states in a structure. The algorithm is as follows:
+1) The bond valence sum of all symmetrically distinct sites in a structure
+is calculated using the element-based parameters in M. O&#8217;Keefe, &amp; N. Brese,
+JACS, 1991, 113(9), 3226-3229. doi:10.1021/ja00009a002.
+2) The posterior probabilities of all oxidation states is then calculated
+using: P(oxi_state/BV) = K * P(BV/oxi_state) * P(oxi_state), where K is
+a constant factor for each element. P(BV/oxi_state) is calculated as a
+Gaussian with mean and std deviation determined from an analysis of
+the ICSD. The posterior P(oxi_state) is determined from a frequency
+analysis of the ICSD.
+3) The oxidation states are then ranked in order of decreasing probability
+and the oxidation state combination that result in a charge neutral cell
+is selected.</p>
 <dl class="docutils">
 <dt>Args:</dt>
 <dd><dl class="first last docutils">
@@ -88,13 +98,22 @@ V = sum(vi)</p>
 symmetrically equivalent. Set to 0 to turn off symmetry.</dd>
 <dt>max_radius:</dt>
 <dd>Maximum radius in Angstrom used to find nearest neighbors.</dd>
+<dt>max_permutations:</dt>
+<dd>The maximum number of permutations of oxidation states to test.</dd>
+<dt>distance_scale_factor:</dt>
+<dd>A scale factor to be applied. This is useful for scaling
+distances, esp in the case of calculation-relaxed structures
+which may tend to under (GGA) or over bind (LDA). The default
+of 1.015 works for GGA. For experimental structure, set this to
+1.</dd>
 </dl>
 </dd>
 </dl>
 <dl class="method">
 <dt id="pymatgen.analysis.bond_valence.BVAnalyzer.get_oxi_state_decorated_structure">
 <tt class="descname">get_oxi_state_decorated_structure</tt><big>(</big><em>structure</em><big>)</big><a class="reference internal" href="modules/pymatgen/analysis/bond_valence.html#BVAnalyzer.get_oxi_state_decorated_structure"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.bond_valence.BVAnalyzer.get_oxi_state_decorated_structure" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get an oxidation state decorated structure.</p>
+<dd><p>Get an oxidation state decorated structure. This currently works only
+for ordered structures only.</p>
 <dl class="docutils">
 <dt>Args:</dt>
 <dd><dl class="first last docutils">
@@ -112,7 +131,8 @@ symmetrically equivalent. Set to 0 to turn off symmetry.</dd>
 <dl class="method">
 <dt id="pymatgen.analysis.bond_valence.BVAnalyzer.get_valences">
 <tt class="descname">get_valences</tt><big>(</big><em>structure</em><big>)</big><a class="reference internal" href="modules/pymatgen/analysis/bond_valence.html#BVAnalyzer.get_valences"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.bond_valence.BVAnalyzer.get_valences" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a list of valences for the structure.</p>
+<dd><p>Returns a list of valences for the structure. This currently works only
+for ordered structures only.</p>
 <dl class="docutils">
 <dt>Args:</dt>
 <dd><dl class="first last docutils">
@@ -130,119 +150,26 @@ e.g., [1, 1, -2].</dd>
 
 </dd></dl>
 
-<dl class="class">
-<dt id="pymatgen.analysis.bond_valence.BondValenceParam">
-<em class="property">class </em><tt class="descname">BondValenceParam</tt><big>(</big><em>species</em>, <em>R</em>, <em>b</em><big>)</big><a class="reference internal" href="modules/pymatgen/analysis/bond_valence.html#BondValenceParam"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.bond_valence.BondValenceParam" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="pymatgen.serializers.html#pymatgen.serializers.json_coders.MSONable" title="pymatgen.serializers.json_coders.MSONable"><tt class="xref py py-class docutils literal"><span class="pre">pymatgen.serializers.json_coders.MSONable</span></tt></a></p>
-<p>A helper object to contain a particular set of bond valence parameters.</p>
+<dl class="function">
+<dt id="pymatgen.analysis.bond_valence.calculate_bv_sum">
+<tt class="descname">calculate_bv_sum</tt><big>(</big><em>site</em>, <em>nn_list</em>, <em>scale_factor=1</em><big>)</big><a class="headerlink" href="#pymatgen.analysis.bond_valence.calculate_bv_sum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the BV sum of a site.</p>
 <dl class="docutils">
 <dt>Args:</dt>
 <dd><dl class="first last docutils">
-<dt>species:</dt>
-<dd>A sequence of two species, e.g., Li+, O2- for the bond.</dd>
-<dt>R:</dt>
-<dd>The R parameter.</dd>
-<dt>b:</dt>
-<dd>The b parameter.</dd>
+<dt>site:</dt>
+<dd>The site</dd>
+<dt>nn_list:</dt>
+<dd>List of nearest neighbors in the format [(nn_site, dist), ...].</dd>
+<dt>anion_el:</dt>
+<dd>The most electronegative element in the structure.</dd>
+<dt>scale_factor:</dt>
+<dd>A scale factor to be applied. This is useful for scaling distance,
+esp in the case of calculation-relaxed structures which may tend
+to under (GGA) or over bind (LDA).</dd>
 </dl>
 </dd>
 </dl>
-<dl class="method">
-<dt id="pymatgen.analysis.bond_valence.BondValenceParam.contains_element">
-<tt class="descname">contains_element</tt><big>(</big><em>el</em><big>)</big><a class="reference internal" href="modules/pymatgen/analysis/bond_valence.html#BondValenceParam.contains_element"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.bond_valence.BondValenceParam.contains_element" title="Permalink to this definition">¶</a></dt>
-<dd><p>Whether parameter contains a particular element.</p>
-<dl class="docutils">
-<dt>Args:</dt>
-<dd><dl class="first last docutils">
-<dt>el:</dt>
-<dd>Element</dd>
-</dl>
-</dd>
-<dt>Returns:</dt>
-<dd>True if element is in parameter.</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="pymatgen.analysis.bond_valence.BondValenceParam.contains_element_pair">
-<tt class="descname">contains_element_pair</tt><big>(</big><em>el1</em>, <em>el2</em><big>)</big><a class="reference internal" href="modules/pymatgen/analysis/bond_valence.html#BondValenceParam.contains_element_pair"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.bond_valence.BondValenceParam.contains_element_pair" title="Permalink to this definition">¶</a></dt>
-<dd><p>Whether a particular element pair is in parameter.</p>
-<dl class="docutils">
-<dt>Args:</dt>
-<dd><dl class="first last docutils">
-<dt>el1:</dt>
-<dd>Element 1</dd>
-<dt>el2:</dt>
-<dd>Element 2</dd>
-</dl>
-</dd>
-<dt>Returns:</dt>
-<dd>True if elements are in the parameter.</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="pymatgen.analysis.bond_valence.BondValenceParam.contains_species_pair">
-<tt class="descname">contains_species_pair</tt><big>(</big><em>sp1</em>, <em>sp2</em><big>)</big><a class="reference internal" href="modules/pymatgen/analysis/bond_valence.html#BondValenceParam.contains_species_pair"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.bond_valence.BondValenceParam.contains_species_pair" title="Permalink to this definition">¶</a></dt>
-<dd><p>Whether a particular species pair is in parameter.</p>
-<dl class="docutils">
-<dt>Args:</dt>
-<dd><dl class="first last docutils">
-<dt>sp1:</dt>
-<dd>Specie 1</dd>
-<dt>sp2:</dt>
-<dd>Specie 2</dd>
-</dl>
-</dd>
-<dt>Returns:</dt>
-<dd>True if species are in the parameter.</dd>
-</dl>
-</dd></dl>
-
-<dl class="staticmethod">
-<dt id="pymatgen.analysis.bond_valence.BondValenceParam.from_dict">
-<em class="property">static </em><tt class="descname">from_dict</tt><big>(</big><em>d</em><big>)</big><a class="reference internal" href="modules/pymatgen/analysis/bond_valence.html#BondValenceParam.from_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.bond_valence.BondValenceParam.from_dict" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="method">
-<dt id="pymatgen.analysis.bond_valence.BondValenceParam.get_sign">
-<tt class="descname">get_sign</tt><big>(</big><em>el</em><big>)</big><a class="reference internal" href="modules/pymatgen/analysis/bond_valence.html#BondValenceParam.get_sign"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.bond_valence.BondValenceParam.get_sign" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns sign of valence for element.</p>
-<dl class="docutils">
-<dt>Args:</dt>
-<dd><dl class="first last docutils">
-<dt>el:</dt>
-<dd>Element</dd>
-</dl>
-</dd>
-<dt>Returns:</dt>
-<dd>Sign for element.</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="pymatgen.analysis.bond_valence.BondValenceParam.get_valence">
-<tt class="descname">get_valence</tt><big>(</big><em>el</em><big>)</big><a class="reference internal" href="modules/pymatgen/analysis/bond_valence.html#BondValenceParam.get_valence"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.bond_valence.BondValenceParam.get_valence" title="Permalink to this definition">¶</a></dt>
-<dd><p>Valence for a particular element.</p>
-<dl class="docutils">
-<dt>Args:</dt>
-<dd><dl class="first last docutils">
-<dt>el:</dt>
-<dd>Element</dd>
-</dl>
-</dd>
-<dt>Returns:</dt>
-<dd>Valence of the element in the parameter.</dd>
-<dt>Raises:</dt>
-<dd>Value error if el is not found in parameter.</dd>
-</dl>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="pymatgen.analysis.bond_valence.BondValenceParam.to_dict">
-<tt class="descname">to_dict</tt><a class="reference internal" href="modules/pymatgen/analysis/bond_valence.html#BondValenceParam.to_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.bond_valence.BondValenceParam.to_dict" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
 </dd></dl>
 
 </div>
@@ -951,7 +878,7 @@ center.</p>
 <p>This module provides classes to perform fitting of two structures.</p>
 <dl class="class">
 <dt id="pymatgen.analysis.structure_fitter.StructureFitter">
-<em class="property">class </em><tt class="descname">StructureFitter</tt><big>(</big><em>structure_a</em>, <em>structure_b</em>, <em>tolerance_cell_misfit=0.1</em>, <em>tolerance_atomic_misfit=1.0</em>, <em>supercells_allowed=True</em>, <em>anonymized=False</em>, <em>fitting_accuracy=25000</em>, <em>timeout=300</em>, <em>symmetry_tol=0</em><big>)</big><a class="reference internal" href="modules/pymatgen/analysis/structure_fitter.html#StructureFitter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.structure_fitter.StructureFitter" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descname">StructureFitter</tt><big>(</big><em>structure_a</em>, <em>structure_b</em>, <em>tolerance_cell_misfit=0.1</em>, <em>tolerance_atomic_misfit=1.0</em>, <em>supercells_allowed=True</em>, <em>anonymized=False</em>, <em>fitting_accuracy=25000</em>, <em>timeout=300</em>, <em>symmetry_tol=0</em>, <em>reduce_structures=True</em><big>)</big><a class="reference internal" href="modules/pymatgen/analysis/structure_fitter.html#StructureFitter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.structure_fitter.StructureFitter" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p>Class to perform fitting of two structures.</p>
 <dl class="docutils">
@@ -1003,6 +930,9 @@ separately. Defaults to 5 mins, which means a total of 10 mins.</dd>
 based on that symmetry tolerance in angstrom. Structures with
 different symmetries are not fitted to each other. A good value
 is around 0.1. Defaults to 0.</dd>
+<dt>reduce_structures:</dt>
+<dd>Whether to reduce structures to the primitive niggli cell.
+Defaults to True.</dd>
 </dl>
 </dd>
 </dl>
@@ -1298,7 +1228,7 @@ to 298 K only.</dd>
         <li class="right" >
           <a href="pymatgen.alchemy.html" title="alchemy Package"
              >previous</a> |</li>
-        <li><a href="index.html">pymatgen 2.2.4 documentation</a> &raquo;</li>
+        <li><a href="index.html">pymatgen 2.2.5dev documentation</a> &raquo;</li>
           <li><a href="modules.html" >pymatgen</a> &raquo;</li>
           <li><a href="pymatgen.html" >pymatgen Package</a> &raquo;</li> 
       </ul>

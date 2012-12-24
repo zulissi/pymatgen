@@ -1077,28 +1077,165 @@ transforms one into another.</p>
 <span id="structure-matcher-module"></span><h2><tt class="xref py py-mod docutils literal"><span class="pre">structure_matcher</span></tt> Module<a class="headerlink" href="#module-pymatgen.analysis.structure_matcher" title="Permalink to this headline">¶</a></h2>
 <p>This module provides classes to perform fitting of structures.</p>
 <dl class="class">
+<dt id="pymatgen.analysis.structure_matcher.AbstractComparator">
+<em class="property">class </em><tt class="descname">AbstractComparator</tt><a class="headerlink" href="#pymatgen.analysis.structure_matcher.AbstractComparator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Abstract Comparator class. A Comparator defines how sites are compared in
+a structure.</p>
+<dl class="method">
+<dt id="pymatgen.analysis.structure_matcher.AbstractComparator.are_equal">
+<tt class="descname">are_equal</tt><big>(</big><em>sp1</em>, <em>sp2</em><big>)</big><a class="headerlink" href="#pymatgen.analysis.structure_matcher.AbstractComparator.are_equal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Defines how the species of two sites are considered equal. For
+example, one can consider sites to have the same species only when
+the species are exactly the same, i.e., Fe2+ matches Fe2+ but not
+Fe3+. Or one can define that only the element matters,
+and all oxidation state information are ignored.</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><dl class="first last docutils">
+<dt>sp1:</dt>
+<dd>First species. A dict of {specie/element: amt} as per the
+definition in Site and PeriodicSite.</dd>
+<dt>sp2:</dt>
+<dd>First species. A dict of {specie/element: amt} as per the
+definition in Site and PeriodicSite.</dd>
+</dl>
+</dd>
+<dt>Returns:</dt>
+<dd>Boolean indicating whether species are considered equal.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="pymatgen.analysis.structure_matcher.AbstractComparator.get_structure_hash">
+<tt class="descname">get_structure_hash</tt><big>(</big><em>structure</em><big>)</big><a class="headerlink" href="#pymatgen.analysis.structure_matcher.AbstractComparator.get_structure_hash" title="Permalink to this definition">¶</a></dt>
+<dd><p>Defines a hash for structures. This allows structures to be grouped
+efficiently for comparison. For example, in exact matching,
+you should only try to perform matching if structures have the same
+reduced formula (structures with different formulas can&#8217;t possibly
+match). So the reduced_formula is a good hash. The hash function
+should be relatively fast to compute relative to the actual matching.</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><dl class="first last docutils">
+<dt>structure:</dt>
+<dd>A structure</dd>
+</dl>
+</dd>
+<dt>Returns:</dt>
+<dd>A hashable object. Examples can be string formulas, etc.</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="pymatgen.analysis.structure_matcher.ElementComparator">
+<em class="property">class </em><tt class="descname">ElementComparator</tt><a class="headerlink" href="#pymatgen.analysis.structure_matcher.ElementComparator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pymatgen.analysis.structure_matcher.AbstractComparator" title="pymatgen.analysis.structure_matcher.AbstractComparator"><tt class="xref py py-class docutils literal"><span class="pre">pymatgen.analysis.structure_matcher.AbstractComparator</span></tt></a></p>
+<p>A Comparator that matches elements. i.e. oxidation states are
+ignored.</p>
+<dl class="method">
+<dt id="pymatgen.analysis.structure_matcher.ElementComparator.are_equal">
+<tt class="descname">are_equal</tt><big>(</big><em>sp1</em>, <em>sp2</em><big>)</big><a class="headerlink" href="#pymatgen.analysis.structure_matcher.ElementComparator.are_equal" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pymatgen.analysis.structure_matcher.ElementComparator.get_structure_hash">
+<tt class="descname">get_structure_hash</tt><big>(</big><em>structure</em><big>)</big><a class="headerlink" href="#pymatgen.analysis.structure_matcher.ElementComparator.get_structure_hash" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="pymatgen.analysis.structure_matcher.SpeciesComparator">
+<em class="property">class </em><tt class="descname">SpeciesComparator</tt><a class="headerlink" href="#pymatgen.analysis.structure_matcher.SpeciesComparator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pymatgen.analysis.structure_matcher.AbstractComparator" title="pymatgen.analysis.structure_matcher.AbstractComparator"><tt class="xref py py-class docutils literal"><span class="pre">pymatgen.analysis.structure_matcher.AbstractComparator</span></tt></a></p>
+<p>A Comparator that matches species exactly. The default used in
+StructureMatcher.</p>
+<dl class="method">
+<dt id="pymatgen.analysis.structure_matcher.SpeciesComparator.are_equal">
+<tt class="descname">are_equal</tt><big>(</big><em>sp1</em>, <em>sp2</em><big>)</big><a class="headerlink" href="#pymatgen.analysis.structure_matcher.SpeciesComparator.are_equal" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="pymatgen.analysis.structure_matcher.SpeciesComparator.get_structure_hash">
+<tt class="descname">get_structure_hash</tt><big>(</big><em>structure</em><big>)</big><a class="headerlink" href="#pymatgen.analysis.structure_matcher.SpeciesComparator.get_structure_hash" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
 <dt id="pymatgen.analysis.structure_matcher.StructureMatcher">
-<em class="property">class </em><tt class="descname">StructureMatcher</tt><big>(</big><em>ltol=0.2</em>, <em>stol=0.4</em>, <em>angle_tol=5</em>, <em>primitive_cell=False</em>, <em>scale=True</em>, <em>comparison_function=None</em><big>)</big><a class="reference internal" href="modules/pymatgen/analysis/structure_matcher.html#StructureMatcher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.structure_matcher.StructureMatcher" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descname">StructureMatcher</tt><big>(</big><em>ltol=0.2</em>, <em>stol=0.4</em>, <em>angle_tol=5</em>, <em>primitive_cell=True</em>, <em>scale=True</em>, <em>comparator=&lt;pymatgen.analysis.structure_matcher.SpeciesComparator object at 0x1035bfe10&gt;</em><big>)</big><a class="reference internal" href="modules/pymatgen/analysis/structure_matcher.html#StructureMatcher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.structure_matcher.StructureMatcher" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p>Class to match structures by similarity.</p>
+<p>Algorithm:</p>
+<ol class="arabic">
+<li><p class="first">Given two structures: s1 and s2</p>
+</li>
+<li><p class="first">Optional: Reduce to primitive cells.</p>
+</li>
+<li><p class="first">If the number of sites do not match, return False</p>
+</li>
+<li><p class="first">Reduce to s1 and s2 to Niggli Cells</p>
+</li>
+<li><p class="first">Optional: Scale s1 and s2 to same volume.</p>
+</li>
+<li><p class="first">Optional: Remove oxidation states associated with sites</p>
+</li>
+<li><p class="first">Find all possible lattice vectors for s2 within shell of ltol.</p>
+</li>
+<li><p class="first">For s1, translate an atom in the smallest set to the origin</p>
+</li>
+<li><p class="first">For s2: find all valid lattices from permutations of the list
+of lattice vectors (invalid if: det(Lattice Matrix) &lt; half
+volume of original s2 lattice)</p>
+</li>
+<li><p class="first">For each valid lattice:</p>
+<ol class="loweralpha">
+<li><p class="first">If the lattice angles of are within tolerance of s1,
+basis change s2 into new lattice.</p>
+</li>
+<li><p class="first">For each atom in the smallest set of s2:</p>
+<blockquote>
+<div><ol class="lowerroman simple">
+<li>Translate to origin and compare sites in structure within
+stol.</li>
+<li>If true: break and return true</li>
+</ol>
+</div></blockquote>
+</li>
+</ol>
+</li>
+</ol>
 <dl class="docutils">
 <dt>Args:</dt>
 <dd><dl class="first last docutils">
 <dt>ltol:</dt>
-<dd>Fractional length tolerance. Default is 0.2</dd>
+<dd>Fractional length tolerance. Default is 0.2.</dd>
 <dt>stol:</dt>
-<dd>Site tolerance in Angstrom. Default is 0.4 Angstrom</dd>
+<dd>Site tolerance in Angstrom. Default is 0.4 Angstrom.</dd>
 <dt>angle_tol:</dt>
 <dd>Angle tolerance in degrees. Default is 5 degrees.</dd>
 <dt>primitive_cell:</dt>
 <dd>If true: input structures will be reduced to primitive
-cells prior to matching.</dd>
+cells prior to matching. Default to True.</dd>
 <dt>scale:</dt>
 <dd>Input structures are scaled to equivalent volume if true;
 For exact matching, set to False.</dd>
-<dt>comparison_function:</dt>
-<dd>function declaring equivalency of sites.
-Default is None, implies rigid species mapping.</dd>
+<dt>comparator:</dt>
+<dd><p class="first">A comparator object implementing an equals method that declares
+declaring equivalency of sites. Default is
+SpeciesComparator, which implies rigid species
+mapping, i.e., Fe2+ only matches Fe2+ and not Fe3+.</p>
+<p>Other comparators are provided, e.g., ElementComparator which
+matches only the elements and not the species.</p>
+<p class="last">The reason why a comparator object is used instead of
+supplying a comparison function is that it is not possible to
+pickle a function, which makes it otherwise difficult to use
+StructureMatcher with Python&#8217;s multiprocessing.</p>
+</dd>
 </dl>
 </dd>
 </dl>
@@ -1122,46 +1259,7 @@ structure appears in group_list.</p>
 <dl class="method">
 <dt id="pymatgen.analysis.structure_matcher.StructureMatcher.fit">
 <tt class="descname">fit</tt><big>(</big><em>struct1</em>, <em>struct2</em><big>)</big><a class="reference internal" href="modules/pymatgen/analysis/structure_matcher.html#StructureMatcher.fit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.structure_matcher.StructureMatcher.fit" title="Permalink to this definition">¶</a></dt>
-<dd><p>Algorithm:</p>
-<ol class="arabic">
-<li><p class="first">Given two structures: s1 and s2</p>
-</li>
-<li><p class="first">Optional: Reduce to primitive cells (set in __init__)</p>
-</li>
-<li><p class="first">If the number of sites do not match, return False</p>
-</li>
-<li><p class="first">Reduce to s1 and s2 to Niggli Cells</p>
-</li>
-<li><p class="first">Optional: Scale s1 and s2 to same volume (set in __init__)</p>
-</li>
-<li><p class="first">Find all possible lattice vectors for s2 within shell of ltol (
-set in __init__)</p>
-</li>
-<li><p class="first">For s1, translate an atom in the smallest set to the origin</p>
-</li>
-<li><p class="first">For s2: find all valid lattices from permutations of the list
-of lattice vectors (invalid if: det(Lattice Matrix) &lt; half
-volume of original s2 lattice)</p>
-</li>
-<li><p class="first">For each valid lattice:</p>
-<blockquote>
-<div><ol class="loweralpha">
-<li><p class="first">If the lattice angles of are within tolerance of s1,
-basis change s2 into new lattice.</p>
-</li>
-<li><p class="first">For each atom in the smallest set of s2:</p>
-<blockquote>
-<div><ol class="lowerroman simple">
-<li>Translate to origin and compare sites in structure within
-stol (set in __init__)</li>
-<li>If true: break and return true</li>
-</ol>
-</div></blockquote>
-</li>
-</ol>
-</div></blockquote>
-</li>
-</ol>
+<dd><p>Fit two structures.</p>
 <dl class="docutils">
 <dt>Args:</dt>
 <dd><dl class="first last docutils">
@@ -1172,7 +1270,7 @@ stol (set in __init__)</li>
 </dl>
 </dd>
 <dt>Returns:</dt>
-<dd>True if the structures are the same, else False.</dd>
+<dd>True if the structures are the equivalent, else False.</dd>
 </dl>
 </dd></dl>
 
@@ -1183,7 +1281,11 @@ stol (set in __init__)</li>
 them by structural equality.</p>
 <dl class="docutils">
 <dt>Args:</dt>
-<dd>s_list: List of structures to be grouped</dd>
+<dd><dl class="first last docutils">
+<dt>s_list:</dt>
+<dd>List of structures to be grouped</dd>
+</dl>
+</dd>
 <dt>Returns:</dt>
 <dd>A list of lists of matched structures
 Assumption: if s1=s2 and s2=s3, then s1=s3

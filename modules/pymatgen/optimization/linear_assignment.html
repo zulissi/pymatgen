@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.optimization.linear_assignment &mdash; pymatgen 2.6.2b documentation</title>
+    <title>pymatgen.optimization.linear_assignment &mdash; pymatgen 2.7.10b documentation</title>
     
     <link rel="stylesheet" href="../../../static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '2.6.2b',
+        VERSION:     '2.7.10b',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../static/underscore.js"></script>
     <script type="text/javascript" src="../../../static/doctools.js"></script>
     <link rel="shortcut icon" href="../../../static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.6.2b documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 2.7.10b documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.6.2b documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 2.7.10b documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -79,36 +79,47 @@
 <span class="sd">    This class finds the solution to the Linear Assignment Problem.</span>
 <span class="sd">    It finds a minimum cost matching between two sets, given a cost</span>
 <span class="sd">    matrix.</span>
-<span class="sd">    </span>
+
 <span class="sd">    This class is an implementation of the LAPJV algorithm described in:</span>
-<span class="sd">    R. Jonker, A. Volgenant. A Shortest Augmenting Path Algorithm for </span>
+<span class="sd">    R. Jonker, A. Volgenant. A Shortest Augmenting Path Algorithm for</span>
 <span class="sd">    Dense and Sparse Linear Assignment Problems. Computing 38, 325-340</span>
 <span class="sd">    (1987)</span>
-<span class="sd">    </span>
+
 <span class="sd">    .. attribute: min_cost:</span>
-<span class="sd">    </span>
+
 <span class="sd">        The minimum cost of the matching</span>
-<span class="sd">        </span>
+
 <span class="sd">    .. attribute: solution:</span>
-<span class="sd">    </span>
+
 <span class="sd">        The matching of the rows to columns. i.e solution = [1, 2, 0]</span>
-<span class="sd">        would match row 0 to column 1, row 1 to column 2 and row 2 </span>
+<span class="sd">        would match row 0 to column 1, row 1 to column 2 and row 2</span>
 <span class="sd">        to column 0. Total cost would be c[0, 1] + c[1, 2] + c[2, 0]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">costs</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">costs</span><span class="p">,</span> <span class="n">epsilon</span><span class="o">=-</span><span class="mf">1e-6</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Args:</span>
 <span class="sd">            costs:</span>
 <span class="sd">                The cost matrix of the problem. cost[i,j] should be the</span>
-<span class="sd">                cost of matching x[i] to y[j].</span>
+<span class="sd">                cost of matching x[i] to y[j]. The cost matrix must be</span>
+<span class="sd">                square</span>
+
+<span class="sd">            epsilon:</span>
+<span class="sd">                tolerance for determining if solution vector is &lt; 0</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">costs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">costs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">epsilon</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">epsilon</span> <span class="o">=</span> <span class="n">epsilon</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;epsilon must be negative&quot;</span><span class="p">)</span>
+        <span class="c">#check that cost matrix is square</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;cost matrix is not square&quot;</span><span class="p">)</span>
         
         <span class="c">#initialize solution vectors</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
 
         <span class="c">#if column reduction doesn&#39;t find a solution, augment with shortest</span>
         <span class="c">#paths until one is found</span>
@@ -116,12 +127,11 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_augmenting_row_reduction</span><span class="p">()</span>
             <span class="c">#initialize the reduced costs</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_update_cred</span><span class="p">()</span>
-            <span class="k">while</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_x</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">while</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_x</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">epsilon</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_augment</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">solution</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_x</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_min_cost</span> <span class="o">=</span> <span class="bp">None</span>
-
 
     <span class="nd">@property</span>
 <div class="viewcode-block" id="LinearAssignment.min_cost"><a class="viewcode-back" href="../../../pymatgen.optimization.html#pymatgen.optimization.linear_assignment.LinearAssignment.min_cost">[docs]</a>    <span class="k">def</span> <span class="nf">min_cost</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -133,7 +143,6 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_min_cost</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="p">)),</span> <span class="bp">self</span><span class="o">.</span><span class="n">solution</span><span class="p">])</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_cost</span>
-
 </div>
     <span class="k">def</span> <span class="nf">_column_reduction</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -141,9 +150,9 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c">#assign each column to its lowest cost row, ensuring that only row</span>
         <span class="c">#or column is assigned once</span>
-        <span class="n">i1</span><span class="p">,</span> <span class="n">j</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="p">,</span> <span class="n">axis</span> <span class="o">=</span> <span class="mi">0</span><span class="p">),</span> <span class="n">return_index</span> <span class="o">=</span> <span class="bp">True</span><span class="p">)</span>
+        <span class="n">i1</span><span class="p">,</span> <span class="n">j</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">return_index</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_x</span><span class="p">[</span><span class="n">i1</span><span class="p">]</span> <span class="o">=</span> <span class="n">j</span>
-        
+
         <span class="c">#if problem is solved, return</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">i1</span><span class="p">)</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">False</span>
@@ -152,13 +161,12 @@
 
         <span class="c">#reduction_transfer</span>
         <span class="c">#tempc is array with previously assigned matchings masked</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="p">,</span> <span class="n">axis</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="n">tempc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
         <span class="n">tempc</span><span class="p">[</span><span class="n">i1</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">tempc</span><span class="o">.</span><span class="n">flatten</span><span class="p">())</span> <span class="o">*</span> <span class="mi">10</span>
-        <span class="n">mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">tempc</span><span class="p">[</span><span class="n">i1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_v</span><span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="p">:],</span> <span class="n">axis</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">tempc</span><span class="p">[</span><span class="n">i1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_v</span><span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="p">:],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_v</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">-=</span> <span class="n">mu</span>
         <span class="k">return</span> <span class="bp">True</span>
-
 
     <span class="k">def</span> <span class="nf">_augmenting_row_reduction</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -176,7 +184,7 @@
                 <span class="n">u2</span> <span class="o">=</span> <span class="n">temp</span><span class="p">[</span><span class="n">j2</span><span class="p">]</span>
 
                 <span class="k">if</span> <span class="n">u1</span> <span class="o">&lt;</span> <span class="n">u2</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">_v</span><span class="p">[</span><span class="n">j1</span><span class="p">]</span> <span class="o">-=</span> <span class="n">u2</span><span class="o">-</span><span class="n">u1</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_v</span><span class="p">[</span><span class="n">j1</span><span class="p">]</span> <span class="o">-=</span> <span class="n">u2</span> <span class="o">-</span> <span class="n">u1</span>
                 <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y</span><span class="p">[</span><span class="n">j1</span><span class="p">]</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
                     <span class="n">j1</span> <span class="o">=</span> <span class="n">j2</span>
                 <span class="n">k</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y</span><span class="p">[</span><span class="n">j1</span><span class="p">]</span>
@@ -188,7 +196,6 @@
                 <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">u1</span><span class="p">,</span> <span class="n">u2</span><span class="p">)</span> <span class="ow">or</span> <span class="n">k</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
                     <span class="k">break</span>
 
-
     <span class="k">def</span> <span class="nf">_update_cred</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Updates the reduced costs with the values from the</span>
@@ -197,14 +204,13 @@
         <span class="n">ui</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_x</span><span class="p">])</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_v</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_x</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span> <span class="o">-</span> <span class="n">ui</span><span class="p">[:,</span> <span class="bp">None</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_v</span><span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="p">:]</span>
 
-
     <span class="k">def</span> <span class="nf">_augment</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Finds a minimum cost path and adds it to the matching</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c">#build a minimum cost tree</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_build_tree</span><span class="p">()</span>
-        
+
         <span class="c">#update prices</span>
         <span class="n">delta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_d</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_ready</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mu</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_v</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_ready</span><span class="p">]</span> <span class="o">+=</span> <span class="n">delta</span>
@@ -222,12 +228,11 @@
                 <span class="k">break</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_update_cred</span><span class="p">()</span>
 
-
     <span class="k">def</span> <span class="nf">_build_tree</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Builds the tree finding an augmenting path. Alternates along</span>
 <span class="sd">        matched and unmatched edges between X and Y. The paths are</span>
-<span class="sd">        stored in self._pred (new predecessor of nodes in Y), and </span>
+<span class="sd">        stored in self._pred (new predecessor of nodes in Y), and</span>
 <span class="sd">        self._x and self._y</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c">#find unassigned i*</span>
@@ -235,17 +240,17 @@
 
         <span class="c">#compute distances</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_istar</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_v</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_istar</span>
-        
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_istar</span>
+
         <span class="c">#initialize sets</span>
-        <span class="c">#READY: set of nodes visited and in the path (whose price gets </span>
+        <span class="c">#READY: set of nodes visited and in the path (whose price gets</span>
         <span class="c">#updated in augment)</span>
         <span class="c">#SCAN: set of nodes at the bottom of the tree, which we need to</span>
         <span class="c">#look at</span>
         <span class="c">#T0DO: unvisited nodes</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_ready</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bool</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_scan</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bool</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_todo</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bool</span><span class="p">)</span> <span class="o">+</span> <span class="bp">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ready</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_scan</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_todo</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool</span><span class="p">)</span> <span class="o">+</span> <span class="bp">True</span>
 
         <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
             <span class="c">#populate scan with minimum reduced distances</span>
@@ -253,7 +258,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">_mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_d</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_todo</span><span class="p">])</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_scan</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_d</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mu</span><span class="p">)]</span> <span class="o">=</span> <span class="mi">1</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_todo</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_scan</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
-                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_y</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scan</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_y</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scan</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">epsilon</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">_j</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_y</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scan</span><span class="p">)</span>
                     <span class="k">return</span>
 
@@ -276,7 +281,7 @@
             <span class="c">#update predecessors</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_pred</span><span class="p">[</span><span class="n">shorter</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_i</span>
 
-            <span class="k">for</span> <span class="bp">self</span><span class="o">.</span><span class="n">_j</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_d</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mu</span><span class="p">)</span> \
+            <span class="k">for</span> <span class="bp">self</span><span class="o">.</span><span class="n">_j</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">_d</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mu</span><span class="p">)</span>
                                        <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_todo</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">():</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_j</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
                     <span class="k">return</span>
@@ -315,7 +320,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.6.2b documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 2.7.10b documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

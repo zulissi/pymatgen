@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.structure_prediction.substitution_probability &mdash; pymatgen 2.6.2b documentation</title>
+    <title>pymatgen.structure_prediction.substitution_probability &mdash; pymatgen 2.7.10b documentation</title>
     
     <link rel="stylesheet" href="../../../static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '2.6.2b',
+        VERSION:     '2.7.10b',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../static/underscore.js"></script>
     <script type="text/javascript" src="../../../static/doctools.js"></script>
     <link rel="shortcut icon" href="../../../static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.6.2b documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 2.7.10b documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.6.2b documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 2.7.10b documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -56,103 +56,94 @@
           <div class="body">
             
   <h1>Source code for pymatgen.structure_prediction.substitution_probability</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module provides classes for representing species substitution</span>
+<span class="sd">probabilities.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
 
-<span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Will Richards&quot;</span>
+<span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Will Richards, Geoffroy Hautier&quot;</span>
 <span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot;Copyright 2012, The Materials Project&quot;</span>
 <span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;1.2&quot;</span>
 <span class="n">__maintainer__</span> <span class="o">=</span> <span class="s">&quot;Will Richards&quot;</span>
 <span class="n">__email__</span> <span class="o">=</span> <span class="s">&quot;wrichard@mit.edu&quot;</span>
 <span class="n">__date__</span> <span class="o">=</span> <span class="s">&quot;Aug 31, 2012&quot;</span>
 
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">mul</span>
+<span class="kn">from</span> <span class="nn">pymatgen</span> <span class="kn">import</span> <span class="n">smart_element_or_specie</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="kn">import</span> <span class="n">Specie</span>
+<span class="kn">from</span> <span class="nn">pymatgen.util.decorators</span> <span class="kn">import</span> <span class="n">cached_class</span>
 
 <span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">pymatgen</span>
 
 
-<div class="viewcode-block" id="test_table"><a class="viewcode-back" href="../../../pymatgen.structure_prediction.html#pymatgen.structure_prediction.substitution_probability.test_table">[docs]</a><span class="k">def</span> <span class="nf">test_table</span><span class="p">():</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Loads a lightweight lambda table for use in unit tests to reduce</span>
-<span class="sd">    initialization time, and make unit tests insensitive to changes in the</span>
-<span class="sd">    default lambda table.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">module_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">pymatgen</span><span class="o">.</span><span class="n">__file__</span><span class="p">)</span>
-    <span class="n">json_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">module_dir</span><span class="p">,</span> <span class="s">&#39;structure_prediction&#39;</span><span class="p">,</span> <span class="s">&#39;tests&#39;</span><span class="p">,</span>
-                             <span class="s">&#39;test_data&#39;</span><span class="p">,</span> <span class="s">&#39;test_lambda.json&#39;</span><span class="p">)</span>
-    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">json_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-        <span class="n">lambda_table</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">lambda_table</span>
-
-</div>
-<div class="viewcode-block" id="SubstitutionProbability"><a class="viewcode-back" href="../../../pymatgen.structure_prediction.html#pymatgen.structure_prediction.substitution_probability.SubstitutionProbability">[docs]</a><span class="k">class</span> <span class="nc">SubstitutionProbability</span><span class="p">():</span>
+<span class="nd">@cached_class</span>
+<div class="viewcode-block" id="SubstitutionProbability"><a class="viewcode-back" href="../../../pymatgen.structure_prediction.html#pymatgen.structure_prediction.substitution_probability.SubstitutionProbability">[docs]</a><span class="k">class</span> <span class="nc">SubstitutionProbability</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    This class finds substitution probabilities given lists of atoms</span>
 <span class="sd">    to substitute. The inputs make more sense if you look through the</span>
 <span class="sd">    from_defaults static method.</span>
 
+<span class="sd">    The substitution prediction algorithm is presented in:</span>
+<span class="sd">    Hautier, G., Fischer, C., Ehrlacher, V., Jain, A., and Ceder, G. (2011)</span>
+<span class="sd">    Data Mined Ionic Substitutions for the Discovery of New Compounds.</span>
+<span class="sd">    Inorganic Chemistry, 50(2), 656-663. doi:10.1021/ic102031h</span>
+
 <span class="sd">    Args:</span>
 <span class="sd">        lambda_table:</span>
-<span class="sd">            json table of the weight functions lambda (theta in BURP) if None,</span>
+<span class="sd">            json table of the weight functions lambda if None,</span>
 <span class="sd">            will use the default lambda.json table</span>
 <span class="sd">        alpha:</span>
 <span class="sd">            weight function for never observed substitutions</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lambda_table</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span> <span class="o">-</span><span class="mi">5</span><span class="p">):</span>
-        <span class="c">#Something seems to be weird about the SubsProbaMRF file:</span>
-        <span class="c">#alpha is VERY high. alpha essentially replaces the lambda</span>
-        <span class="c">#value for never-observed compounds, but is positive even</span>
-        <span class="c">#though many (most?) are negative numbers</span>
 
-        <span class="c">#store the input table for the to_dict method</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_lambda_table</span> <span class="o">=</span> <span class="n">lambda_table</span>
-
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">lambda_table</span><span class="p">:</span>
-            <span class="n">module_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">pymatgen</span><span class="o">.</span><span class="n">__file__</span><span class="p">)</span>
-            <span class="n">json_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">module_dir</span><span class="p">,</span> <span class="s">&#39;structure_prediction&#39;</span><span class="p">,</span>
-                                     <span class="s">&#39;data&#39;</span><span class="p">,</span> <span class="s">&#39;lambda.json&#39;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lambda_table</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=-</span><span class="mi">5</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">lambda_table</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_lambda_table</span> <span class="o">=</span> <span class="n">lambda_table</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">module_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">)</span>
+            <span class="n">json_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">module_dir</span><span class="p">,</span> <span class="s">&#39;data&#39;</span><span class="p">,</span> <span class="s">&#39;lambda.json&#39;</span><span class="p">)</span>
             <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">json_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-                <span class="n">lambda_table</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_lambda_table</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
 
         <span class="c">#build map of specie pairs to lambdas</span>
-        <span class="n">l</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">lambda_table</span><span class="p">:</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;D1+&#39;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;D1+&#39;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="n">alpha</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_l</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">species</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lambda_table</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s">&#39;D1+&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">row</span><span class="p">:</span>
                 <span class="n">s1</span> <span class="o">=</span> <span class="n">Specie</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
                 <span class="n">s2</span> <span class="o">=</span> <span class="n">Specie</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-                <span class="n">l</span><span class="p">[</span><span class="nb">frozenset</span><span class="p">([</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">])]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">species</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">s1</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">species</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">s2</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_l</span><span class="p">[</span><span class="nb">frozenset</span><span class="p">([</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">])]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_lambda</span> <span class="o">=</span> <span class="n">l</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_alpha</span> <span class="o">=</span> <span class="n">alpha</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">update_normalizations</span><span class="p">()</span>
+        <span class="c">#create Z and px</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Z</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_px</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">s1</span><span class="p">,</span> <span class="n">s2</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">species</span><span class="p">,</span> <span class="n">repeat</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_lambda</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_px</span><span class="p">[</span><span class="n">s1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">value</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_px</span><span class="p">[</span><span class="n">s2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">value</span> <span class="o">/</span> <span class="mi">2</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">Z</span> <span class="o">+=</span> <span class="n">value</span>
 
-<div class="viewcode-block" id="SubstitutionProbability.update_normalizations"><a class="viewcode-back" href="../../../pymatgen.structure_prediction.html#pymatgen.structure_prediction.substitution_probability.SubstitutionProbability.update_normalizations">[docs]</a>    <span class="k">def</span> <span class="nf">update_normalizations</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Updates the partition functions Z and px, and the species list.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">sp_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
-        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lambda</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-            <span class="n">sp_set</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
-        <span class="n">px</span> <span class="o">=</span> <span class="nb">dict</span><span class="o">.</span><span class="n">fromkeys</span><span class="p">(</span><span class="n">sp_set</span><span class="p">,</span> <span class="mf">0.</span><span class="p">)</span>
-        <span class="n">Z</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="k">for</span> <span class="n">s1</span><span class="p">,</span> <span class="n">s2</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="n">sp_set</span><span class="p">,</span> <span class="n">repeat</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
-            <span class="n">value</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lambda</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">frozenset</span><span class="p">([</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">]),</span>
-                                              <span class="bp">self</span><span class="o">.</span><span class="n">_alpha</span><span class="p">))</span>
-            <span class="c">#not sure why the factor of 2 is here but it matches up</span>
-            <span class="c">#with BURP. BURP may actually be missing a factor of 2,</span>
-            <span class="c">#but it doesn&#39;t have a huge effect</span>
-            <span class="n">px</span><span class="p">[</span><span class="n">s1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">value</span> <span class="o">/</span> <span class="mi">2</span>
-            <span class="n">px</span><span class="p">[</span><span class="n">s2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">value</span> <span class="o">/</span> <span class="mi">2</span>
-            <span class="n">Z</span> <span class="o">+=</span> <span class="n">value</span>
+    <span class="k">def</span> <span class="nf">get_lambda</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">):</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">([</span><span class="n">smart_element_or_specie</span><span class="p">(</span><span class="n">s1</span><span class="p">),</span>
+                       <span class="n">smart_element_or_specie</span><span class="p">(</span><span class="n">s2</span><span class="p">)])</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_l</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_Z</span> <span class="o">=</span> <span class="n">Z</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_px</span> <span class="o">=</span> <span class="n">px</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">species_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">sp_set</span><span class="p">)</span>
-</div>
-<div class="viewcode-block" id="SubstitutionProbability.prob"><a class="viewcode-back" href="../../../pymatgen.structure_prediction.html#pymatgen.structure_prediction.substitution_probability.SubstitutionProbability.prob">[docs]</a>    <span class="k">def</span> <span class="nf">prob</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">get_px</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sp</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_px</span><span class="p">[</span><span class="n">smart_element_or_specie</span><span class="p">(</span><span class="n">sp</span><span class="p">)]</span>
+
+    <span class="k">def</span> <span class="nf">prob</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Gets the probability of 2 species substitution. Not used by the</span>
 <span class="sd">        structure predictor.</span>
@@ -160,34 +151,34 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            Probability of s1 and s2 substitution.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">l</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lambda</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">frozenset</span><span class="p">([</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">]),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_alpha</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Z</span>
-</div>
-<div class="viewcode-block" id="SubstitutionProbability.cond_prob"><a class="viewcode-back" href="../../../pymatgen.structure_prediction.html#pymatgen.structure_prediction.substitution_probability.SubstitutionProbability.cond_prob">[docs]</a>    <span class="k">def</span> <span class="nf">cond_prob</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_lambda</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">))</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">Z</span>
+
+    <span class="k">def</span> <span class="nf">cond_prob</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Conditional probability of substituting s1 for s2.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            s1: The *variable* specie</span>
-<span class="sd">            s2: The *fixed* specie</span>
+<span class="sd">            s1:</span>
+<span class="sd">                The *variable* specie</span>
+<span class="sd">            s2:</span>
+<span class="sd">                The *fixed* specie</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Conditional probability used by structure predictor.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">l</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lambda</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">frozenset</span><span class="p">([</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">]),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_alpha</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_px</span><span class="p">[</span><span class="n">s2</span><span class="p">]</span>
-</div>
-<div class="viewcode-block" id="SubstitutionProbability.pair_corr"><a class="viewcode-back" href="../../../pymatgen.structure_prediction.html#pymatgen.structure_prediction.substitution_probability.SubstitutionProbability.pair_corr">[docs]</a>    <span class="k">def</span> <span class="nf">pair_corr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_lambda</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">))</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_px</span><span class="p">(</span><span class="n">s2</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">pair_corr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Pair correlation of two species.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            The pair correlation of 2 species</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">l</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lambda</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">frozenset</span><span class="p">([</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">]),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_alpha</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_Z</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_px</span><span class="p">[</span><span class="n">s1</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_px</span><span class="p">[</span><span class="n">s2</span><span class="p">])</span>
-</div>
-<div class="viewcode-block" id="SubstitutionProbability.cond_prob_list"><a class="viewcode-back" href="../../../pymatgen.structure_prediction.html#pymatgen.structure_prediction.substitution_probability.SubstitutionProbability.cond_prob_list">[docs]</a>    <span class="k">def</span> <span class="nf">cond_prob_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">l1</span><span class="p">,</span> <span class="n">l2</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_lambda</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">))</span> <span class="o">*</span> \
+            <span class="bp">self</span><span class="o">.</span><span class="n">Z</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_px</span><span class="p">(</span><span class="n">s1</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_px</span><span class="p">(</span><span class="n">s2</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">cond_prob_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">l1</span><span class="p">,</span> <span class="n">l2</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Find the probabilities of 2 lists. These should include ALL species.</span>
 <span class="sd">        This is the probability conditional on l2</span>
@@ -206,20 +197,119 @@
             <span class="n">s2</span> <span class="o">=</span> <span class="n">l2</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
             <span class="n">p</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cond_prob</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">p</span>
-</div>
+
     <span class="nd">@property</span>
-<div class="viewcode-block" id="SubstitutionProbability.to_dict"><a class="viewcode-back" href="../../../pymatgen.structure_prediction.html#pymatgen.structure_prediction.substitution_probability.SubstitutionProbability.to_dict">[docs]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;name&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="s">&quot;version&quot;</span><span class="p">:</span> <span class="n">__version__</span><span class="p">}</span>
-        <span class="n">d</span><span class="p">[</span><span class="s">&quot;init_args&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;lambda_table&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lambda_table</span><span class="p">,</span>
-                          <span class="s">&quot;alpha&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_alpha</span><span class="p">}</span>
-        <span class="n">d</span><span class="p">[</span><span class="s">&quot;@module&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span>
-        <span class="n">d</span><span class="p">[</span><span class="s">&quot;@class&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
-        <span class="k">return</span> <span class="n">d</span>
+    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s">&quot;name&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="s">&quot;version&quot;</span><span class="p">:</span> <span class="n">__version__</span><span class="p">,</span>
+                <span class="s">&quot;init_args&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s">&quot;lambda_table&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lambda_table</span><span class="p">,</span>
+                              <span class="s">&quot;alpha&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_alpha</span><span class="p">},</span>
+                <span class="s">&quot;@module&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span><span class="p">,</span>
+                <span class="s">&quot;@class&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">}</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="o">**</span><span class="n">d</span><span class="p">[</span><span class="s">&#39;init_args&#39;</span><span class="p">])</span>
+
 </div>
-    <span class="nd">@staticmethod</span>
-<div class="viewcode-block" id="SubstitutionProbability.from_dict"><a class="viewcode-back" href="../../../pymatgen.structure_prediction.html#pymatgen.structure_prediction.substitution_probability.SubstitutionProbability.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">SubstitutionProbability</span><span class="p">(</span><span class="o">**</span><span class="n">d</span><span class="p">[</span><span class="s">&#39;init_args&#39;</span><span class="p">])</span></div></div>
-</pre></div>
+<div class="viewcode-block" id="SubstitutionPredictor"><a class="viewcode-back" href="../../../pymatgen.structure_prediction.html#pymatgen.structure_prediction.substitution_probability.SubstitutionPredictor">[docs]</a><span class="k">class</span> <span class="nc">SubstitutionPredictor</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Predicts likely substitutions either to or from a given composition</span>
+<span class="sd">    or species list using the SubstitutionProbability</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lambda_table</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=-</span><span class="mi">5</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="n">SubstitutionProbability</span><span class="p">(</span><span class="n">lambda_table</span><span class="p">,</span> <span class="n">alpha</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">threshold</span> <span class="o">=</span> <span class="n">threshold</span>
+
+<div class="viewcode-block" id="SubstitutionPredictor.list_prediction"><a class="viewcode-back" href="../../../pymatgen.structure_prediction.html#pymatgen.structure_prediction.substitution_probability.SubstitutionPredictor.list_prediction">[docs]</a>    <span class="k">def</span> <span class="nf">list_prediction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">to_this_composition</span> <span class="o">=</span> <span class="bp">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            species:</span>
+<span class="sd">                list of species</span>
+<span class="sd">            to_this_composition:</span>
+<span class="sd">                If true, substitutions with this as a final composition</span>
+<span class="sd">                will be found. If false, substitutions with this as a</span>
+<span class="sd">                starting composition will be found (these are slightly</span>
+<span class="sd">                different)</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            List of predictions in the form of dictionaries.</span>
+<span class="sd">            If to_this_composition is true, the values of the dictionary</span>
+<span class="sd">            will be from the list species. If false, the keys will be</span>
+<span class="sd">            from that list.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">species</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">smart_element_or_specie</span><span class="p">(</span><span class="n">sp</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">species</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;the species {} is not allowed for the&quot;</span>
+                                 <span class="s">&quot;probability model you are using&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sp</span><span class="p">))</span>
+        <span class="n">max_probabilities</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">s1</span> <span class="ow">in</span> <span class="n">species</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">to_this_composition</span><span class="p">:</span>
+                <span class="n">max_p</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">cond_prob</span><span class="p">(</span><span class="n">s2</span><span class="p">,</span> <span class="n">s1</span><span class="p">)</span> <span class="k">for</span> <span class="n">s2</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">species</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">max_p</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">cond_prob</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">)</span> <span class="k">for</span> <span class="n">s2</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">species</span><span class="p">])</span>
+            <span class="n">max_probabilities</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">max_p</span><span class="p">)</span>
+
+        <span class="n">output</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">def</span> <span class="nf">_recurse</span><span class="p">(</span><span class="n">output_prob</span><span class="p">,</span> <span class="n">output_species</span><span class="p">):</span>
+            <span class="n">best_case_prob</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">max_probabilities</span><span class="p">)</span>
+            <span class="n">best_case_prob</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">output_prob</span><span class="p">)]</span> <span class="o">=</span> <span class="n">output_prob</span>
+            <span class="k">if</span> <span class="nb">reduce</span><span class="p">(</span><span class="n">mul</span><span class="p">,</span> <span class="n">best_case_prob</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">threshold</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">output_species</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">species</span><span class="p">):</span>
+                    <span class="n">odict</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;probability&#39;</span><span class="p">:</span> <span class="nb">reduce</span><span class="p">(</span><span class="n">mul</span><span class="p">,</span> <span class="n">best_case_prob</span><span class="p">)}</span>
+                    <span class="k">if</span> <span class="n">to_this_composition</span><span class="p">:</span>
+                        <span class="n">odict</span><span class="p">[</span><span class="s">&#39;substitutions&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">output_species</span><span class="p">,</span> <span class="n">species</span><span class="p">))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">odict</span><span class="p">[</span><span class="s">&#39;substitutions&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">species</span><span class="p">,</span> <span class="n">output_species</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">output_species</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">output_species</span><span class="p">)):</span>
+                        <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">odict</span><span class="p">)</span>
+                    <span class="k">return</span>
+                <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">species</span><span class="p">:</span>
+                    <span class="n">i</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">output_prob</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">to_this_composition</span><span class="p">:</span>
+                        <span class="n">prob</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">cond_prob</span><span class="p">(</span><span class="n">sp</span><span class="p">,</span> <span class="n">species</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">prob</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">cond_prob</span><span class="p">(</span><span class="n">species</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">sp</span><span class="p">)</span>
+                    <span class="n">_recurse</span><span class="p">(</span><span class="n">output_prob</span> <span class="o">+</span> <span class="p">[</span><span class="n">prob</span><span class="p">],</span> <span class="n">output_species</span> <span class="o">+</span> <span class="p">[</span><span class="n">sp</span><span class="p">])</span>
+
+        <span class="n">_recurse</span><span class="p">([],</span> <span class="p">[])</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;{} substitutions found&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="n">output</span>
+</div>
+<div class="viewcode-block" id="SubstitutionPredictor.composition_prediction"><a class="viewcode-back" href="../../../pymatgen.structure_prediction.html#pymatgen.structure_prediction.substitution_probability.SubstitutionPredictor.composition_prediction">[docs]</a>    <span class="k">def</span> <span class="nf">composition_prediction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">composition</span><span class="p">,</span> <span class="n">to_this_composition</span> <span class="o">=</span> <span class="bp">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns charged balanced substitutions from a starting or ending</span>
+<span class="sd">        composition.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            composition:</span>
+<span class="sd">                starting or ending composition</span>
+<span class="sd">            to_this_composition:</span>
+<span class="sd">                If true, substitutions with this as a final composition</span>
+<span class="sd">                will be found. If false, substitutions with this as a</span>
+<span class="sd">                starting composition will be found (these are slightly</span>
+<span class="sd">                different)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of predictions in the form of dictionaries.</span>
+<span class="sd">            If to_this_composition is true, the values of the dictionary</span>
+<span class="sd">            will be from the list species. If false, the keys will be</span>
+<span class="sd">            from that list.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">preds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">list_prediction</span><span class="p">(</span><span class="n">composition</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">to_this_composition</span><span class="p">)</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">preds</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">to_this_composition</span><span class="p">:</span>
+                <span class="n">subs</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">p</span><span class="p">[</span><span class="s">&#39;substitutions&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iteritems</span><span class="p">()}</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">subs</span> <span class="o">=</span> <span class="n">p</span><span class="p">[</span><span class="s">&#39;substitutions&#39;</span><span class="p">]</span>
+            <span class="n">charge</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">composition</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">charge</span> <span class="o">+=</span> <span class="n">subs</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">oxi_state</span> <span class="o">*</span> <span class="n">v</span>
+            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">charge</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-8</span><span class="p">:</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;{} charge balanced substitutions found&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="n">output</span>
+</pre></div></div></div>
 
           </div>
         </div>
@@ -252,7 +342,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.6.2b documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 2.7.10b documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.abinitio.flows &mdash; pymatgen 2.8.6 documentation</title>
+    <title>pymatgen.io.abinitio.flows &mdash; pymatgen 2.8.7 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '2.8.6',
+        VERSION:     '2.8.7',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.8.6 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 2.8.7 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 2.8.6 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 2.8.7 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -62,10 +62,12 @@
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
 
 <span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">time</span>
 <span class="kn">import</span> <span class="nn">collections</span>
 <span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">cPickle</span> <span class="kn">as</span> <span class="nn">pickle</span>
+<span class="c">#import pickle as pickle</span>
 
 <span class="k">try</span><span class="p">:</span>
     <span class="kn">from</span> <span class="nn">pydispatch</span> <span class="kn">import</span> <span class="n">dispatcher</span>
@@ -73,10 +75,11 @@
     <span class="k">pass</span>
 
 <span class="kn">from</span> <span class="nn">pymatgen.util.io_utils</span> <span class="kn">import</span> <span class="n">FileLock</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.tasks</span> <span class="kn">import</span> <span class="n">Dependency</span><span class="p">,</span> <span class="n">ScfTask</span><span class="p">,</span> <span class="n">PhononTask</span> 
+<span class="kn">from</span> <span class="nn">pymatgen.util.string_utils</span> <span class="kn">import</span> <span class="n">pprint_table</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.tasks</span> <span class="kn">import</span> <span class="n">Dependency</span><span class="p">,</span> <span class="n">Node</span><span class="p">,</span> <span class="n">Task</span><span class="p">,</span> <span class="n">ScfTask</span><span class="p">,</span> <span class="n">PhononTask</span> 
 <span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.utils</span> <span class="kn">import</span> <span class="n">Directory</span>
 <span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.abiinspect</span> <span class="kn">import</span> <span class="n">yaml_read_irred_perts</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.workflows</span> <span class="kn">import</span> <span class="n">Workflow</span><span class="p">,</span> <span class="n">PhononWorkflow</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.workflows</span> <span class="kn">import</span> <span class="n">Workflow</span><span class="p">,</span> <span class="n">BandStructureWorkflow</span><span class="p">,</span> <span class="n">PhononWorkflow</span><span class="p">,</span> <span class="n">G0W0_Workflow</span>
 
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
@@ -86,6 +89,7 @@
 <span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;0.1&quot;</span>
 <span class="n">__maintainer__</span> <span class="o">=</span> <span class="s">&quot;Matteo Giantomassi&quot;</span>
 
+
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s">&quot;AbinitFlow&quot;</span><span class="p">,</span>
     <span class="s">&quot;bandstructure_flow&quot;</span><span class="p">,</span>
@@ -94,7 +98,8 @@
 <span class="p">]</span>
 
 
-<div class="viewcode-block" id="AbinitFlow"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow">[docs]</a><span class="k">class</span> <span class="nc">AbinitFlow</span><span class="p">(</span><span class="n">collections</span><span class="o">.</span><span class="n">Iterable</span><span class="p">):</span>
+<div class="viewcode-block" id="AbinitFlow"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow">[docs]</a><span class="k">class</span> <span class="nc">AbinitFlow</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
+<span class="c">#class AbinitFlow(collections.Iterable):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    This object is a container of workflows. Its main task is managing the </span>
 <span class="sd">    possible inter-depedencies among the workflows and the creation of</span>
@@ -112,21 +117,26 @@
 
     <span class="n">PICKLE_FNAME</span> <span class="o">=</span> <span class="s">&quot;__AbinitFlow__.pickle&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workdir</span><span class="p">,</span> <span class="n">manager</span><span class="p">,</span> <span class="n">pickle_protocol</span><span class="o">=-</span><span class="mi">1</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workdir</span><span class="p">,</span> <span class="n">manager</span><span class="p">,</span> <span class="n">auto_restart</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">pickle_protocol</span><span class="o">=-</span><span class="mi">1</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Args:</span>
 <span class="sd">            workdir:</span>
 <span class="sd">                String specifying the directory where the workflows will be produced.</span>
 <span class="sd">            manager:</span>
 <span class="sd">                `TaskManager` object responsible for the submission of the jobs.</span>
+<span class="sd">            auto_restart:</span>
+<span class="sd">                True if unconverged calculations should be restarted automatically.</span>
 <span class="sd">            pickle_procol:</span>
 <span class="sd">                Pickle protocol version used for saving the status of the object.</span>
 <span class="sd">                -1 denotes the latest version supported by the python interpreter.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">AbinitFlow</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">workdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">workdir</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">creation_date</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">asctime</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">manager</span> <span class="o">=</span> <span class="n">manager</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">auto_restart</span> <span class="o">=</span> <span class="n">auto_restart</span>
 
         <span class="c"># List of workflows.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_works</span> <span class="o">=</span> <span class="p">[]</span>
@@ -141,11 +151,17 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">pickle_protocol</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">pickle_protocol</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s">&quot;&lt;</span><span class="si">%s</span><span class="s"> at </span><span class="si">%s</span><span class="s">, workdir=</span><span class="si">%s</span><span class="s">&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">)</span>
+        <span class="c"># Signal slots: a dictionary with the list </span>
+        <span class="c"># of callbacks indexed by node_id and SIGNAL_TYPE.</span>
+        <span class="c"># When the node changes its status, it broadcast a signal.</span>
+        <span class="c"># The flow is listening to all the nodes of the calculation</span>
+        <span class="c"># [node_id][SIGNAL] = list_of_signal_handlers</span>
+        <span class="c">#self._sig_slots =  slots = {}</span>
+        <span class="c">#for work in self:</span>
+        <span class="c">#    slots[work] = {s: [] for s in work.S_ALL}</span>
 
-    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s">&quot;&lt;</span><span class="si">%s</span><span class="s">, workdir=</span><span class="si">%s</span><span class="s">&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">)</span>
+        <span class="c">#for task in self.iflat_tasks():</span>
+        <span class="c">#    slots[task] = {s: [] for s in work.S_ALL}</span>
 
     <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">works</span><span class="p">)</span>
@@ -156,32 +172,71 @@
     <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">slice</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">works</span><span class="p">[</span><span class="nb">slice</span><span class="p">]</span>
 
-    <span class="c">#def __hash__(self):</span>
-    <span class="c">#    return hash(self.workdir)</span>
-
-    <span class="c">#def __eq__(self, other):</span>
-    <span class="c">#    if other is None or not isinstance(other, Flow):</span>
-    <span class="c">#        return False</span>
-    <span class="c">#    return  self.workdir == other.workdir</span>
-
-    <span class="c">#def __ne__(self, other):</span>
-    <span class="c">#    return not self == other</span>
-
     <span class="nd">@property</span>
 <div class="viewcode-block" id="AbinitFlow.works"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.works">[docs]</a>    <span class="k">def</span> <span class="nf">works</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;List of `Workflow` objects contained in self..&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_works</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="AbinitFlow.all_ok"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.all_ok">[docs]</a>    <span class="k">def</span> <span class="nf">all_ok</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;True if all the tasks in workflows have reached S_OK.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">work</span><span class="o">.</span><span class="n">all_ok</span> <span class="k">for</span> <span class="n">work</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">)</span>
 
     <span class="c">#@property</span>
     <span class="c">#def completed(self):</span>
     <span class="c">#    &quot;&quot;&quot;True if all the tasks of the flow have reached S_OK.&quot;&quot;&quot;</span>
-    <span class="c">#    return all(task.status == task.S_OK for task in self.flat_tasks())</span>
-
-    <span class="c">#def iflat_tasks(self):</span>
-    <span class="c">#    for work in self:</span>
-    <span class="c">#        for task in work:</span>
-    <span class="c">#            yield task</span>
+    <span class="c">#    return all(task.status == task.S_OK for task in self.iflat_tasks())</span>
 </div>
+<div class="viewcode-block" id="AbinitFlow.iflat_tasks_wti"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.iflat_tasks_wti">[docs]</a>    <span class="k">def</span> <span class="nf">iflat_tasks_wti</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">op</span><span class="o">=</span><span class="s">&quot;=&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            (task, work_index, task_index)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iflat_tasks_wti</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span> <span class="n">op</span><span class="o">=</span><span class="n">op</span><span class="p">,</span> <span class="n">with_wti</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="AbinitFlow.iflat_tasks"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.iflat_tasks">[docs]</a>    <span class="k">def</span> <span class="nf">iflat_tasks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">op</span><span class="o">=</span><span class="s">&quot;=&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            task</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_iflat_tasks_wti</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span> <span class="n">op</span><span class="o">=</span><span class="n">op</span><span class="p">,</span> <span class="n">with_wti</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">_iflat_tasks_wti</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">op</span><span class="o">=</span><span class="s">&quot;=&quot;</span><span class="p">,</span> <span class="n">with_wti</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generators that produces a flat sequence of task.</span>
+<span class="sd">        if status is not None, only the tasks with the specified status are selected.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            (task, work_index, task_index) if with_wti is True else task</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">status</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">wi</span><span class="p">,</span> <span class="n">work</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">ti</span><span class="p">,</span> <span class="n">task</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">work</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">with_wti</span><span class="p">:</span>
+                        <span class="k">yield</span> <span class="n">task</span><span class="p">,</span> <span class="n">wi</span><span class="p">,</span> <span class="n">ti</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">yield</span> <span class="n">task</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># Get the operator from the string.</span>
+            <span class="kn">import</span> <span class="nn">operator</span>
+            <span class="n">op</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s">&quot;=&quot;</span><span class="p">:</span> <span class="n">operator</span><span class="o">.</span><span class="n">eq</span><span class="p">,</span>
+                <span class="s">&quot;!=&quot;</span><span class="p">:</span> <span class="n">operator</span><span class="o">.</span><span class="n">ne</span><span class="p">,</span>
+                <span class="s">&quot;&gt;&quot;</span><span class="p">:</span> <span class="n">operator</span><span class="o">.</span><span class="n">gt</span><span class="p">,</span>
+                <span class="s">&quot;&gt;=&quot;</span><span class="p">:</span> <span class="n">operator</span><span class="o">.</span><span class="n">ge</span><span class="p">,</span>
+                <span class="s">&quot;&lt;&quot;</span><span class="p">:</span> <span class="n">operator</span><span class="o">.</span><span class="n">lt</span><span class="p">,</span>
+                <span class="s">&quot;&lt;=&quot;</span><span class="p">:</span> <span class="n">operator</span><span class="o">.</span><span class="n">le</span><span class="p">,</span>
+            <span class="p">}[</span><span class="n">op</span><span class="p">]</span>
+
+            <span class="k">for</span> <span class="n">wi</span><span class="p">,</span> <span class="n">work</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">ti</span><span class="p">,</span> <span class="n">task</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">work</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">op</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="n">with_wti</span><span class="p">:</span>
+                            <span class="k">yield</span> <span class="n">task</span><span class="p">,</span> <span class="n">wi</span><span class="p">,</span> <span class="n">ti</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="k">yield</span> <span class="n">task</span>
+
     <span class="nd">@property</span>
 <div class="viewcode-block" id="AbinitFlow.ncpus_reserved"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.ncpus_reserved">[docs]</a>    <span class="k">def</span> <span class="nf">ncpus_reserved</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -208,45 +263,66 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">work</span><span class="o">.</span><span class="n">ncpus_inuse</span> <span class="k">for</span> <span class="n">work</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">)</span>
 </div>
-<div class="viewcode-block" id="AbinitFlow.used_ids"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.used_ids">[docs]</a>    <span class="k">def</span> <span class="nf">used_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns a set with all the ids used so far to identify `Task` and `Workflow`.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">ids</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">work</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
-            <span class="n">ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">work</span><span class="o">.</span><span class="n">node_id</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">work</span><span class="p">:</span>
-                <span class="n">ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">node_id</span><span class="p">)</span>
-
-        <span class="n">used_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">ids</span><span class="p">)</span>
-        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">ids_set</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">ids</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">used_ids</span>
-</div>
-<div class="viewcode-block" id="AbinitFlow.generate_new_nodeid"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.generate_new_nodeid">[docs]</a>    <span class="k">def</span> <span class="nf">generate_new_nodeid</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Returns an unused node identifier.&quot;&quot;&quot;</span>
-        <span class="n">used_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">used_ids</span><span class="p">()</span>
-
-        <span class="k">for</span> <span class="n">nid</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">count</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">nid</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">used_ids</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">nid</span>
-</div>
 <div class="viewcode-block" id="AbinitFlow.check_status"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.check_status">[docs]</a>    <span class="k">def</span> <span class="nf">check_status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Check the status of the workflows in self.&quot;&quot;&quot;</span>
         <span class="k">for</span> <span class="n">work</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
             <span class="n">work</span><span class="o">.</span><span class="n">check_status</span><span class="p">()</span>
 
-        <span class="c"># Test whether some task must be restarted.</span>
-        <span class="c">#num_restarts = 0</span>
-        <span class="c">#for work in self:</span>
-        <span class="c">#    for task in work:</span>
-        <span class="c">#        if task.not_converged():</span>
-        <span class="c">#            retcode = task.restart_if_needed(self):</span>
-        <span class="c">#            if retcode == 0: num_restarts += 1</span>
-        <span class="c">#if num_restarts:</span>
-        <span class="c">#    self.pickle_dump()</span>
+        <span class="c"># Test whether some task should be restarted.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_restart</span><span class="p">:</span>
+            <span class="n">num_restarts</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">task</span><span class="p">,</span> <span class="n">wt</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">iflat_tasks</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">Task</span><span class="o">.</span><span class="n">S_UNCONVERGED</span><span class="p">):</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;AbinitFlow will try restart task </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">task</span>
+                <span class="k">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+                <span class="n">retcode</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">restart_if_needed</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">retcode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> 
+                    <span class="n">num_restarts</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="k">if</span> <span class="n">num_restarts</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;num_restarts done successfully: &quot;</span><span class="p">,</span> <span class="n">num_restarts</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">pickle_dump</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="AbinitFlow.show_status"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.show_status">[docs]</a>    <span class="k">def</span> <span class="nf">show_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Report the status of the workflows and the status </span>
+<span class="sd">        of the different tasks on the specified stream.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">work</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">print</span><span class="p">(</span><span class="mi">80</span><span class="o">*</span><span class="s">&quot;=&quot;</span><span class="p">)</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Workflow #</span><span class="si">%d</span><span class="s">: </span><span class="si">%s</span><span class="s">, Finalized=</span><span class="si">%s</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">work</span><span class="p">,</span> <span class="n">work</span><span class="o">.</span><span class="n">finalized</span><span class="p">)</span> <span class="p">)</span>
+
+            <span class="n">table</span> <span class="o">=</span> <span class="p">[[</span>
+                     <span class="s">&quot;Task&quot;</span><span class="p">,</span> <span class="s">&quot;Status&quot;</span><span class="p">,</span> <span class="s">&quot;Queue_id&quot;</span><span class="p">,</span> 
+                     <span class="s">&quot;Errors&quot;</span><span class="p">,</span> <span class="s">&quot;Warnings&quot;</span><span class="p">,</span> <span class="s">&quot;Comments&quot;</span><span class="p">,</span> 
+                     <span class="s">&quot;MPI&quot;</span><span class="p">,</span> <span class="s">&quot;OMP&quot;</span><span class="p">,</span> 
+                     <span class="s">&quot;num_restarts&quot;</span><span class="p">,</span> <span class="s">&quot;max_restarts&quot;</span><span class="p">,</span> <span class="s">&quot;Task Class&quot;</span>
+                     <span class="p">]]</span>
+
+            <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">work</span><span class="p">:</span>
+                <span class="n">task_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+                <span class="c"># Parse the events in the main output.</span>
+                <span class="n">report</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">get_event_report</span><span class="p">()</span>
+
+                <span class="n">events</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="mi">3</span><span class="o">*</span><span class="p">[</span><span class="s">&quot;N/A&quot;</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">report</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span> 
+                    <span class="n">events</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="p">[</span><span class="n">report</span><span class="o">.</span><span class="n">num_errors</span><span class="p">,</span> <span class="n">report</span><span class="o">.</span><span class="n">num_warnings</span><span class="p">,</span> <span class="n">report</span><span class="o">.</span><span class="n">num_comments</span><span class="p">])</span>
+
+                <span class="n">cpu_info</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">mpi_ncpus</span><span class="p">,</span> <span class="n">task</span><span class="o">.</span><span class="n">omp_ncpus</span><span class="p">])</span>
+                <span class="n">task_info</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">num_restarts</span><span class="p">,</span> <span class="n">task</span><span class="o">.</span><span class="n">max_num_restarts</span><span class="p">,</span> <span class="n">task</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">])</span>
+
+                <span class="n">table</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">[</span><span class="n">task_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">status</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">queue_id</span><span class="p">)]</span> <span class="o">+</span> 
+                    <span class="n">events</span> <span class="o">+</span> 
+                    <span class="n">cpu_info</span> <span class="o">+</span> 
+                    <span class="n">task_info</span>
+                    <span class="p">)</span>
+
+            <span class="n">pprint_table</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="n">stream</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="AbinitFlow.build"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.build">[docs]</a>    <span class="k">def</span> <span class="nf">build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Make directories and files of the `Flow`.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">indir</span><span class="o">.</span><span class="n">makedirs</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="o">.</span><span class="n">makedirs</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tmpdir</span><span class="o">.</span><span class="n">makedirs</span><span class="p">()</span>
@@ -302,15 +378,38 @@
         <span class="k">return</span> <span class="mi">0</span>
 </div>
     <span class="nd">@classmethod</span>
-<div class="viewcode-block" id="AbinitFlow.pickle_load"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.pickle_load">[docs]</a>    <span class="k">def</span> <span class="nf">pickle_load</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">filepath</span><span class="p">):</span>
+<div class="viewcode-block" id="AbinitFlow.pickle_load"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.pickle_load">[docs]</a>    <span class="k">def</span> <span class="nf">pickle_load</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">filepath</span><span class="p">,</span> <span class="n">disable_signals</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Load the object from a pickle file and performs initial setup.</span>
+<span class="sd">        Loads the object from a pickle file and performs initial setup.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filepath:</span>
+<span class="sd">                Filename or directory name. It filepath is a directory, we </span>
+<span class="sd">                scan the directory tree starting from filepath and we </span>
+<span class="sd">                read the first pickle database.</span>
+<span class="sd">            disable_signals:</span>
+<span class="sd">                If True, the nodes of the flow are not connected by signals.</span>
+<span class="sd">                This option is usually used when we want to read a flow </span>
+<span class="sd">                in read-only mode and we want to avoid any possible side effect.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">filepath</span><span class="p">):</span>
+            <span class="c"># Walk through each directory inside path and find the pickle database.</span>
+            <span class="k">for</span> <span class="n">dirpath</span><span class="p">,</span> <span class="n">dirnames</span><span class="p">,</span> <span class="n">filenames</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">filepath</span><span class="p">):</span>
+                <span class="n">fnames</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">filenames</span> <span class="k">if</span> <span class="n">f</span> <span class="o">==</span> <span class="n">cls</span><span class="o">.</span><span class="n">PICKLE_FNAME</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">fnames</span><span class="p">:</span>
+                    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">fnames</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+                    <span class="n">filepath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dirpath</span><span class="p">,</span> <span class="n">fnames</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">err_msg</span> <span class="o">=</span> <span class="s">&quot;Cannot find </span><span class="si">%s</span><span class="s"> inside directory </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">PICKLE_FNAME</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">err_msg</span><span class="p">)</span>
+
         <span class="k">with</span> <span class="n">FileLock</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span> <span class="k">as</span> <span class="n">lock</span><span class="p">:</span>
             <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
                 <span class="n">flow</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fh</span><span class="p">)</span>
 
-        <span class="n">flow</span><span class="o">.</span><span class="n">connect_signals</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">disable_signals</span><span class="p">:</span>
+            <span class="n">flow</span><span class="o">.</span><span class="n">connect_signals</span><span class="p">()</span>
 
         <span class="c"># Recompute the status of each task since tasks that</span>
         <span class="c"># have been submitted previously might be completed.</span>
@@ -338,8 +437,8 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">work</span> <span class="o">=</span> <span class="n">Workflow</span><span class="p">(</span><span class="n">manager</span><span class="o">=</span><span class="n">manager</span><span class="p">)</span>
         <span class="n">task</span> <span class="o">=</span> <span class="n">work</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">deps</span><span class="o">=</span><span class="n">deps</span><span class="p">,</span> <span class="n">task_class</span><span class="o">=</span><span class="n">task_class</span><span class="p">)</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">register_work</span><span class="p">(</span><span class="n">work</span><span class="p">)</span>
+
         <span class="k">return</span> <span class="n">task</span>
 </div>
 <div class="viewcode-block" id="AbinitFlow.register_work"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.register_work">[docs]</a>    <span class="k">def</span> <span class="nf">register_work</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">work</span><span class="p">,</span> <span class="n">deps</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
@@ -360,7 +459,7 @@
 <span class="sd">                The name of the directory used for the `Workflow`.</span>
 
 <span class="sd">        Returns:   </span>
-<span class="sd">            The workflow.</span>
+<span class="sd">            The registered `Workflow`.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># Directory of the workflow.</span>
         <span class="k">if</span> <span class="n">workdir</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
@@ -368,11 +467,10 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">work_workdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basenane</span><span class="p">(</span><span class="n">workdir</span><span class="p">))</span>
 
-        <span class="c"># Make a deepcopy since manager is mutable and we might change it at run-time.</span>
-        <span class="n">manager</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">()</span> <span class="k">if</span> <span class="n">manager</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">manager</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">()</span>
-
         <span class="n">work</span><span class="o">.</span><span class="n">set_workdir</span><span class="p">(</span><span class="n">work_workdir</span><span class="p">)</span>
-        <span class="n">work</span><span class="o">.</span><span class="n">set_manager</span><span class="p">(</span><span class="n">manager</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">manager</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">work</span><span class="o">.</span><span class="n">set_manager</span><span class="p">(</span><span class="n">manager</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">works</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">work</span><span class="p">)</span>
 
@@ -384,7 +482,7 @@
 </div>
 <div class="viewcode-block" id="AbinitFlow.register_cbk"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.register_cbk">[docs]</a>    <span class="k">def</span> <span class="nf">register_cbk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cbk</span><span class="p">,</span> <span class="n">cbk_data</span><span class="p">,</span> <span class="n">deps</span><span class="p">,</span> <span class="n">work_class</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Registers a callback function that will generate the Task of the Workflow.</span>
+<span class="sd">        Registers a callback function that will generate the `Task` of the `Workflow`.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            cbk:</span>
@@ -405,10 +503,7 @@
         <span class="c"># TODO: pass a workflow factory instead of a class</span>
         <span class="c"># Directory of the workflow.</span>
         <span class="n">work_workdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">,</span> <span class="s">&quot;work_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)))</span>
-                                                                                                            
-        <span class="c"># Make a deepcopy since manager is mutable and we might change it at run-time.</span>
-        <span class="n">manager</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">()</span> <span class="k">if</span> <span class="n">manager</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">manager</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">()</span>
-                                                                                                            
+
         <span class="c"># Create an empty workflow and register the callback</span>
         <span class="n">work</span> <span class="o">=</span> <span class="n">work_class</span><span class="p">(</span><span class="n">workdir</span><span class="o">=</span><span class="n">work_workdir</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="n">manager</span><span class="p">)</span>
         
@@ -428,9 +523,17 @@
                                                                                                             
         <span class="k">return</span> <span class="n">work</span>
 </div>
-<div class="viewcode-block" id="AbinitFlow.allocate"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.allocate">[docs]</a>    <span class="k">def</span> <span class="nf">allocate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="AbinitFlow.allocate"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.allocate">[docs]</a>    <span class="k">def</span> <span class="nf">allocate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Allocate the `AbinitFlow` i.e. assign the `workdir` and (optionally) </span>
+<span class="sd">        the `TaskManager` to the different tasks in the Flow.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">for</span> <span class="n">work</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
-            <span class="n">work</span><span class="o">.</span><span class="n">allocate</span><span class="p">()</span>
+            <span class="n">work</span><span class="o">.</span><span class="n">allocate</span><span class="p">(</span><span class="n">manager</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="p">)</span>
+            <span class="n">work</span><span class="o">.</span><span class="n">set_flow</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">iflat_tasks</span><span class="p">():</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">set_flow</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="bp">self</span>
 </div>
@@ -474,10 +577,6 @@
     <span class="c">#def finalize(self):</span>
     <span class="c">#    &quot;&quot;&quot;This method is called when the flow is completed.&quot;&quot;&quot;</span>
 </div>
-    <span class="nd">@property</span>
-<div class="viewcode-block" id="AbinitFlow.all_ok"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.all_ok">[docs]</a>    <span class="k">def</span> <span class="nf">all_ok</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">work</span><span class="o">.</span><span class="n">all_ok</span> <span class="k">for</span> <span class="n">work</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">)</span>
-</div>
 <div class="viewcode-block" id="AbinitFlow.connect_signals"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.connect_signals">[docs]</a>    <span class="k">def</span> <span class="nf">connect_signals</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Connect the signals within the workflow.</span>
@@ -493,6 +592,26 @@
             <span class="k">for</span> <span class="n">dep</span> <span class="ow">in</span> <span class="n">cbk</span><span class="o">.</span><span class="n">deps</span><span class="p">:</span>
                 <span class="k">print</span><span class="p">(</span><span class="s">&quot;connecting </span><span class="si">%s</span><span class="s"> </span><span class="se">\n</span><span class="s">with sender </span><span class="si">%s</span><span class="s">, signal </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">cbk</span><span class="p">),</span> <span class="n">dep</span><span class="o">.</span><span class="n">node</span><span class="p">,</span> <span class="n">dep</span><span class="o">.</span><span class="n">node</span><span class="o">.</span><span class="n">S_OK</span><span class="p">))</span>
                 <span class="n">dispatcher</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">on_dep_ok</span><span class="p">,</span> <span class="n">signal</span><span class="o">=</span><span class="n">dep</span><span class="o">.</span><span class="n">node</span><span class="o">.</span><span class="n">S_OK</span><span class="p">,</span> <span class="n">sender</span><span class="o">=</span><span class="n">dep</span><span class="o">.</span><span class="n">node</span><span class="p">,</span> <span class="n">weak</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
+        <span class="c"># Associate to each signal the callback _on_signal</span>
+        <span class="c"># (bound method of the node that will be called by `AbinitFlow`</span>
+        <span class="c"># Each node will set its attribute _done_signal to True to tell</span>
+        <span class="c"># the flow that this callback should be disabled.</span>
+
+        <span class="c"># Register the callbacks for the Workflows.</span>
+        <span class="c">#for work in self:</span>
+        <span class="c">#    slot = self._sig_slots[work]</span>
+        <span class="c">#    for signal in S_ALL:</span>
+        <span class="c">#        done_signal = getattr(work, &quot;_done_ &quot; + signal, False)</span>
+        <span class="c">#        if not done_sig:</span>
+        <span class="c">#            cbk_name = &quot;_on_&quot; + str(signal)</span>
+        <span class="c">#            cbk = getattr(work, cbk_name, None)</span>
+        <span class="c">#            if cbk is None: continue</span>
+        <span class="c">#            slot[work][signal].append(cbk)</span>
+        <span class="c">#            print(&quot;connecting %s\nwith sender %s, signal %s&quot; % (str(cbk), dep.node, dep.node.S_OK))</span>
+        <span class="c">#            dispatcher.connect(self.on_dep_ok, signal=signal, sender=dep.node, weak=False)</span>
+
+        <span class="c"># Register the callbacks for the Tasks.</span>
 
         <span class="c">#self.show_receivers()</span>
 </div>
@@ -557,7 +676,7 @@
 
 
 <span class="c"># Factory functions.</span>
-<div class="viewcode-block" id="bandstructure_flow"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.bandstructure_flow">[docs]</a><span class="k">def</span> <span class="nf">bandstructure_flow</span><span class="p">(</span><span class="n">workdir</span><span class="p">,</span> <span class="n">manager</span><span class="p">,</span> <span class="n">scf_input</span><span class="p">,</span> <span class="n">nscf_input</span><span class="p">):</span>
+<div class="viewcode-block" id="bandstructure_flow"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.bandstructure_flow">[docs]</a><span class="k">def</span> <span class="nf">bandstructure_flow</span><span class="p">(</span><span class="n">workdir</span><span class="p">,</span> <span class="n">manager</span><span class="p">,</span> <span class="n">scf_input</span><span class="p">,</span> <span class="n">nscf_input</span><span class="p">,</span> <span class="n">dos_inputs</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Build an `AbinitFlow` for band structure calculations.</span>
 
@@ -570,19 +689,21 @@
 <span class="sd">            Input for the GS SCF run.</span>
 <span class="sd">        nscf_input:</span>
 <span class="sd">            Input for the NSCF run (band structure run).</span>
+<span class="sd">        dos_inputs:</span>
+<span class="sd">            Input(s) for the NSCF run (dos run).</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        `AbinitFlow`</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">flow</span> <span class="o">=</span> <span class="n">AbinitFlow</span><span class="p">(</span><span class="n">workdir</span><span class="p">,</span> <span class="n">manager</span><span class="p">)</span>
-    <span class="n">work</span> <span class="o">=</span> <span class="n">BandStructureWorkflow</span><span class="p">(</span><span class="n">scf_input</span><span class="p">,</span> <span class="n">nscf_input</span><span class="p">)</span>
+    <span class="n">work</span> <span class="o">=</span> <span class="n">BandStructureWorkflow</span><span class="p">(</span><span class="n">scf_input</span><span class="p">,</span> <span class="n">nscf_input</span><span class="p">,</span> <span class="n">dos_inputs</span><span class="o">=</span><span class="n">dos_inputs</span><span class="p">)</span>
     <span class="n">flow</span><span class="o">.</span><span class="n">register_work</span><span class="p">(</span><span class="n">work</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">flow</span><span class="o">.</span><span class="n">allocate</span><span class="p">()</span>
 
 </div>
-<div class="viewcode-block" id="g0w0_flow"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.g0w0_flow">[docs]</a><span class="k">def</span> <span class="nf">g0w0_flow</span><span class="p">(</span><span class="n">workdir</span><span class="p">,</span> <span class="n">manager</span><span class="p">,</span> <span class="n">scf_input</span><span class="p">,</span> <span class="n">nscf_input</span><span class="p">,</span> <span class="n">scr_input</span><span class="p">,</span> <span class="n">sigma_input</span><span class="p">):</span>
+<div class="viewcode-block" id="g0w0_flow"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.g0w0_flow">[docs]</a><span class="k">def</span> <span class="nf">g0w0_flow</span><span class="p">(</span><span class="n">workdir</span><span class="p">,</span> <span class="n">manager</span><span class="p">,</span> <span class="n">scf_input</span><span class="p">,</span> <span class="n">nscf_input</span><span class="p">,</span> <span class="n">scr_input</span><span class="p">,</span> <span class="n">sigma_inputs</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Build an `AbinitFlow` for one-shot G0W0 calculations.</span>
+<span class="sd">    Build an `AbinitFlow` for one-shot $G_0W_0$ calculations.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        workdir:</span>
@@ -595,14 +716,14 @@
 <span class="sd">            Input for the NSCF run (band structure run).</span>
 <span class="sd">        scr_input:</span>
 <span class="sd">            Input for the SCR run.</span>
-<span class="sd">        sigma_input:</span>
-<span class="sd">            Input for the SIGMA run.</span>
+<span class="sd">        sigma_inputs:</span>
+<span class="sd">            List of inputs for the SIGMA run.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        `AbinitFlow`</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">flow</span> <span class="o">=</span> <span class="n">AbinitFlow</span><span class="p">(</span><span class="n">workdir</span><span class="p">,</span> <span class="n">manager</span><span class="p">)</span>
-    <span class="n">work</span> <span class="o">=</span> <span class="n">G0W0_Workflow</span><span class="p">(</span><span class="n">scf_input</span><span class="p">,</span> <span class="n">scf_input</span><span class="p">,</span> <span class="n">nscf_input</span><span class="p">,</span> <span class="n">scr_input</span><span class="p">,</span> <span class="n">sigma_input</span><span class="p">)</span>
+    <span class="n">work</span> <span class="o">=</span> <span class="n">G0W0_Workflow</span><span class="p">(</span><span class="n">scf_input</span><span class="p">,</span> <span class="n">nscf_input</span><span class="p">,</span> <span class="n">scr_input</span><span class="p">,</span> <span class="n">sigma_inputs</span><span class="p">)</span>
     <span class="n">flow</span><span class="o">.</span><span class="n">register_work</span><span class="p">(</span><span class="n">work</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">flow</span><span class="o">.</span><span class="n">allocate</span><span class="p">()</span>
 
@@ -635,6 +756,7 @@
     <span class="c"># Build a temporary workflow with a shell manager just to run </span>
     <span class="c"># ABINIT to get the list of irreducible pertubations for this q-point.</span>
     <span class="n">shell_manager</span> <span class="o">=</span> <span class="n">manager</span><span class="o">.</span><span class="n">to_shell_manager</span><span class="p">(</span><span class="n">mpi_ncpus</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">print</span><span class="p">(</span><span class="n">shell_manager</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ph_inputs</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
         <span class="n">ph_inputs</span> <span class="o">=</span> <span class="p">[</span><span class="n">ph_inputs</span><span class="p">]</span>
@@ -646,6 +768,8 @@
         <span class="n">tmp_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">workdir</span><span class="p">,</span> <span class="s">&quot;__ph_run&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">+</span> <span class="s">&quot;__&quot;</span><span class="p">)</span>
         <span class="n">w</span> <span class="o">=</span> <span class="n">Workflow</span><span class="p">(</span><span class="n">workdir</span><span class="o">=</span><span class="n">tmp_dir</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="n">shell_manager</span><span class="p">)</span>
         <span class="n">fake_task</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">fake_input</span><span class="p">)</span>
+        <span class="c">#print(w)</span>
+        <span class="c">#print(&quot;manager&quot;,w.manager)</span>
 
         <span class="c"># Use the magic value paral_rf = -1 </span>
         <span class="c"># to get the list of irreducible perturbations for this q-point.</span>
@@ -655,7 +779,7 @@
                    <span class="p">)</span>
 
         <span class="n">fake_task</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">add_extra_abivars</span><span class="p">(</span><span class="nb">vars</span><span class="p">)</span>
-
+        <span class="n">w</span><span class="o">.</span><span class="n">allocate</span><span class="p">()</span>
         <span class="n">w</span><span class="o">.</span><span class="n">start</span><span class="p">(</span><span class="n">wait</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
 
         <span class="c"># Parse the file to get the perturbations.</span>
@@ -728,7 +852,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 2.8.6 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 2.8.7 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

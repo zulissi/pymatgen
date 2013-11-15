@@ -1,4 +1,3 @@
-
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
@@ -7,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.abinitio.workflow &mdash; pymatgen 2.8.6 documentation</title>
+    <title>pymatgen.io.abinitio.workflow &mdash; pymatgen 2.8.8 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -15,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '2.8.6',
+        VERSION:     '2.8.8',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +24,7 @@
     <script type="text/javascript" src="../../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.8.6 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 2.8.8 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +44,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 2.8.6 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 2.8.8 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -63,27 +62,28 @@
 
 <span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">os.path</span>
 <span class="kn">import</span> <span class="nn">shutil</span>
 <span class="kn">import</span> <span class="nn">abc</span>
 <span class="kn">import</span> <span class="nn">collections</span>
 <span class="kn">import</span> <span class="nn">functools</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
-<span class="kn">import</span> <span class="nn">cPickle</span> <span class="kn">as</span> <span class="nn">pickle</span>
+
+<span class="kn">from</span> <span class="nn">pprint</span> <span class="kn">import</span> <span class="n">pprint</span>
 
 <span class="kn">from</span> <span class="nn">pymatgen.core.lattice</span> <span class="kn">import</span> <span class="n">Lattice</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="kn">import</span> <span class="n">Structure</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.design_patterns</span> <span class="kn">import</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">AttrDict</span>
-<span class="kn">import</span> <span class="nn">pymatgen.core.physical_constants</span> <span class="kn">as</span> <span class="nn">const</span> 
+<span class="kn">from</span> <span class="nn">pymatgen.core.physical_constants</span> <span class="kn">import</span> <span class="n">Bohr2Ang</span><span class="p">,</span> <span class="n">Ang2Bohr</span><span class="p">,</span> <span class="n">Ha2eV</span><span class="p">,</span> <span class="n">Ha_eV</span><span class="p">,</span> <span class="n">Ha2meV</span>
 <span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">MSONable</span><span class="p">,</span> <span class="n">json_pretty_dump</span>
 <span class="kn">from</span> <span class="nn">pymatgen.io.smartio</span> <span class="kn">import</span> <span class="n">read_structure</span>
 <span class="kn">from</span> <span class="nn">pymatgen.util.num_utils</span> <span class="kn">import</span> <span class="n">iterator_from_slice</span><span class="p">,</span> <span class="n">chunks</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.task</span> <span class="kn">import</span> <span class="n">task_factory</span><span class="p">,</span> <span class="n">Task</span><span class="p">,</span> <span class="n">AbinitTask</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.strategies</span> <span class="kn">import</span> <span class="n">Strategy</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.task</span> <span class="kn">import</span> <span class="n">task_factory</span><span class="p">,</span> <span class="n">Task</span>
 
-<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">File</span>
-<span class="kn">from</span> <span class="nn">.netcdf</span> <span class="kn">import</span> <span class="n">ETSF_Reader</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">abinit_output_iscomplete</span><span class="p">,</span> <span class="n">File</span>
+<span class="kn">from</span> <span class="nn">.netcdf</span> <span class="kn">import</span> <span class="n">GSR_Reader</span>
 <span class="kn">from</span> <span class="nn">.abiobjects</span> <span class="kn">import</span> <span class="n">Smearing</span><span class="p">,</span> <span class="n">AbiStructure</span><span class="p">,</span> <span class="n">KSampling</span><span class="p">,</span> <span class="n">Electrons</span>
-<span class="kn">from</span> <span class="nn">.pseudos</span> <span class="kn">import</span> <span class="n">Pseudo</span>
+<span class="kn">from</span> <span class="nn">.pseudos</span> <span class="kn">import</span> <span class="n">Pseudo</span><span class="p">,</span> <span class="n">PseudoTable</span><span class="p">,</span> <span class="n">get_abinit_psp_dir</span>
 <span class="kn">from</span> <span class="nn">.strategies</span> <span class="kn">import</span> <span class="n">ScfStrategy</span>
 <span class="kn">from</span> <span class="nn">.task</span> <span class="kn">import</span> <span class="n">RunMode</span>
 <span class="kn">from</span> <span class="nn">.eos</span> <span class="kn">import</span> <span class="n">EOS</span>
@@ -95,16 +95,18 @@
 <span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot;Copyright 2013, The Materials Project&quot;</span>
 <span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;0.1&quot;</span>
 <span class="n">__maintainer__</span> <span class="o">=</span> <span class="s">&quot;Matteo Giantomassi&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s">&quot;gmatteo at gmail.com&quot;</span>
+<span class="n">__status__</span> <span class="o">=</span> <span class="s">&quot;Development&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span> <span class="s">&quot;$Feb 21, 2013M$&quot;</span>
 
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="s">&quot;Workflow&quot;</span><span class="p">,</span>
-<span class="p">]</span>
+<span class="c">#__all__ = [</span>
+<span class="c">#]</span>
 
 <span class="c">################################################################################</span>
 
 
-<span class="k">def</span> <span class="nf">map_method</span><span class="p">(</span><span class="n">method</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Decorator that calls item.method for all items in a iterable object.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="map_method"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.map_method">[docs]</a><span class="k">def</span> <span class="nf">map_method</span><span class="p">(</span><span class="n">method</span><span class="p">):</span>
+    <span class="s">&quot;Decorator that calls item.method for all items in a iterable object.&quot;</span>
     <span class="nd">@functools.wraps</span><span class="p">(</span><span class="n">method</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">wrapped</span><span class="p">(</span><span class="n">iter_obj</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">method</span><span class="o">.</span><span class="n">__name__</span><span class="p">)(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -112,8 +114,9 @@
     <span class="k">return</span> <span class="n">wrapped</span>
 
 
-
-<span class="k">class</span> <span class="nc">Product</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="c">################################################################################</span>
+</div>
+<div class="viewcode-block" id="Product"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Product">[docs]</a><span class="k">class</span> <span class="nc">Product</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A product represents a file produced by an AbinitTask instance, file</span>
 <span class="sd">    that is needed by another task in order to start the calculation.</span>
@@ -123,13 +126,12 @@
     <span class="c"># so that I can avoid creating symbolic links before running but</span>
     <span class="c"># the presence of the C-bindings complicates the implementation</span>
     <span class="c"># (gfortran SIGFAULTs if I add strings to dataset_type!</span>
-    <span class="n">_EXT2ABIVARS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">_ext2abivars</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s">&quot;_DEN&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s">&quot;irdden&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
         <span class="s">&quot;_WFK&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s">&quot;irdwfk&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
         <span class="s">&quot;_SCR&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s">&quot;irdscr&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
         <span class="s">&quot;_QPS&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s">&quot;irdqps&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
     <span class="p">}</span>
-
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ext</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ext</span> <span class="o">=</span> <span class="n">ext</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
@@ -137,27 +139,27 @@
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s">&quot;ext = </span><span class="si">%s</span><span class="s">, file = </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ext</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">get_filepath</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Product.get_filepath"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Product.get_filepath">[docs]</a>    <span class="k">def</span> <span class="nf">get_filepath</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="o">.</span><span class="n">path</span>
+</div>
+<div class="viewcode-block" id="Product.get_abivars"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Product.get_abivars">[docs]</a>    <span class="k">def</span> <span class="nf">get_abivars</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ext2abivars</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ext</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
-    <span class="k">def</span> <span class="nf">get_abivars</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_EXT2ABIVARS</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">ext</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-
-
-<span class="k">class</span> <span class="nc">WorkLink</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+</div></div>
+<div class="viewcode-block" id="WorkLink"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.WorkLink">[docs]</a><span class="k">class</span> <span class="nc">WorkLink</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    This object describes the dependencies among the tasks contained in a Work instance.</span>
 
 <span class="sd">    A WorkLink is a task that produces a list of products (files) that are</span>
 <span class="sd">    reused by the other tasks belonging to a Work instance.</span>
-<span class="sd">    One usually instantiates the object by calling work.register and produces_exts.</span>
+<span class="sd">    One usually instantiates the object by calling work.register_task and produces_exts.</span>
 <span class="sd">    Example:</span>
 
 <span class="sd">        # Register the SCF task in work and get the link.</span>
-<span class="sd">        scf_link = work.register(scf_strategy)</span>
+<span class="sd">        scf_link = work.register_task(scf_strategy)</span>
 
 <span class="sd">        # Register the NSCF calculation and its dependency on the SCF run.</span>
-<span class="sd">        nscf_link = work.register(nscf_strategy, links=scf_link.produces_exts(&quot;_DEN&quot;))</span>
+<span class="sd">        nscf_link = work.register_task(nscf_strategy, links=scf_link.produces_exts(&quot;_DEN&quot;))</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">exts</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -185,66 +187,63 @@
         <span class="k">return</span> <span class="n">s</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">products</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="WorkLink.products"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.WorkLink.products">[docs]</a>    <span class="k">def</span> <span class="nf">products</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_products</span>
-
-    <span class="k">def</span> <span class="nf">produces_exts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exts</span><span class="p">):</span>
+</div>
+<div class="viewcode-block" id="WorkLink.produces_exts"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.WorkLink.produces_exts">[docs]</a>    <span class="k">def</span> <span class="nf">produces_exts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exts</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">WorkLink</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_task</span><span class="p">,</span> <span class="n">exts</span><span class="o">=</span><span class="n">exts</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">get_abivars</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</div>
+<div class="viewcode-block" id="WorkLink.get_abivars"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.WorkLink.get_abivars">[docs]</a>    <span class="k">def</span> <span class="nf">get_abivars</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a dictionary with the abinit variables that must</span>
 <span class="sd">        be added to the input file in order to connect the two tasks.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">abivars</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">abivars</span> <span class="o">=</span>  <span class="p">{}</span>
         <span class="k">for</span> <span class="n">prod</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_products</span><span class="p">:</span>
             <span class="n">abivars</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">prod</span><span class="o">.</span><span class="n">get_abivars</span><span class="p">())</span>
         <span class="k">return</span> <span class="n">abivars</span>
-
-    <span class="k">def</span> <span class="nf">get_filepaths_and_exts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Returns the paths of the output files produced by self and its extensions&quot;&quot;&quot;</span>
+</div>
+<div class="viewcode-block" id="WorkLink.get_filepaths_and_exts"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.WorkLink.get_filepaths_and_exts">[docs]</a>    <span class="k">def</span> <span class="nf">get_filepaths_and_exts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the paths of the output files produced by self and its extensions&quot;</span>
         <span class="n">filepaths</span> <span class="o">=</span> <span class="p">[</span><span class="n">prod</span><span class="o">.</span><span class="n">get_filepath</span><span class="p">()</span> <span class="k">for</span> <span class="n">prod</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_products</span><span class="p">]</span>
         <span class="n">exts</span> <span class="o">=</span> <span class="p">[</span><span class="n">prod</span><span class="o">.</span><span class="n">ext</span> <span class="k">for</span> <span class="n">prod</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_products</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">filepaths</span><span class="p">,</span> <span class="n">exts</span>
-
+</div>
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;The status of the link, equivalent to the task status&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="WorkLink.status"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.WorkLink.status">[docs]</a>    <span class="k">def</span> <span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;The status of the link, equivalent to the task status&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_task</span><span class="o">.</span><span class="n">status</span>
 
-
-<span class="k">class</span> <span class="nc">WorkflowError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Base class for the exceptions raised by Workflow objects.&quot;&quot;&quot;</span>
-
-
-<span class="k">class</span> <span class="nc">BaseWorkflow</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="c">################################################################################</span>
+</div></div>
+<div class="viewcode-block" id="WorkflowError"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.WorkflowError">[docs]</a><span class="k">class</span> <span class="nc">WorkflowError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="s">&quot;Base class for the exceptions raised by Workflow objects&quot;</span>
+</div>
+<div class="viewcode-block" id="BaseWorkflow"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.BaseWorkflow">[docs]</a><span class="k">class</span> <span class="nc">BaseWorkflow</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span>
 
     <span class="n">Error</span> <span class="o">=</span> <span class="n">WorkflowError</span>
 
-    <span class="c"># Basename of the pickle database.</span>
-    <span class="n">_PICKLE_FNAME</span> <span class="o">=</span> <span class="s">&quot;__workflow__.pickle&quot;</span>
-
     <span class="c"># interface modeled after subprocess.Popen</span>
     <span class="nd">@abc.abstractproperty</span>
-    <span class="k">def</span> <span class="nf">processes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Return a list of objects that support the subprocess.Popen protocol.&quot;&quot;&quot;</span>
-
-    <span class="k">def</span> <span class="nf">poll</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="BaseWorkflow.processes"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.BaseWorkflow.processes">[docs]</a>    <span class="k">def</span> <span class="nf">processes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Return a list of objects that support the subprocess.Popen protocol.&quot;</span>
+</div>
+<div class="viewcode-block" id="BaseWorkflow.poll"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.BaseWorkflow.poll">[docs]</a>    <span class="k">def</span> <span class="nf">poll</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Check if all child processes have terminated. Set and return</span>
 <span class="sd">        returncode attribute.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">poll</span><span class="p">()</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">]</span>
-
-    <span class="k">def</span> <span class="nf">wait</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</div>
+<div class="viewcode-block" id="BaseWorkflow.wait"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.BaseWorkflow.wait">[docs]</a>    <span class="k">def</span> <span class="nf">wait</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Wait for child processed to terminate. Set and return returncode</span>
 <span class="sd">        attributes.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">]</span>
-
-    <span class="k">def</span> <span class="nf">communicate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">input</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+</div>
+<div class="viewcode-block" id="BaseWorkflow.communicate"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.BaseWorkflow.communicate">[docs]</a>    <span class="k">def</span> <span class="nf">communicate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">input</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Interact with processes: Send data to stdin. Read data from stdout and</span>
 <span class="sd">        stderr, until end-of-file is reached.</span>
@@ -255,53 +254,51 @@
 <span class="sd">        communicate() returns a list of tuples (stdoutdata, stderrdata).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">communicate</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">]</span>
-
+</div>
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">returncodes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="BaseWorkflow.returncodes"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.BaseWorkflow.returncodes">[docs]</a>    <span class="k">def</span> <span class="nf">returncodes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        The children return codes, set by poll() and wait() (and indirectly by communicate()).</span>
 <span class="sd">        A None value indicates that the process hasn&#39;t terminated yet.</span>
 <span class="sd">        A negative value -N indicates that the child was terminated by signal N (Unix only).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">returncode</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">]</span>
-
+</div>
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">ncpus_reserved</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Returns the number of CPUs reserved in this moment.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="BaseWorkflow.ncpus_reserved"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.BaseWorkflow.ncpus_reserved">[docs]</a>    <span class="k">def</span> <span class="nf">ncpus_reserved</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;Returns the number of CPUs reserved in this moment.&quot;</span>
         <span class="n">ncpus</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">is_allocated</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="ow">in</span> <span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">S_SUB</span><span class="p">,</span> <span class="n">task</span><span class="o">.</span><span class="n">S_RUN</span><span class="p">]:</span>
                 <span class="n">ncpus</span> <span class="o">+=</span> <span class="n">task</span><span class="o">.</span><span class="n">tot_ncpus</span>
-
         <span class="k">return</span> <span class="n">ncpus</span>
-
-    <span class="k">def</span> <span class="nf">fetch_task_to_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</div>
+<div class="viewcode-block" id="BaseWorkflow.fetch_task_to_run"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.BaseWorkflow.fetch_task_to_run">[docs]</a>    <span class="k">def</span> <span class="nf">fetch_task_to_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns the first task that is ready to run or None if no task can be submitted at present&quot;</span>
 
-<span class="sd">        Raises `StopIteration` if all tasks are done.</span>
+<span class="sd">        Raises StopIteration if all tasks are done.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">can_run</span><span class="p">:</span>
+            <span class="c"># The task is ready to run if its status is S_READY and all the other links (if any) are done!</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">task</span><span class="o">.</span><span class="n">S_READY</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">([</span><span class="n">link_stat</span><span class="o">==</span><span class="n">task</span><span class="o">.</span><span class="n">S_DONE</span> <span class="k">for</span> <span class="n">link_stat</span> <span class="ow">in</span> <span class="n">task</span><span class="o">.</span><span class="n">links_status</span><span class="p">]):</span>
                 <span class="k">return</span> <span class="n">task</span>
 
-        <span class="c"># All the tasks are done so raise an exception </span>
-        <span class="c"># that will be handled by the client code.</span>
-        <span class="k">if</span> <span class="nb">all</span><span class="p">([</span><span class="n">task</span><span class="o">.</span><span class="n">is_completed</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">]):</span>
-            <span class="k">raise</span> <span class="ne">StopIteration</span><span class="p">(</span><span class="s">&quot;All tasks completed.&quot;</span><span class="p">)</span>
+        <span class="c"># All the tasks are done so raise an exception that will be handled by the client code.</span>
+        <span class="k">if</span> <span class="nb">all</span><span class="p">([</span><span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">task</span><span class="o">.</span><span class="n">S_DONE</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="ne">StopIteration</span>
 
-        <span class="c"># No task found, this usually happens when we have dependencies. </span>
-        <span class="c"># Beware of possible deadlocks here!</span>
+        <span class="c"># No task found, this usually happens when we have dependencies. Beware of possible deadlocks here!</span>
         <span class="k">return</span> <span class="bp">None</span>
-
+</div>
     <span class="nd">@abc.abstractmethod</span>
-    <span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Method called before submitting the calculations.&quot;&quot;&quot;</span>
-
+<div class="viewcode-block" id="BaseWorkflow.setup"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.BaseWorkflow.setup">[docs]</a>    <span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="s">&quot;Method called before submitting the calculations.&quot;</span>
+</div>
     <span class="k">def</span> <span class="nf">_setup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">setup</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">get_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="BaseWorkflow.get_results"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.BaseWorkflow.get_results">[docs]</a>    <span class="k">def</span> <span class="nf">get_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Method called once the calculations completes.</span>
 
@@ -309,59 +306,34 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">WorkFlowResults</span><span class="p">(</span><span class="n">task_results</span><span class="o">=</span><span class="p">{</span><span class="n">task</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">task</span><span class="o">.</span><span class="n">results</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">})</span>
 
-    <span class="k">def</span> <span class="nf">pickle_dump</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">protocol</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Save the status of the object in pickle format.&quot;&quot;&quot;</span>
-        <span class="n">filepath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_PICKLE_FNAME</span><span class="p">)</span>
-
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
-            <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fh</span><span class="p">,</span> <span class="n">protocol</span><span class="o">=</span><span class="n">protocol</span><span class="p">)</span>
-
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">pickle_load</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Load the object from a pickle file. </span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            path:</span>
-<span class="sd">                filepath or directory name.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
-            <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">cls</span><span class="o">.</span><span class="n">_PICKLE_FNAME</span><span class="p">)</span>
-
-        <span class="c"># TODO atomic transaction.</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
-            <span class="n">new</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fh</span><span class="p">)</span>
-
-        <span class="c">#new.__class__ = cls</span>
-        <span class="k">return</span> <span class="n">new</span>
-
-
-<span class="k">class</span> <span class="nc">WorkFlowResults</span><span class="p">(</span><span class="nb">dict</span><span class="p">,</span> <span class="n">MSONable</span><span class="p">):</span>
+<span class="c">##########################################################################################</span>
+</div></div>
+<div class="viewcode-block" id="WorkFlowResults"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.WorkFlowResults">[docs]</a><span class="k">class</span> <span class="nc">WorkFlowResults</span><span class="p">(</span><span class="nb">dict</span><span class="p">,</span> <span class="n">MSONable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Dictionary used to store some of the results produce by a Task object</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">_MANDATORY_KEYS</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">_mandatory_keys</span> <span class="o">=</span> <span class="p">[</span>
         <span class="s">&quot;task_results&quot;</span><span class="p">,</span>
     <span class="p">]</span>
-    <span class="n">_EXC_KEY</span> <span class="o">=</span> <span class="s">&quot;_exceptions&quot;</span>
+    <span class="n">EXC_KEY</span> <span class="o">=</span> <span class="s">&quot;_exceptions&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">WorkFlowResults</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_EXC_KEY</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
-            <span class="bp">self</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_EXC_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">EXC_KEY</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+            <span class="bp">self</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">EXC_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">exceptions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_EXC_KEY</span><span class="p">]</span>
-
-    <span class="k">def</span> <span class="nf">push_exceptions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">exceptions</span><span class="p">):</span>
+<div class="viewcode-block" id="WorkFlowResults.exceptions"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.WorkFlowResults.exceptions">[docs]</a>    <span class="k">def</span> <span class="nf">exceptions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">EXC_KEY</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="WorkFlowResults.push_exceptions"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.WorkFlowResults.push_exceptions">[docs]</a>    <span class="k">def</span> <span class="nf">push_exceptions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">exceptions</span><span class="p">):</span>
         <span class="k">for</span> <span class="n">exc</span> <span class="ow">in</span> <span class="n">exceptions</span><span class="p">:</span>
             <span class="n">newstr</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">newstr</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">exceptions</span><span class="p">:</span>
-                <span class="bp">self</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_EXC_KEY</span><span class="p">]</span> <span class="o">+=</span> <span class="p">[</span><span class="n">newstr</span><span class="p">,]</span>
-
-    <span class="k">def</span> <span class="nf">assert_valid</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+                <span class="bp">self</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">EXC_KEY</span><span class="p">]</span> <span class="o">+=</span> <span class="p">[</span><span class="n">newstr</span><span class="p">,]</span>
+</div>
+<div class="viewcode-block" id="WorkFlowResults.assert_valid"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.WorkFlowResults.assert_valid">[docs]</a>    <span class="k">def</span> <span class="nf">assert_valid</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns empty string if results seem valid.</span>
 
@@ -370,30 +342,46 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># Validate tasks.</span>
         <span class="k">for</span> <span class="n">tres</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">task_results</span><span class="p">:</span>
-            <span class="bp">self</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_EXC_KEY</span><span class="p">]</span> <span class="o">+=</span> <span class="n">tres</span><span class="o">.</span><span class="n">assert_valid</span><span class="p">()</span>
+            <span class="bp">self</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">EXC_KEY</span><span class="p">]</span> <span class="o">+=</span> <span class="n">tres</span><span class="o">.</span><span class="n">assert_valid</span><span class="p">()</span>
 
-        <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_EXC_KEY</span><span class="p">]</span>
-
+        <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">EXC_KEY</span><span class="p">]</span>
+</div>
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="WorkFlowResults.to_dict"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.WorkFlowResults.to_dict">[docs]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
         <span class="n">d</span><span class="p">[</span><span class="s">&quot;@module&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span>
         <span class="n">d</span><span class="p">[</span><span class="s">&quot;@class&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
         <span class="k">return</span> <span class="n">d</span>
-
+</div>
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
+<div class="viewcode-block" id="WorkFlowResults.from_dict"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.WorkFlowResults.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
         <span class="n">mydict</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;@module&quot;</span><span class="p">,</span> <span class="s">&quot;@class&quot;</span><span class="p">,]}</span>
         <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">mydict</span><span class="p">)</span>
-    
+</div>
+<div class="viewcode-block" id="WorkFlowResults.json_dump"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.WorkFlowResults.json_dump">[docs]</a>    <span class="k">def</span> <span class="nf">json_dump</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="n">json_pretty_dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_dict</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="WorkFlowResults.json_load"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.WorkFlowResults.json_load">[docs]</a>    <span class="k">def</span> <span class="nf">json_load</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">json_load</span><span class="p">(</span><span class="n">filename</span><span class="p">))</span>
 
-<div class="viewcode-block" id="Workflow"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow">[docs]</a><span class="k">class</span> <span class="nc">Workflow</span><span class="p">(</span><span class="n">BaseWorkflow</span><span class="p">):</span>
+<span class="c">##########################################################################################</span>
+</div></div>
+<div class="viewcode-block" id="Workflow"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow">[docs]</a><span class="k">class</span> <span class="nc">Workflow</span><span class="p">(</span><span class="n">BaseWorkflow</span><span class="p">,</span> <span class="n">MSONable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A Workflow is a list of (possibly connected) tasks.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">Error</span> <span class="o">=</span> <span class="n">WorkflowError</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workdir</span><span class="p">,</span> <span class="n">runmode</span><span class="p">):</span>
+    <span class="c">#@classmethod</span>
+    <span class="c">#def from_task(cls, task):</span>
+    <span class="c">#    &quot;Build a Work instance from a task object&quot;</span>
+    <span class="c">#    workdir, tail = os.path.dirname(task.workdir)</span>
+    <span class="c">#    new = cls(workdir, taks.runmode)</span>
+    <span class="c">#    new.register_task(task.input)</span>
+    <span class="c">#    return new</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workdir</span><span class="p">,</span> <span class="n">runmode</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Args:</span>
 <span class="sd">            workdir:</span>
@@ -404,6 +392,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">workdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">workdir</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">runmode</span> <span class="o">=</span> <span class="n">RunMode</span><span class="o">.</span><span class="n">asrunmode</span><span class="p">(</span><span class="n">runmode</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_kwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span> <span class="o">=</span> <span class="p">[]</span>
 
@@ -417,7 +407,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="o">.</span><span class="n">__iter__</span><span class="p">()</span>
 
 <div class="viewcode-block" id="Workflow.chunks"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.chunks">[docs]</a>    <span class="k">def</span> <span class="nf">chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Yield successive chunks of tasks of lenght chunk_size.&quot;&quot;&quot;</span>
+        <span class="s">&quot;Yield successive chunks of tasks of lenght chunk_size.&quot;</span>
         <span class="k">for</span> <span class="n">tasks</span> <span class="ow">in</span> <span class="n">chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">):</span>
             <span class="k">yield</span> <span class="n">tasks</span>
 </div>
@@ -427,84 +417,36 @@
     <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s">&quot;&lt;</span><span class="si">%s</span><span class="s"> at </span><span class="si">%s</span><span class="s">, workdir = </span><span class="si">%s</span><span class="s">&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">))</span>
 
-    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__repr__</span><span class="p">()</span>
-
     <span class="nd">@property</span>
-<div class="viewcode-block" id="Workflow.processes"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.processes">[docs]</a>    <span class="k">def</span> <span class="nf">processes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">process</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">]</span>
+<div class="viewcode-block" id="Workflow.to_dict"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.to_dict">[docs]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;workdir&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">,</span>
+             <span class="s">&quot;runmode&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">runmode</span><span class="o">.</span><span class="n">to_dict</span><span class="p">,</span>
+             <span class="s">&quot;kwargs&quot;</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_kwargs</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="n">d</span><span class="p">[</span><span class="s">&quot;@module&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span>
+        <span class="n">d</span><span class="p">[</span><span class="s">&quot;@class&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
+        <span class="k">return</span> <span class="n">d</span>
+</div>
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Workflow.from_dict"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Work</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s">&quot;workdir&quot;</span><span class="p">],</span> <span class="n">d</span><span class="p">[</span><span class="s">&quot;runmode&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">d</span><span class="p">[</span><span class="s">&quot;kwargs&quot;</span><span class="p">])</span>
 </div>
     <span class="nd">@property</span>
 <div class="viewcode-block" id="Workflow.alldone"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.alldone">[docs]</a>    <span class="k">def</span> <span class="nf">alldone</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;True if all the Task in the `Workflow` are completed.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="nb">all</span><span class="p">([</span><span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">Task</span><span class="o">.</span><span class="n">S_DONE</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">])</span>
 </div>
     <span class="nd">@property</span>
 <div class="viewcode-block" id="Workflow.isnc"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.isnc">[docs]</a>    <span class="k">def</span> <span class="nf">isnc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;True if norm-conserving calculation.&quot;&quot;&quot;</span>
+        <span class="s">&quot;True if norm-conserving calculation&quot;</span>
         <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">isnc</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">)</span>
 </div>
     <span class="nd">@property</span>
 <div class="viewcode-block" id="Workflow.ispaw"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.ispaw">[docs]</a>    <span class="k">def</span> <span class="nf">ispaw</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;True if PAW calculation.&quot;&quot;&quot;</span>
+        <span class="s">&quot;True if PAW calculation&quot;</span>
         <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">ispaw</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">)</span>
-
-    <span class="c">#@property</span>
-    <span class="c">#def to_dict(self):</span>
-    <span class="c">#    d = dict(</span>
-    <span class="c">#        workdir=self.workdir,</span>
-    <span class="c">#        runmode=self.runmode.to_dict,</span>
-    <span class="c">#        kwargs=self._kwargs</span>
-    <span class="c">#    )</span>
-    <span class="c">#    d[&quot;@module&quot;] = self.__class__.__module__</span>
-    <span class="c">#    d[&quot;@class&quot;] = self.__class__.__name__</span>
-    <span class="c">#    return d</span>
-
-    <span class="c">#@classmethod</span>
-    <span class="c">#def from_dict(cls, d):</span>
-    <span class="c">#    return cls(d[&quot;workdir&quot;], d[&quot;runmode&quot;])</span>
-</div>
-<div class="viewcode-block" id="Workflow.register"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.register">[docs]</a>    <span class="k">def</span> <span class="nf">register</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">links</span><span class="o">=</span><span class="p">()):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Registers a new task and add it to the internal list, taking into account possible dependencies.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            obj:</span>
-<span class="sd">                `Strategy` object or `AbinitInput` instance.</span>
-<span class="sd">                if Strategy object, we create a new `AbinitTask` from the input strategy and add it to the list.</span>
-
-<span class="sd">        Returns:   </span>
-<span class="sd">            `WorkLink` object</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c"># Handle possible dependencies.</span>
-        <span class="k">if</span> <span class="n">links</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">links</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">Iterable</span><span class="p">):</span>
-            <span class="n">links</span> <span class="o">=</span> <span class="p">[</span><span class="n">links</span><span class="p">,]</span>
-
-        <span class="n">task_id</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
-        <span class="n">task_workdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">,</span> <span class="s">&quot;task_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">task_id</span><span class="p">))</span>
-
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">Strategy</span><span class="p">):</span>
-            <span class="c"># Create the new task (note the factory so that we create subclasses easily).</span>
-            <span class="n">task</span> <span class="o">=</span> <span class="n">task_factory</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">task_workdir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">runmode</span><span class="p">,</span> <span class="n">task_id</span><span class="o">=</span><span class="n">task_id</span><span class="p">,</span> <span class="n">links</span><span class="o">=</span><span class="n">links</span><span class="p">)</span>
-
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c"># Create the new task from the input. Note that no subclasses are instanciated here.</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">task</span> <span class="o">=</span> <span class="n">AbinitTask</span><span class="o">.</span><span class="n">from_input</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">task_workdir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">runmode</span><span class="p">,</span> <span class="n">task_id</span><span class="o">=</span><span class="n">task_id</span><span class="p">,</span> <span class="n">links</span><span class="o">=</span><span class="n">links</span><span class="p">)</span>
-
-            <span class="k">except</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&quot;Don&#39;t know how to create a Task from object type </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">obj</span><span class="p">)))</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">links</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_links_dict</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">links</span><span class="p">)</span>
-            <span class="k">print</span><span class="p">(</span><span class="s">&quot;task_id </span><span class="si">%s</span><span class="s"> needs</span><span class="se">\n</span><span class="s"> </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">links</span><span class="p">]))</span>
-
-        <span class="k">return</span> <span class="n">WorkLink</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="Workflow.path_in_workdir"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.path_in_workdir">[docs]</a>    <span class="k">def</span> <span class="nf">path_in_workdir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Create the absolute path of filename in the workind directory.&quot;&quot;&quot;</span>
+        <span class="s">&quot;Create the absolute path of filename in the workind directory.&quot;</span>
         <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="Workflow.setup"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.setup">[docs]</a>    <span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -512,22 +454,56 @@
 <span class="sd">        Method called before running the calculations.</span>
 <span class="sd">        The default implementation is empty.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
+    <span class="c">#def show_inputs(self, stream=sys.stdout):</span>
+    <span class="c">#    lines = []</span>
+    <span class="c">#    app = lines.append</span>
+    <span class="c">#    width = 120</span>
+    <span class="c">#    for task in self:</span>
+    <span class="c">#        app(&quot;\n&quot;)</span>
+    <span class="c">#        app(repr(task))</span>
+    <span class="c">#        app(&quot;\ninput: %s&quot; % task.input_file.path)</span>
+    <span class="c">#        app(&quot;\n&quot;)</span>
+    <span class="c">#        app(str(task.input))</span>
+    <span class="c">#        app(width*&quot;=&quot; + &quot;\n&quot;)</span>
+    <span class="c">#    stream.write(&quot;\n&quot;.join(lines))</span>
+</div>
+<div class="viewcode-block" id="Workflow.register_task"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.register_task">[docs]</a>    <span class="k">def</span> <span class="nf">register_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">strategy</span><span class="p">,</span> <span class="n">links</span><span class="o">=</span><span class="p">()):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Registers a new task:</span>
+
+<span class="sd">            - creates a new AbinitTask from the input strategy.</span>
+<span class="sd">            - adds the new task to the internal list, taking into account possible dependencies.</span>
+
+<span class="sd">        Returns: WorkLink object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">task_id</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="n">task_workdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">,</span> <span class="s">&quot;task_&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">task_id</span><span class="p">))</span>
+
+        <span class="c"># Handle possible dependencies.</span>
+        <span class="k">if</span> <span class="n">links</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">links</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">Iterable</span><span class="p">):</span>
+                <span class="n">links</span> <span class="o">=</span> <span class="p">[</span><span class="n">links</span><span class="p">,]</span>
+
+        <span class="c"># Create the new task (note the factory so that we create subclasses easily).</span>
+        <span class="n">task</span> <span class="o">=</span> <span class="n">task_factory</span><span class="p">(</span><span class="n">strategy</span><span class="p">,</span> <span class="n">task_workdir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">runmode</span><span class="p">,</span> <span class="n">task_id</span><span class="o">=</span><span class="n">task_id</span><span class="p">,</span> <span class="n">links</span><span class="o">=</span><span class="n">links</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">links</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_links_dict</span><span class="p">[</span><span class="n">task_id</span><span class="p">]</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">links</span><span class="p">)</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;task_id </span><span class="si">%s</span><span class="s"> neeeds</span><span class="se">\n</span><span class="s"> </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">task_id</span><span class="p">,</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">links</span><span class="p">]))</span>
+
+        <span class="k">return</span> <span class="n">WorkLink</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="Workflow.build"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.build">[docs]</a>    <span class="k">def</span> <span class="nf">build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Creates the top level directory.&quot;&quot;&quot;</span>
-        <span class="c"># Create top level directory.</span>
+        <span class="s">&quot;Creates the top level directory&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">):</span>
             <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">)</span>
-
-        <span class="c"># Build dirs and files of each task.</span>
-        <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
-            <span class="n">task</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-
-        <span class="c">#for task in self:</span>
-        <span class="c">#    task.connect()</span>
 </div>
 <div class="viewcode-block" id="Workflow.get_status"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.get_status">[docs]</a>    <span class="k">def</span> <span class="nf">get_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">only_highest_rank</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Get the status of the tasks in self.&quot;&quot;&quot;</span>
+        <span class="s">&quot;Get the status of the tasks in self.&quot;</span>
         <span class="n">status_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">status</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">]</span>
 
         <span class="k">if</span> <span class="n">only_highest_rank</span><span class="p">:</span>
@@ -535,65 +511,24 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">status_list</span>
 </div>
-<div class="viewcode-block" id="Workflow.recheck_status"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.recheck_status">[docs]</a>    <span class="k">def</span> <span class="nf">recheck_status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
-            <span class="n">task</span><span class="o">.</span><span class="n">recheck_status</span><span class="p">()</span>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Workflow.processes"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.processes">[docs]</a>    <span class="k">def</span> <span class="nf">processes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">process</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">]</span>
 </div>
-<div class="viewcode-block" id="Workflow.show_inputs"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.show_inputs">[docs]</a>    <span class="k">def</span> <span class="nf">show_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">):</span>
-        <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">app</span> <span class="o">=</span> <span class="n">lines</span><span class="o">.</span><span class="n">append</span>
-
-        <span class="n">width</span> <span class="o">=</span> <span class="mi">120</span>
-        <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
-            <span class="n">app</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
-            <span class="n">app</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">task</span><span class="p">)</span><span class="o">+</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
-            <span class="n">app</span><span class="p">(</span><span class="s">&quot;Input file: </span><span class="si">%s</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">task</span><span class="o">.</span><span class="n">input_file</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
-            <span class="n">app</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">make_input</span><span class="p">()))</span>
-            <span class="n">app</span><span class="p">(</span><span class="n">width</span><span class="o">*</span><span class="s">&quot;=&quot;</span> <span class="o">+</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
-
-        <span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
-</div>
-<div class="viewcode-block" id="Workflow.rmtree"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.rmtree">[docs]</a>    <span class="k">def</span> <span class="nf">rmtree</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exclude_wildcard</span><span class="o">=</span><span class="s">&quot;&quot;</span><span class="p">):</span>
+<div class="viewcode-block" id="Workflow.rmtree"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.rmtree">[docs]</a>    <span class="k">def</span> <span class="nf">rmtree</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Remove all files and directories in the working directory</span>
+<span class="sd">        Remove all calculation files and directories.</span>
 
-<span class="sd">        Args:</span>
-<span class="sd">            exclude_wildcard:</span>
-<span class="sd">                Optional string with regular expressions separated by |.</span>
-<span class="sd">                Files matching one of the regular expressions will be preserved.</span>
-<span class="sd">                example: exclude_wildard=&quot;*.nc|*.txt&quot; preserves all the files</span>
-<span class="sd">                whose extension is in [&quot;nc&quot;, &quot;txt&quot;].</span>
-
+<span class="sd">        Keyword arguments:</span>
+<span class="sd">            force: (False)</span>
+<span class="sd">                Do not ask confirmation.</span>
+<span class="sd">            verbose: (0)</span>
+<span class="sd">                Print message if verbose is not zero.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">exclude_wildcard</span><span class="p">:</span>
-            <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;verbose&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;Removing directory tree: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">)</span>
 
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">pats</span> <span class="o">=</span> <span class="n">exclude_wildcard</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;|&quot;</span><span class="p">)</span>
-
-            <span class="kn">import</span> <span class="nn">fnmatch</span>
-
-            <span class="k">def</span> <span class="nf">keep</span><span class="p">(</span><span class="n">fname</span><span class="p">):</span>
-                <span class="k">for</span> <span class="n">pat</span> <span class="ow">in</span> <span class="n">pats</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="n">fnmatch</span><span class="o">.</span><span class="n">fnmatch</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">pat</span><span class="p">):</span>
-                        <span class="k">return</span> <span class="bp">True</span>
-                <span class="k">return</span> <span class="bp">False</span>
-
-            <span class="k">for</span> <span class="n">dirpath</span><span class="p">,</span> <span class="n">dirnames</span><span class="p">,</span> <span class="n">filenames</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">):</span>
-                <span class="k">for</span> <span class="n">fname</span> <span class="ow">in</span> <span class="n">filenames</span><span class="p">:</span>
-                    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dirpath</span><span class="p">,</span> <span class="n">fname</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="ow">not</span> <span class="n">keep</span><span class="p">(</span><span class="n">fname</span><span class="p">):</span>
-                        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-</div>
-<div class="viewcode-block" id="Workflow.rm_tmpdatadir"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.rm_tmpdatadir">[docs]</a>    <span class="k">def</span> <span class="nf">rm_tmpdatadir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Remove all the tmpdata directories.&quot;&quot;&quot;</span>
-        <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
-            <span class="n">task</span><span class="o">.</span><span class="n">rm_tmpdatadir</span><span class="p">()</span>
-</div>
-<div class="viewcode-block" id="Workflow.rm_indatadir"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.rm_indatadir">[docs]</a>    <span class="k">def</span> <span class="nf">rm_indatadir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Remove all the indata directories.&quot;&quot;&quot;</span>
-        <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
-            <span class="n">task</span><span class="o">.</span><span class="n">rm_indatadir</span><span class="p">()</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="Workflow.move"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.move">[docs]</a>    <span class="k">def</span> <span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dst</span><span class="p">,</span> <span class="n">isabspath</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -645,23 +580,16 @@
         <span class="n">etotal</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
             <span class="c"># Open the GSR file and read etotal (Hartree)</span>
-            <span class="k">with</span> <span class="n">ETSF_Reader</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">odata_path_from_ext</span><span class="p">(</span><span class="s">&quot;_GSR&quot;</span><span class="p">))</span> <span class="k">as</span> <span class="n">ncdata</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">GSR_Reader</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">odata_path_from_ext</span><span class="p">(</span><span class="s">&quot;_GSR&quot;</span><span class="p">))</span> <span class="k">as</span> <span class="n">ncdata</span><span class="p">:</span>
                 <span class="n">etotal</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ncdata</span><span class="o">.</span><span class="n">read_value</span><span class="p">(</span><span class="s">&quot;etotal&quot;</span><span class="p">))</span>
 
         <span class="k">return</span> <span class="n">etotal</span>
-</div>
-<div class="viewcode-block" id="Workflow.json_dump"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.json_dump">[docs]</a>    <span class="k">def</span> <span class="nf">json_dump</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
-        <span class="n">json_pretty_dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_dict</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
-                                                  </div>
-    <span class="nd">@classmethod</span>
-<div class="viewcode-block" id="Workflow.json_load"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Workflow.json_load">[docs]</a>    <span class="k">def</span> <span class="nf">json_load</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">json_load</span><span class="p">(</span><span class="n">filename</span><span class="p">))</span>
 
+<span class="c">################################################################################</span>
 </div></div>
-<span class="k">class</span> <span class="nc">IterativeWork</span><span class="p">(</span><span class="n">Workflow</span><span class="p">):</span>
+<div class="viewcode-block" id="IterativeWork"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.IterativeWork">[docs]</a><span class="k">class</span> <span class="nc">IterativeWork</span><span class="p">(</span><span class="n">Workflow</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    This object defined a workflow that produces tasks until a particular </span>
-<span class="sd">    condition is satisfied (mainly used for simple convergence studies).</span>
+<span class="sd">    TODO</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span>
 
@@ -670,8 +598,6 @@
 <span class="sd">        Args:</span>
 <span class="sd">            workdir:</span>
 <span class="sd">                Working directory.</span>
-<span class="sd">            runmode:</span>
-<span class="sd">                `RunMode` object.</span>
 <span class="sd">            strategy_generator:</span>
 <span class="sd">                Strategy generator.</span>
 <span class="sd">            max_niter:</span>
@@ -684,12 +610,11 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">max_niter</span> <span class="o">=</span> <span class="n">max_niter</span>
 
-    <span class="k">def</span> <span class="nf">next_task</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="IterativeWork.next_task"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.IterativeWork.next_task">[docs]</a>    <span class="k">def</span> <span class="nf">next_task</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Generate and register a new task</span>
 
-<span class="sd">        Returns: </span>
-<span class="sd">            New `Task` object</span>
+<span class="sd">        Return: task object</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">next_strategy</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">strategy_generator</span><span class="p">)</span>
@@ -700,19 +625,17 @@
         <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">niter</span>
 
         <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-
-    <span class="k">def</span> <span class="nf">submit_tasks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</div>
+<div class="viewcode-block" id="IterativeWork.submit_tasks"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.IterativeWork.submit_tasks">[docs]</a>    <span class="k">def</span> <span class="nf">submit_tasks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Run the tasks till self.exit_iteration says to exit </span>
-<span class="sd">        or the number of iterations exceeds self.max_niter</span>
+<span class="sd">        Run the tasks till self.exit_iteration says to exit or the number of iterations exceeds self.max_niter</span>
 
-<span class="sd">        Returns: </span>
-<span class="sd">            dictionary with the final results</span>
+<span class="sd">        Return dictionary with the final results</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">niter</span> <span class="o">=</span> <span class="mi">1</span>
 
         <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">niter</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_niter</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_niter</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">niter</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_niter</span><span class="p">:</span>
                 <span class="k">print</span><span class="p">(</span><span class="s">&quot;niter </span><span class="si">%d</span><span class="s"> &gt; max_niter </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">niter</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_niter</span><span class="p">))</span>
                 <span class="k">break</span>
 
@@ -731,9 +654,9 @@
                 <span class="k">break</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">niter</span> <span class="o">+=</span> <span class="mi">1</span>
-
+</div>
     <span class="nd">@abc.abstractmethod</span>
-    <span class="k">def</span> <span class="nf">exit_iteration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="IterativeWork.exit_iteration"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.IterativeWork.exit_iteration">[docs]</a>    <span class="k">def</span> <span class="nf">exit_iteration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return a dictionary with the results produced at the given iteration.</span>
 <span class="sd">        The dictionary must contains an entry &quot;converged&quot; that evaluates to</span>
@@ -741,24 +664,20 @@
 <span class="sd">        &quot;&quot;&quot;</span>
 
 <span class="c">##########################################################################################</span>
-
-<span class="k">def</span> <span class="nf">strictly_increasing</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
-    <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span> <span class="o">&lt;</span> <span class="n">y</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">values</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
-
-
-<span class="k">def</span> <span class="nf">strictly_decreasing</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
-    <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span> <span class="o">&gt;</span> <span class="n">y</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">values</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
-
-
-<span class="k">def</span> <span class="nf">non_increasing</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
-    <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span> <span class="o">&gt;=</span> <span class="n">y</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">values</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
-
-
-<span class="k">def</span> <span class="nf">non_decreasing</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
-    <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span> <span class="o">&lt;=</span> <span class="n">y</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">values</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
-
-
-<span class="k">def</span> <span class="nf">monotonic</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&quot;&lt;&quot;</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1.e-8</span><span class="p">):</span>
+</div></div>
+<div class="viewcode-block" id="strictly_increasing"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.strictly_increasing">[docs]</a><span class="k">def</span> <span class="nf">strictly_increasing</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span><span class="o">&lt;</span><span class="n">y</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">values</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+</div>
+<div class="viewcode-block" id="strictly_decreasing"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.strictly_decreasing">[docs]</a><span class="k">def</span> <span class="nf">strictly_decreasing</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span><span class="o">&gt;</span><span class="n">y</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">values</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+</div>
+<div class="viewcode-block" id="non_increasing"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.non_increasing">[docs]</a><span class="k">def</span> <span class="nf">non_increasing</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span><span class="o">&gt;=</span><span class="n">y</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">values</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+</div>
+<div class="viewcode-block" id="non_decreasing"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.non_decreasing">[docs]</a><span class="k">def</span> <span class="nf">non_decreasing</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span><span class="o">&lt;=</span><span class="n">y</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">values</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+</div>
+<div class="viewcode-block" id="monotonic"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.monotonic">[docs]</a><span class="k">def</span> <span class="nf">monotonic</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&quot;&lt;&quot;</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1.e-8</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Returns False if values are not monotonic (decreasing|increasing).</span>
 <span class="sd">    mode is &quot;&lt;&quot; for a decreasing sequence, &quot;&gt;&quot; for an increasing sequence.</span>
@@ -789,12 +708,11 @@
                 <span class="k">return</span> <span class="bp">False</span>
 
     <span class="k">else</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Wrong mode </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">mode</span><span class="p">))</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Wrong mode </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">mode</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="bp">True</span>
-
-
-<span class="k">def</span> <span class="nf">check_conv</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">tol</span><span class="p">,</span> <span class="n">min_numpts</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&quot;abs&quot;</span><span class="p">,</span> <span class="n">vinf</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+</div>
+<div class="viewcode-block" id="check_conv"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.check_conv">[docs]</a><span class="k">def</span> <span class="nf">check_conv</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">tol</span><span class="p">,</span> <span class="n">min_numpts</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&quot;abs&quot;</span><span class="p">,</span> <span class="n">vinf</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Given a list of values and a tolerance tol, returns the leftmost index for which</span>
 
@@ -835,10 +753,9 @@
         <span class="k">if</span> <span class="p">(</span><span class="n">numpts</span> <span class="o">-</span> <span class="n">i</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">min_numpts</span><span class="p">:</span> <span class="n">i</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span>
 
     <span class="k">return</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span>
-
-
-<span class="k">def</span> <span class="nf">compute_hints</span><span class="p">(</span><span class="n">ecut_list</span><span class="p">,</span> <span class="n">etotal</span><span class="p">,</span> <span class="n">atols_mev</span><span class="p">,</span> <span class="n">pseudo</span><span class="p">,</span> <span class="n">min_numpts</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">):</span>
-    <span class="n">de_low</span><span class="p">,</span> <span class="n">de_normal</span><span class="p">,</span> <span class="n">de_high</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1000</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">HA_TO_EV</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">atols_mev</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="compute_hints"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.compute_hints">[docs]</a><span class="k">def</span> <span class="nf">compute_hints</span><span class="p">(</span><span class="n">ecut_list</span><span class="p">,</span> <span class="n">etotal</span><span class="p">,</span> <span class="n">atols_mev</span><span class="p">,</span> <span class="n">pseudo</span><span class="p">,</span> <span class="n">min_numpts</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">):</span>
+    <span class="n">de_low</span><span class="p">,</span> <span class="n">de_normal</span><span class="p">,</span> <span class="n">de_high</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1000</span> <span class="o">*</span> <span class="n">Ha_eV</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">atols_mev</span><span class="p">]</span>
 
     <span class="n">num_ene</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">etotal</span><span class="p">)</span>
     <span class="n">etotal_inf</span> <span class="o">=</span> <span class="n">etotal</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
@@ -853,7 +770,7 @@
 
     <span class="n">app</span><span class="p">([</span><span class="s">&quot;iter&quot;</span><span class="p">,</span> <span class="s">&quot;ecut&quot;</span><span class="p">,</span> <span class="s">&quot;etotal&quot;</span><span class="p">,</span> <span class="s">&quot;et-e_inf [meV]&quot;</span><span class="p">,</span> <span class="s">&quot;accuracy&quot;</span><span class="p">,])</span>
     <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="p">(</span><span class="n">ec</span><span class="p">,</span> <span class="n">et</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">ecut_list</span><span class="p">,</span> <span class="n">etotal</span><span class="p">)):</span>
-        <span class="n">line</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%d</span><span class="s"> </span><span class="si">%.1f</span><span class="s"> </span><span class="si">%.7f</span><span class="s"> </span><span class="si">%.3f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">ec</span><span class="p">,</span> <span class="n">et</span><span class="p">,</span> <span class="p">(</span><span class="n">et</span><span class="o">-</span><span class="n">etotal_inf</span><span class="p">)</span> <span class="o">*</span> <span class="n">const</span><span class="o">.</span><span class="n">HA_TO_EV</span> <span class="o">*</span> <span class="mf">1.e+3</span><span class="p">)</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%d</span><span class="s"> </span><span class="si">%.1f</span><span class="s"> </span><span class="si">%.7f</span><span class="s"> </span><span class="si">%.3f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">ec</span><span class="p">,</span> <span class="n">et</span><span class="p">,</span> <span class="p">(</span><span class="n">et</span><span class="o">-</span><span class="n">etotal_inf</span><span class="p">)</span><span class="o">*</span> <span class="n">Ha_eV</span> <span class="o">*</span> <span class="mf">1.e+3</span><span class="p">)</span>
         <span class="n">row</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()</span> <span class="o">+</span> <span class="p">[</span><span class="s">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">accidx</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="o">==</span> <span class="n">idx</span><span class="p">)]</span>
         <span class="n">app</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
 
@@ -890,8 +807,8 @@
     <span class="k">return</span> <span class="n">data</span>
 
 <span class="c">##########################################################################################</span>
-
-<span class="k">def</span> <span class="nf">plot_etotal</span><span class="p">(</span><span class="n">ecut_list</span><span class="p">,</span> <span class="n">etotals</span><span class="p">,</span> <span class="n">aug_ratios</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</div>
+<div class="viewcode-block" id="plot_etotal"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.plot_etotal">[docs]</a><span class="k">def</span> <span class="nf">plot_etotal</span><span class="p">(</span><span class="n">ecut_list</span><span class="p">,</span> <span class="n">etotals</span><span class="p">,</span> <span class="n">aug_ratios</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Uses Matplotlib to plot the energy curve as function of ecut</span>
 
@@ -937,7 +854,7 @@
 
     <span class="n">emax</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
     <span class="k">for</span> <span class="p">(</span><span class="n">aratio</span><span class="p">,</span> <span class="n">etot</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">aug_ratios</span><span class="p">,</span> <span class="n">etotals</span><span class="p">):</span>
-        <span class="n">emev</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">Ha2meV</span><span class="p">(</span><span class="n">etot</span><span class="p">)</span>
+        <span class="n">emev</span> <span class="o">=</span> <span class="n">Ha2meV</span><span class="p">(</span><span class="n">etot</span><span class="p">)</span>
         <span class="n">emev_inf</span> <span class="o">=</span> <span class="n">npts</span> <span class="o">*</span> <span class="p">[</span><span class="n">emev</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
         <span class="n">yy</span> <span class="o">=</span> <span class="n">emev</span> <span class="o">-</span> <span class="n">emev_inf</span>
 
@@ -971,18 +888,17 @@
     <span class="k">return</span> <span class="n">fig</span>
 
 <span class="c">##########################################################################################</span>
-
-<span class="k">class</span> <span class="nc">PseudoConvergence</span><span class="p">(</span><span class="n">Workflow</span><span class="p">):</span>
+</div>
+<div class="viewcode-block" id="PseudoConvergence"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.PseudoConvergence">[docs]</a><span class="k">class</span> <span class="nc">PseudoConvergence</span><span class="p">(</span><span class="n">Workflow</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workdir</span><span class="p">,</span> <span class="n">pseudo</span><span class="p">,</span> <span class="n">ecut_list</span><span class="p">,</span> <span class="n">atols_mev</span><span class="p">,</span>
-                 <span class="n">runmode</span><span class="o">=</span><span class="s">&quot;sequential&quot;</span><span class="p">,</span> <span class="n">toldfe</span><span class="o">=</span><span class="mf">1.e-8</span><span class="p">,</span> <span class="n">spin_mode</span><span class="o">=</span><span class="s">&quot;polarized&quot;</span><span class="p">,</span> 
+                 <span class="n">runmode</span><span class="o">=</span><span class="s">&quot;sequential&quot;</span><span class="p">,</span> <span class="n">spin_mode</span><span class="o">=</span><span class="s">&quot;polarized&quot;</span><span class="p">,</span> 
                  <span class="n">acell</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="n">smearing</span><span class="o">=</span><span class="s">&quot;fermi_dirac:0.1 eV&quot;</span><span class="p">,):</span>
 
         <span class="nb">super</span><span class="p">(</span><span class="n">PseudoConvergence</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">workdir</span><span class="p">,</span> <span class="n">runmode</span><span class="p">)</span>
 
         <span class="c"># Temporary object used to build the strategy.</span>
         <span class="n">generator</span> <span class="o">=</span> <span class="n">PseudoIterativeConvergence</span><span class="p">(</span><span class="n">workdir</span><span class="p">,</span> <span class="n">pseudo</span><span class="p">,</span> <span class="n">ecut_list</span><span class="p">,</span> <span class="n">atols_mev</span><span class="p">,</span>
-                                               <span class="n">toldfe</span>    <span class="o">=</span> <span class="n">toldfe</span><span class="p">,</span>
                                                <span class="n">spin_mode</span> <span class="o">=</span> <span class="n">spin_mode</span><span class="p">,</span>
                                                <span class="n">acell</span>     <span class="o">=</span> <span class="n">acell</span><span class="p">,</span>
                                                <span class="n">smearing</span>  <span class="o">=</span> <span class="n">smearing</span><span class="p">,</span>
@@ -995,9 +911,9 @@
         <span class="k">for</span> <span class="n">ecut</span> <span class="ow">in</span> <span class="n">ecut_list</span><span class="p">:</span>
             <span class="n">strategy</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">strategy_with_ecut</span><span class="p">(</span><span class="n">ecut</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">ecut_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ecut</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">strategy</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">register_task</span><span class="p">(</span><span class="n">strategy</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">get_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="PseudoConvergence.get_results"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.PseudoConvergence.get_results">[docs]</a>    <span class="k">def</span> <span class="nf">get_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 
         <span class="c"># Get the results of the tasks.</span>
         <span class="n">wf_results</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">PseudoConvergence</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">get_results</span><span class="p">()</span>
@@ -1012,19 +928,17 @@
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">monotonic</span><span class="p">(</span><span class="n">etotal</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&quot;&lt;&quot;</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1.0e-5</span><span class="p">):</span>
             <span class="k">print</span><span class="p">(</span><span class="s">&quot;E(ecut) is not decreasing&quot;</span><span class="p">)</span>
-            <span class="n">wf_results</span><span class="o">.</span><span class="n">push_exceptions</span><span class="p">(</span><span class="s">&quot;E(ecut) is not decreasing:</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">etotal</span><span class="p">))</span>
+            <span class="n">wf_results</span><span class="o">.</span><span class="n">push_exceptions</span><span class="p">(</span><span class="s">&quot;E(ecut) is not decreasing&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;json_dump&quot;</span><span class="p">,</span> <span class="bp">True</span><span class="p">):</span>
             <span class="n">wf_results</span><span class="o">.</span><span class="n">json_dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path_in_workdir</span><span class="p">(</span><span class="s">&quot;results.json&quot;</span><span class="p">))</span>
 
         <span class="k">return</span> <span class="n">wf_results</span>
-
-
-<span class="k">class</span> <span class="nc">PseudoIterativeConvergence</span><span class="p">(</span><span class="n">IterativeWork</span><span class="p">):</span>
+</div></div>
+<div class="viewcode-block" id="PseudoIterativeConvergence"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.PseudoIterativeConvergence">[docs]</a><span class="k">class</span> <span class="nc">PseudoIterativeConvergence</span><span class="p">(</span><span class="n">IterativeWork</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workdir</span><span class="p">,</span> <span class="n">pseudo</span><span class="p">,</span> <span class="n">ecut_list_or_slice</span><span class="p">,</span> <span class="n">atols_mev</span><span class="p">,</span>
-                 <span class="n">runmode</span><span class="o">=</span><span class="s">&quot;sequential&quot;</span><span class="p">,</span> <span class="n">toldfe</span><span class="o">=</span><span class="mf">1.e-8</span><span class="p">,</span> <span class="n">spin_mode</span><span class="o">=</span><span class="s">&quot;polarized&quot;</span><span class="p">,</span> 
-                 <span class="n">acell</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="n">smearing</span><span class="o">=</span><span class="s">&quot;fermi_dirac:0.1 eV&quot;</span><span class="p">,</span> <span class="n">max_niter</span><span class="o">=</span><span class="mi">50</span><span class="p">,):</span>
+                 <span class="n">runmode</span><span class="o">=</span><span class="s">&quot;sequential&quot;</span><span class="p">,</span> <span class="n">spin_mode</span><span class="o">=</span><span class="s">&quot;polarized&quot;</span><span class="p">,</span> <span class="n">acell</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="n">smearing</span><span class="o">=</span><span class="s">&quot;fermi_dirac:0.1 eV&quot;</span><span class="p">,</span> <span class="n">max_niter</span><span class="o">=</span><span class="mi">50</span><span class="p">,):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Args:</span>
 <span class="sd">            workdir:</span>
@@ -1045,7 +959,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">pseudo</span> <span class="o">=</span> <span class="n">Pseudo</span><span class="o">.</span><span class="n">aspseudo</span><span class="p">(</span><span class="n">pseudo</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">atols_mev</span> <span class="o">=</span> <span class="n">atols_mev</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">toldfe</span> <span class="o">=</span> <span class="n">toldfe</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">spin_mode</span> <span class="o">=</span> <span class="n">spin_mode</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">smearing</span> <span class="o">=</span> <span class="n">Smearing</span><span class="o">.</span><span class="n">assmearing</span><span class="p">(</span><span class="n">smearing</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">acell</span> <span class="o">=</span> <span class="n">acell</span>
@@ -1066,8 +979,8 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">isnc</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&quot;PAW convergence tests are not supported yet&quot;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">strategy_with_ecut</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ecut</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Return a Strategy instance with given cutoff energy ecut.&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="PseudoIterativeConvergence.strategy_with_ecut"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.PseudoIterativeConvergence.strategy_with_ecut">[docs]</a>    <span class="k">def</span> <span class="nf">strategy_with_ecut</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ecut</span><span class="p">):</span>
+        <span class="s">&quot;Return a Strategy instance with given cutoff energy ecut&quot;</span>
 
         <span class="c"># Define the system: one atom in a box of lenghts acell.</span>
         <span class="n">boxed_atom</span> <span class="o">=</span> <span class="n">AbiStructure</span><span class="o">.</span><span class="n">boxed_atom</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pseudo</span><span class="p">,</span> <span class="n">acell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">acell</span><span class="p">)</span>
@@ -1082,7 +995,6 @@
         <span class="n">extra_abivars</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s">&quot;ecut&quot;</span> <span class="p">:</span> <span class="n">ecut</span><span class="p">,</span>
             <span class="s">&quot;prtwf&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
-            <span class="s">&quot;toldfe&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">toldfe</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="n">strategy</span> <span class="o">=</span> <span class="n">ScfStrategy</span><span class="p">(</span><span class="n">boxed_atom</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pseudo</span><span class="p">,</span> <span class="n">gamma_only</span><span class="p">,</span>
                                <span class="n">spin_mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">spin_mode</span><span class="p">,</span> <span class="n">smearing</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">smearing</span><span class="p">,</span>
@@ -1090,35 +1002,33 @@
                                <span class="n">use_symmetries</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="o">**</span><span class="n">extra_abivars</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">strategy</span>
-
+</div>
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">ecut_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="PseudoIterativeConvergence.ecut_list"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.PseudoIterativeConvergence.ecut_list">[docs]</a>    <span class="k">def</span> <span class="nf">ecut_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;The list of cutoff energies computed so far&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">ecut</span><span class="p">)</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">]</span>
-
-    <span class="k">def</span> <span class="nf">check_etotal_convergence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</div>
+<div class="viewcode-block" id="PseudoIterativeConvergence.check_etotal_convergence"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.PseudoIterativeConvergence.check_etotal_convergence">[docs]</a>    <span class="k">def</span> <span class="nf">check_etotal_convergence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">compute_hints</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ecut_list</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_etotal</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">atols_mev</span><span class="p">,</span>
                              <span class="bp">self</span><span class="o">.</span><span class="n">pseudo</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">exit_iteration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</div>
+<div class="viewcode-block" id="PseudoIterativeConvergence.exit_iteration"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.PseudoIterativeConvergence.exit_iteration">[docs]</a>    <span class="k">def</span> <span class="nf">exit_iteration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_etotal_convergence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">get_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+</div>
+<div class="viewcode-block" id="PseudoIterativeConvergence.get_results"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.PseudoIterativeConvergence.get_results">[docs]</a>    <span class="k">def</span> <span class="nf">get_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="c"># Get the results of the tasks.</span>
         <span class="n">wf_results</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">PseudoIterativeConvergence</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">get_results</span><span class="p">()</span>
 
         <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_etotal_convergence</span><span class="p">()</span>
 
-        <span class="n">ecut_list</span><span class="p">,</span> <span class="n">etotal</span><span class="p">,</span> <span class="n">aug_ratios</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s">&quot;ecut_list&quot;</span><span class="p">],</span>  <span class="n">data</span><span class="p">[</span><span class="s">&quot;etotal&quot;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s">&quot;aug_ratios&quot;</span><span class="p">]</span>
-
-        <span class="n">plot_etotal</span><span class="p">(</span><span class="n">ecut_list</span><span class="p">,</span> <span class="n">etotal</span><span class="p">,</span> <span class="n">aug_ratios</span><span class="p">,</span>
+        <span class="n">plot_etotal</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;ecut_list&quot;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s">&quot;etotal&quot;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s">&quot;aug_ratios&quot;</span><span class="p">],</span>
             <span class="n">show</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">savefig</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">path_in_workdir</span><span class="p">(</span><span class="s">&quot;etotal.pdf&quot;</span><span class="p">))</span>
 
         <span class="n">wf_results</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">monotonic</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;etotal&quot;</span><span class="p">],</span> <span class="n">mode</span><span class="o">=</span><span class="s">&quot;&lt;&quot;</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1.0e-5</span><span class="p">):</span>
             <span class="k">print</span><span class="p">(</span><span class="s">&quot;E(ecut) is not decreasing&quot;</span><span class="p">)</span>
-            <span class="n">wf_results</span><span class="o">.</span><span class="n">push_exceptions</span><span class="p">(</span><span class="s">&quot;E(ecut) is not decreasing</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">etotal</span><span class="p">))</span>
+            <span class="n">wf_results</span><span class="o">.</span><span class="n">push_exceptions</span><span class="p">(</span><span class="s">&quot;E(ecut) is not decreasing&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;json_dump&quot;</span><span class="p">,</span> <span class="bp">True</span><span class="p">):</span>
             <span class="n">wf_results</span><span class="o">.</span><span class="n">json_dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path_in_workdir</span><span class="p">(</span><span class="s">&quot;results.json&quot;</span><span class="p">))</span>
@@ -1126,61 +1036,40 @@
         <span class="k">return</span> <span class="n">wf_results</span>
 
 <span class="c">################################################################################</span>
+</div></div>
+<div class="viewcode-block" id="BandStructure"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.BandStructure">[docs]</a><span class="k">class</span> <span class="nc">BandStructure</span><span class="p">(</span><span class="n">Workflow</span><span class="p">):</span>
 
-<span class="k">class</span> <span class="nc">BandStructure</span><span class="p">(</span><span class="n">Workflow</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Workflow for band structure calculations.&quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workdir</span><span class="p">,</span> <span class="n">runmode</span><span class="p">,</span> <span class="n">scf_strategy</span><span class="p">,</span> <span class="n">nscf_strategy</span><span class="p">,</span>
                  <span class="n">dos_strategy</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Args:</span>
-<span class="sd">            workdir:</span>
-<span class="sd">                Working directory.</span>
-<span class="sd">            runmode:</span>
-<span class="sd">                `RunMode` instance.</span>
-<span class="sd">            scf_strategy:</span>
-<span class="sd">                `SCFStrategy` instance</span>
-<span class="sd">            nscf_strategy:</span>
-<span class="sd">                `NSCFStrategy` instance defining the band structure calculation.</span>
-<span class="sd">            dos_strategy:</span>
-<span class="sd">                `NSCFStrategy` instance defining the DOS calculation. </span>
-<span class="sd">                DOS is computed only if dos_strategy is not None.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+
         <span class="nb">super</span><span class="p">(</span><span class="n">BandStructure</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">workdir</span><span class="p">,</span> <span class="n">runmode</span><span class="p">)</span>
 
         <span class="c"># Register the GS-SCF run.</span>
-        <span class="n">scf_link</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">)</span>
+        <span class="n">scf_link</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_task</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">)</span>
 
         <span class="c"># Register the NSCF run and its dependency</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">nscf_strategy</span><span class="p">,</span> <span class="n">links</span><span class="o">=</span><span class="n">scf_link</span><span class="o">.</span><span class="n">produces_exts</span><span class="p">(</span><span class="s">&quot;_DEN&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_task</span><span class="p">(</span><span class="n">nscf_strategy</span><span class="p">,</span> <span class="n">links</span><span class="o">=</span><span class="n">scf_link</span><span class="o">.</span><span class="n">produces_exts</span><span class="p">(</span><span class="s">&quot;_DEN&quot;</span><span class="p">))</span>
 
         <span class="c"># Add DOS computation</span>
         <span class="k">if</span> <span class="n">dos_strategy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">dos_strategy</span><span class="p">,</span> <span class="n">links</span><span class="o">=</span><span class="n">scf_link</span><span class="o">.</span><span class="n">produces_exts</span><span class="p">(</span><span class="s">&quot;_DEN&quot;</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">register_task</span><span class="p">(</span><span class="n">dos_strategy</span><span class="p">,</span>
+                               <span class="n">links</span><span class="o">=</span><span class="n">scf_link</span><span class="o">.</span><span class="n">produces_exts</span><span class="p">(</span><span class="s">&quot;_DEN&quot;</span><span class="p">))</span>
 
 <span class="c">################################################################################</span>
-
-<span class="k">class</span> <span class="nc">Relaxation</span><span class="p">(</span><span class="n">Workflow</span><span class="p">):</span>
+</div>
+<div class="viewcode-block" id="Relaxation"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.Relaxation">[docs]</a><span class="k">class</span> <span class="nc">Relaxation</span><span class="p">(</span><span class="n">Workflow</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workdir</span><span class="p">,</span> <span class="n">runmode</span><span class="p">,</span> <span class="n">relax_strategy</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Args:</span>
-<span class="sd">            workdir:</span>
-<span class="sd">                Working directory.</span>
-<span class="sd">            runmode:</span>
-<span class="sd">                `RunMode` instance.</span>
-<span class="sd">            relax_strategy:</span>
-<span class="sd">                `RelaxStrategy` instance</span>
-<span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">Relaxation</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">workdir</span><span class="p">,</span> <span class="n">runmode</span><span class="p">)</span>
 
-        <span class="n">link</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">relax_strategy</span><span class="p">)</span>
+        <span class="n">link</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_task</span><span class="p">(</span><span class="n">relax_strategy</span><span class="p">)</span>
 
 <span class="c">################################################################################</span>
-
-<span class="k">class</span> <span class="nc">DeltaTest</span><span class="p">(</span><span class="n">Workflow</span><span class="p">):</span>
+</div>
+<div class="viewcode-block" id="DeltaTest"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.DeltaTest">[docs]</a><span class="k">class</span> <span class="nc">DeltaTest</span><span class="p">(</span><span class="n">Workflow</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workdir</span><span class="p">,</span> <span class="n">runmode</span><span class="p">,</span> <span class="n">structure_or_cif</span><span class="p">,</span> <span class="n">pseudos</span><span class="p">,</span> <span class="n">kppa</span><span class="p">,</span>
-                 <span class="n">spin_mode</span><span class="o">=</span><span class="s">&quot;polarized&quot;</span><span class="p">,</span> <span class="n">toldfe</span><span class="o">=</span><span class="mf">1.e-8</span><span class="p">,</span> <span class="n">smearing</span><span class="o">=</span><span class="s">&quot;fermi_dirac:0.1 eV&quot;</span><span class="p">,</span>
+                 <span class="n">spin_mode</span><span class="o">=</span><span class="s">&quot;polarized&quot;</span><span class="p">,</span> <span class="n">smearing</span><span class="o">=</span><span class="s">&quot;fermi_dirac:0.1 eV&quot;</span><span class="p">,</span>
                  <span class="n">accuracy</span><span class="o">=</span><span class="s">&quot;normal&quot;</span><span class="p">,</span> <span class="n">ecut</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">ecutsm</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">chksymbreak</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span> <span class="c"># FIXME Hack</span>
 
         <span class="nb">super</span><span class="p">(</span><span class="n">DeltaTest</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">workdir</span><span class="p">,</span> <span class="n">runmode</span><span class="p">)</span>
@@ -1206,16 +1095,14 @@
 
             <span class="n">new_lattice</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span><span class="n">vol</span><span class="p">)</span>
 
-            <span class="n">new_structure</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">new_lattice</span><span class="p">,</span> <span class="n">structure</span><span class="o">.</span><span class="n">species</span><span class="p">,</span> <span class="n">structure</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">)</span>
+            <span class="n">new_structure</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">new_lattice</span><span class="p">,</span> <span class="n">structure</span><span class="o">.</span><span class="n">species</span><span class="p">,</span>
+                                      <span class="n">structure</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">)</span>
             <span class="n">new_structure</span> <span class="o">=</span> <span class="n">AbiStructure</span><span class="o">.</span><span class="n">asabistructure</span><span class="p">(</span><span class="n">new_structure</span><span class="p">)</span>
 
             <span class="n">extra_abivars</span> <span class="o">=</span> <span class="p">{</span>
                 <span class="s">&quot;ecutsm&quot;</span><span class="p">:</span> <span class="n">ecutsm</span><span class="p">,</span>
-                <span class="s">&quot;toldfe&quot;</span><span class="p">:</span> <span class="n">toldfe</span><span class="p">,</span>
                 <span class="s">&quot;prtwf&quot;</span> <span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
-                <span class="s">&quot;paral_kgb&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
             <span class="p">}</span>
-
             <span class="k">if</span> <span class="n">ecut</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
                 <span class="n">extra_abivars</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&quot;ecut&quot;</span><span class="p">:</span> <span class="n">ecut</span><span class="p">})</span>
 
@@ -1226,13 +1113,13 @@
                                        <span class="n">accuracy</span><span class="o">=</span><span class="n">accuracy</span><span class="p">,</span> <span class="n">spin_mode</span><span class="o">=</span><span class="n">spin_mode</span><span class="p">,</span>
                                        <span class="n">smearing</span><span class="o">=</span><span class="n">smearing</span><span class="p">,</span> <span class="o">**</span><span class="n">extra_abivars</span><span class="p">)</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">register_task</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">get_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="DeltaTest.get_results"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.DeltaTest.get_results">[docs]</a>    <span class="k">def</span> <span class="nf">get_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 
         <span class="n">num_sites</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_structure</span><span class="o">.</span><span class="n">num_sites</span>
 
-        <span class="n">etotal</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">Ha2eV</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">read_etotal</span><span class="p">())</span>
+        <span class="n">etotal</span> <span class="o">=</span> <span class="n">Ha2eV</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">read_etotal</span><span class="p">())</span>
 
         <span class="n">wf_results</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">DeltaTest</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">get_results</span><span class="p">()</span>
 
@@ -1276,8 +1163,8 @@
         <span class="k">return</span> <span class="n">wf_results</span>
 
 <span class="c">################################################################################</span>
-
-<span class="k">class</span> <span class="nc">GW_Workflow</span><span class="p">(</span><span class="n">Workflow</span><span class="p">):</span>
+</div></div>
+<div class="viewcode-block" id="GW_Workflow"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.GW_Workflow">[docs]</a><span class="k">class</span> <span class="nc">GW_Workflow</span><span class="p">(</span><span class="n">Workflow</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workdir</span><span class="p">,</span> <span class="n">runmode</span><span class="p">,</span> <span class="n">scf_strategy</span><span class="p">,</span> <span class="n">nscf_strategy</span><span class="p">,</span>
                  <span class="n">scr_strategy</span><span class="p">,</span> <span class="n">sigma_strategy</span><span class="p">):</span>
@@ -1288,11 +1175,11 @@
 <span class="sd">            workdir:</span>
 <span class="sd">                Working directory of the calculation.</span>
 <span class="sd">            runmode:</span>
-<span class="sd">                `RunMode` instance.</span>
+<span class="sd">                Run mode.</span>
 <span class="sd">            scf_strategy:</span>
-<span class="sd">                `SCFStrategy` instance</span>
+<span class="sd">                SCFStrategy instance</span>
 <span class="sd">            nscf_strategy:</span>
-<span class="sd">                `NSCFStrategy` instance</span>
+<span class="sd">                NSCFStrategy instance</span>
 <span class="sd">            scr_strategy:</span>
 <span class="sd">                Strategy for the screening run.</span>
 <span class="sd">            sigma_strategy:</span>
@@ -1301,26 +1188,31 @@
         <span class="nb">super</span><span class="p">(</span><span class="n">GW_Workflow</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">workdir</span><span class="p">,</span> <span class="n">runmode</span><span class="p">)</span>
 
         <span class="c"># Register the GS-SCF run.</span>
-        <span class="n">scf_link</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">)</span>
+        <span class="n">scf_link</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_task</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">)</span>
 
         <span class="c"># Construct the input for the NSCF run.</span>
-        <span class="n">nscf_link</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">nscf_strategy</span><span class="p">,</span> <span class="n">links</span><span class="o">=</span><span class="n">scf_link</span><span class="o">.</span><span class="n">produces_exts</span><span class="p">(</span><span class="s">&quot;_DEN&quot;</span><span class="p">))</span>
+        <span class="n">nscf_link</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_task</span><span class="p">(</span><span class="n">nscf_strategy</span><span class="p">,</span>
+                                       <span class="n">links</span><span class="o">=</span><span class="n">scf_link</span><span class="o">.</span><span class="n">produces_exts</span><span class="p">(</span><span class="s">&quot;_DEN&quot;</span><span class="p">))</span>
 
-        <span class="c"># Register the SCREENING run.</span>
-        <span class="n">screen_link</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">scr_strategy</span><span class="p">,</span> <span class="n">links</span><span class="o">=</span><span class="n">nscf_link</span><span class="o">.</span><span class="n">produces_exts</span><span class="p">(</span><span class="s">&quot;_WFK&quot;</span><span class="p">))</span>
+        <span class="c"># Register the SCR run.</span>
+        <span class="n">screen_link</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_task</span><span class="p">(</span><span class="n">scr_strategy</span><span class="p">,</span>
+                                         <span class="n">links</span><span class="o">=</span><span class="n">nscf_link</span><span class="o">.</span><span class="n">produces_exts</span><span class="p">(</span><span class="s">&quot;_WFK&quot;</span><span class="p">))</span>
 
         <span class="c"># Register the SIGMA run.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">sigma_strategy</span><span class="p">,</span> <span class="n">links</span><span class="o">=</span><span class="p">[</span><span class="n">nscf_link</span><span class="o">.</span><span class="n">produces_exts</span><span class="p">(</span><span class="s">&quot;_WFK&quot;</span><span class="p">),</span>
-                                             <span class="n">screen_link</span><span class="o">.</span><span class="n">produces_exts</span><span class="p">(</span><span class="s">&quot;_SCR&quot;</span><span class="p">)])</span>
+        <span class="n">sigma_links</span> <span class="o">=</span> <span class="p">[</span><span class="n">nscf_link</span><span class="o">.</span><span class="n">produces_exts</span><span class="p">(</span><span class="s">&quot;_WFK&quot;</span><span class="p">),</span>
+                       <span class="n">screen_link</span><span class="o">.</span><span class="n">produces_exts</span><span class="p">(</span><span class="s">&quot;_SCR&quot;</span><span class="p">),]</span>
 
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_task</span><span class="p">(</span><span class="n">sigma_strategy</span><span class="p">,</span> <span class="n">links</span><span class="o">=</span><span class="n">sigma_links</span><span class="p">)</span>
 
-<span class="k">class</span> <span class="nc">BSEMDF_Workflow</span><span class="p">(</span><span class="n">Workflow</span><span class="p">):</span>
+<span class="c">################################################################################</span>
+</div>
+<div class="viewcode-block" id="BSEMDF_Workflow"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.workflow.BSEMDF_Workflow">[docs]</a><span class="k">class</span> <span class="nc">BSEMDF_Workflow</span><span class="p">(</span><span class="n">Workflow</span><span class="p">):</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workdir</span><span class="p">,</span> <span class="n">runmode</span><span class="p">,</span> <span class="n">scf_strategy</span><span class="p">,</span> <span class="n">nscf_strategy</span><span class="p">,</span> <span class="n">bse_strategy</span><span class="p">):</span> 
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Workflow for simple BSE calculations in which the self-energy corrections </span>
 <span class="sd">        are approximated by the scissors operator and the screening in modeled </span>
-<span class="sd">        with the model dielectric function.</span>
+<span class="sd">        with model dielectric function.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            workdir:</span>
@@ -1337,14 +1229,16 @@
         <span class="nb">super</span><span class="p">(</span><span class="n">BSEMDF_Workflow</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">workdir</span><span class="p">,</span> <span class="n">runmode</span><span class="p">)</span>
 
         <span class="c"># Register the GS-SCF run.</span>
-        <span class="n">scf_link</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">)</span>
+        <span class="n">scf_link</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_task</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">)</span>
 
         <span class="c"># Construct the input for the NSCF run.</span>
-        <span class="n">nscf_link</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">nscf_strategy</span><span class="p">,</span> <span class="n">links</span><span class="o">=</span><span class="n">scf_link</span><span class="o">.</span><span class="n">produces_exts</span><span class="p">(</span><span class="s">&quot;_DEN&quot;</span><span class="p">))</span>
+        <span class="n">nscf_link</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_task</span><span class="p">(</span><span class="n">nscf_strategy</span><span class="p">,</span>
+                                       <span class="n">links</span><span class="o">=</span><span class="n">scf_link</span><span class="o">.</span><span class="n">produces_exts</span><span class="p">(</span><span class="s">&quot;_DEN&quot;</span><span class="p">))</span>
 
         <span class="c"># Construct the input for the BSE run.</span>
-        <span class="n">bse_link</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">bse_strategy</span><span class="p">,</span> <span class="n">links</span><span class="o">=</span><span class="n">nscf_link</span><span class="o">.</span><span class="n">produces_exts</span><span class="p">(</span><span class="s">&quot;_WFK&quot;</span><span class="p">))</span>
-</pre></div>
+        <span class="n">bse_link</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">register_task</span><span class="p">(</span><span class="n">bse_strategy</span><span class="p">,</span>
+                                      <span class="n">links</span><span class="o">=</span><span class="n">nscf_link</span><span class="o">.</span><span class="n">produces_exts</span><span class="p">(</span><span class="s">&quot;_WFK&quot;</span><span class="p">))</span>
+</pre></div></div>
 
           </div>
         </div>
@@ -1377,14 +1271,14 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 2.8.6 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 2.8.8 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>
 
     <div class="footer">
         &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Geoffroy Hautier, William Davidson Richard, Stephen Dacek, Sai Jayaraman, Michael Kocher, Dan Gunter, Shreyas Cholia, Vincent L Chevrier, Rickard Armiento.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

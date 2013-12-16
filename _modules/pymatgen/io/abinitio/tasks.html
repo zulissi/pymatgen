@@ -1,4 +1,3 @@
-
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
@@ -7,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.abinitio.tasks &mdash; pymatgen 2.8.8 documentation</title>
+    <title>pymatgen.io.abinitio.tasks &mdash; pymatgen 2.8.9 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -15,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '2.8.8',
+        VERSION:     '2.8.9',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +24,7 @@
     <script type="text/javascript" src="../../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.8.8 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 2.8.9 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +44,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 2.8.8 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 2.8.9 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -99,6 +98,7 @@
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s">&quot;TaskManager&quot;</span><span class="p">,</span>
+    <span class="s">&quot;ParalHintsParser&quot;</span><span class="p">,</span>
     <span class="s">&quot;ScfTask&quot;</span><span class="p">,</span>
     <span class="s">&quot;NscfTask&quot;</span><span class="p">,</span>
     <span class="s">&quot;RelaxTask&quot;</span><span class="p">,</span>
@@ -110,6 +110,11 @@
     <span class="s">&quot;AnaddbTask&quot;</span><span class="p">,</span>
 <span class="p">]</span>
 
+<span class="c"># Tools and helper functions.</span>
+<span class="k">def</span> <span class="nf">straceback</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Returns a string with the traceback.&quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">traceback</span>
+    <span class="k">return</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()</span>
 
 <span class="k">class</span> <span class="nc">TaskResults</span><span class="p">(</span><span class="nb">dict</span><span class="p">,</span> <span class="n">MSONable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -199,7 +204,7 @@
 <span class="sd">            -   tot_ncpus: 2         # Total number of CPUs</span>
 <span class="sd">                mpi_ncpus: 2         # Number of MPI processes.</span>
 <span class="sd">                omp_ncpus: 1         # Number of OMP threads (1 if not present)</span>
-<span class="sd">                mem_per_cpus: 10     # Estimated memory requirement per MPI processor in Gigabytes (None if not specified)</span>
+<span class="sd">                mem_per_cpu: 10     # Estimated memory requirement per MPI processor in Megabytes.</span>
 <span class="sd">                efficiency: 0.4      # 1.0 corresponds to an &quot;expected&quot; optimal efficiency (strong scaling).</span>
 <span class="sd">                vars: {              # Dictionary with the variables that should be added to the input.</span>
 <span class="sd">                      varname1: varvalue1</span>
@@ -234,6 +239,12 @@
         <span class="sd">&quot;&quot;&quot;Estimated speedup reported by ABINIT.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">efficiency</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">tot_ncpus</span>
 
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">tot_mem</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Estimated total memory in Mbs (computed from mem_per_cpu)&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mem_per_cpu</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">tot_ncpus</span>
+
+
 
 <div class="viewcode-block" id="ParalHintsParser"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.tasks.ParalHintsParser">[docs]</a><span class="k">class</span> <span class="nc">ParalHintsParser</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
 
@@ -247,9 +258,12 @@
         <span class="k">with</span> <span class="n">abiinspect</span><span class="o">.</span><span class="n">YamlTokenizer</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">r</span><span class="p">:</span>
             <span class="n">doc</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">next_doc_with_tag</span><span class="p">(</span><span class="s">&quot;!Autoparal&quot;</span><span class="p">)</span>
 
+            <span class="c">#print(doc.text)</span>
+            <span class="c">#with open(os.path.join(os.path.dirname(filename), &quot;autoparal.yml&quot;), &quot;w&quot;) as fh:</span>
+            <span class="c">#    fh.write(doc.text)</span>
+
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">d</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">doc</span><span class="o">.</span><span class="n">text_notag</span><span class="p">)</span>
-                <span class="c">#print(d)</span>
                 <span class="k">return</span> <span class="n">ParalHints</span><span class="p">(</span><span class="n">info</span><span class="o">=</span><span class="n">d</span><span class="p">[</span><span class="s">&quot;info&quot;</span><span class="p">],</span> <span class="n">confs</span><span class="o">=</span><span class="n">d</span><span class="p">[</span><span class="s">&quot;configurations&quot;</span><span class="p">])</span>
 
             <span class="k">except</span><span class="p">:</span>
@@ -282,9 +296,18 @@
         <span class="k">return</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">select_with_condition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">condition</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Remove all the configurations that do not satisfy the given condition.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                `Condition` object with operators expressed with a Mongodb-like syntax</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">new_confs</span> <span class="o">=</span> <span class="p">[]</span>
+
         <span class="k">for</span> <span class="n">conf</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">condition</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">obj</span><span class="o">=</span><span class="n">conf</span><span class="p">):</span>
+            <span class="n">add_it</span> <span class="o">=</span> <span class="n">condition</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">obj</span><span class="o">=</span><span class="n">conf</span><span class="p">)</span>
+            <span class="c">#print(&quot;add_it&quot;, add_it, &quot;conf&quot;, conf)</span>
+            <span class="k">if</span> <span class="n">add_it</span><span class="p">:</span>
                 <span class="n">new_confs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">conf</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_confs</span> <span class="o">=</span> <span class="n">new_confs</span>
@@ -303,42 +326,62 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_confs</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">c</span><span class="p">:</span> <span class="n">c</span><span class="o">.</span><span class="n">speedup</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="n">reverse</span><span class="p">)</span>
 
-    <span class="c">#def sort_by_mem_cpu(self, reverse=False):</span>
-    <span class="c">#    self._confs.sort(key=lambda c: c.mem_per_cpus, reverse=reverse)</span>
+    <span class="k">def</span> <span class="nf">sort_by_mem_cpu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sort the configurations in place so that conf with lowest memory per CPU</span>
+<span class="sd">        appears in the first positions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Avoid sorting if mem_per_cpu is not available.</span>
+        <span class="n">has_mem_info</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">mem_per_cpu</span> <span class="o">&gt;</span> <span class="mf">0.0</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">has_mem_info</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_confs</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">c</span><span class="p">:</span> <span class="n">c</span><span class="o">.</span><span class="n">mem_per_cpu</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="n">reverse</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">select_optimal_conf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">policy</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Find the optimal configuration according on policy.&quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find the optimal configuration according to the `TaskPolicy` policy.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># Make a copy since we are gonna change the object in place.</span>
-        <span class="n">hints</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="c">#hints = self.copy()</span>
+
+        <span class="n">hints</span> <span class="o">=</span> <span class="n">ParalHints</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">,</span> <span class="n">confs</span><span class="o">=</span><span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">tot_ncpus</span> <span class="o">&lt;=</span> <span class="n">policy</span><span class="o">.</span><span class="n">max_ncpus</span><span class="p">])</span>
+        <span class="c">#print(hints)</span>
 
         <span class="c"># First select the configurations satisfying the </span>
         <span class="c"># condition specified by the user (if any)</span>
         <span class="k">if</span> <span class="n">policy</span><span class="o">.</span><span class="n">condition</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;condition&quot;</span><span class="p">,</span><span class="n">policy</span><span class="o">.</span><span class="n">condition</span><span class="p">)</span>
             <span class="n">hints</span><span class="o">.</span><span class="n">select_with_condition</span><span class="p">(</span><span class="n">policy</span><span class="o">.</span><span class="n">condition</span><span class="p">)</span>
-            <span class="c">#if not hints: hints = self.copy()</span>
-            <span class="c">#print(&quot;after condition&quot;, hints)</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;after condition&quot;</span><span class="p">,</span> <span class="n">hints</span><span class="p">)</span>
+
+            <span class="c"># If no configuration fullfills the requirements, </span>
+            <span class="c"># we return the one with the highest speedup.</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">hints</span><span class="p">:</span>
+                <span class="c">#print(&quot;no configuration&quot;)</span>
+                <span class="n">hints</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="n">hints</span><span class="o">.</span><span class="n">sort_by_speedup</span><span class="p">()</span>
+                <span class="k">return</span> <span class="n">hints</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
         <span class="n">hints</span><span class="o">.</span><span class="n">sort_by_speedup</span><span class="p">()</span>
-
-        <span class="c"># If no configuration fullfills the requirements, </span>
-        <span class="c"># we return the one with the highest speedup.</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">hints</span><span class="p">:</span>
-            <span class="n">hints</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-            <span class="n">hints</span><span class="o">.</span><span class="n">sort_by_speedup</span><span class="p">()</span>
-            <span class="k">return</span> <span class="n">hints</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
         <span class="c"># Find the optimal configuration according to policy.mode.</span>
         <span class="c">#mode = policy.mode</span>
         <span class="c">#if mode in [&quot;default&quot;, &quot;aggressive&quot;]:</span>
-        <span class="c">#    hints.sort_by_spedup(reverse=True)</span>
+        <span class="c">#    hints.sort_by_spedup()</span>
+
         <span class="c">#elif mode == &quot;conservative&quot;:</span>
-        <span class="c">#    hints.sort_by_efficiency(reverse=True)</span>
+        <span class="c">#    hints.sort_by_efficiency()</span>
+        <span class="c">#    # Remove tot_ncpus == 1</span>
+        <span class="c">#    hints.pop(tot_ncpus==1)</span>
+        <span class="c">#    if not hints:</span>
+
         <span class="c">#else:</span>
         <span class="c">#    raise ValueError(&quot;Wrong value for mode: %s&quot; % str(mode))</span>
 
         <span class="c"># Return a copy of the configuration.</span>
         <span class="n">optimal</span> <span class="o">=</span> <span class="n">hints</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Will relaunch the job with optimized parameters:</span><span class="se">\n</span><span class="s"> </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">optimal</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Will relaunch the job with optimized parameters:</span><span class="se">\n</span><span class="s"> </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">optimal</span><span class="p">)</span>
+
         <span class="k">return</span> <span class="n">optimal</span>
 
 
@@ -351,11 +394,16 @@
 <span class="sd">    and the condition used to select the optimal configuration for the parallel run </span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">autoparal</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&quot;default&quot;</span><span class="p">,</span> <span class="n">max_ncpus</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">use_fw</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">condition</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span> 
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">autoparal</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">automemory</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&quot;default&quot;</span><span class="p">,</span> <span class="n">max_ncpus</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">use_fw</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">condition</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span> 
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Args:</span>
 <span class="sd">            autoparal: </span>
 <span class="sd">                Value of ABINIT autoparal input variable. None to disable the autoparal feature.</span>
+<span class="sd">            automemory:</span>
+<span class="sd">                int defining the memory policy. </span>
+<span class="sd">                If &gt; 0 the memory requirements will be computed at run-time from the autoparal section</span>
+<span class="sd">                produced by ABINIT. In this case, the job script will report the autoparal memory</span>
+<span class="sd">                instead of the one specified by the user.</span>
 <span class="sd">            mode:</span>
 <span class="sd">                Select the algorith to select the optimal configuration for the parallel execution.</span>
 <span class="sd">                Possible values: [&quot;default&quot;, &quot;aggressive&quot;, &quot;conservative&quot;]</span>
@@ -367,6 +415,7 @@
 <span class="sd">                condition used to filter the autoparal configuration (Mongodb syntax)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">autoparal</span> <span class="o">=</span> <span class="n">autoparal</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">automemory</span> <span class="o">=</span> <span class="n">automemory</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span> 
         <span class="bp">self</span><span class="o">.</span><span class="n">max_ncpus</span> <span class="o">=</span> <span class="n">max_ncpus</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">use_fw</span> <span class="o">=</span> <span class="n">use_fw</span> 
@@ -427,6 +476,7 @@
 
     <span class="nd">@classmethod</span>
 <div class="viewcode-block" id="TaskManager.from_dict"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.tasks.TaskManager.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create an instance from a dictionary.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="o">**</span><span class="n">d</span><span class="p">)</span>
 </div>
     <span class="nd">@classmethod</span>
@@ -439,7 +489,7 @@
 <div class="viewcode-block" id="TaskManager.from_user_config"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.tasks.TaskManager.from_user_config">[docs]</a>    <span class="k">def</span> <span class="nf">from_user_config</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initialize the `TaskManager` from the YAML file &#39;taskmanager.yaml&#39;.</span>
-<span class="sd">        Search first in the workind directory and then in the configuration</span>
+<span class="sd">        Search first in the working directory and then in the configuration</span>
 <span class="sd">        directory of abipy.</span>
 
 <span class="sd">        Raises:</span>
@@ -509,6 +559,14 @@
 
         <span class="k">return</span> <span class="n">new</span>
 </div>
+<div class="viewcode-block" id="TaskManager.new_with_policy"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.tasks.TaskManager.new_with_policy">[docs]</a>    <span class="k">def</span> <span class="nf">new_with_policy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">policy</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a new `TaskManager` with same parameters as self except for policy.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">new</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">()</span>
+        <span class="n">new</span><span class="o">.</span><span class="n">policy</span> <span class="o">=</span> <span class="n">policy</span>
+        <span class="k">return</span> <span class="n">new</span>
+</div>
 <div class="viewcode-block" id="TaskManager.copy"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.tasks.TaskManager.copy">[docs]</a>    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Shallow copy of self.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
@@ -524,93 +582,10 @@
 <div class="viewcode-block" id="TaskManager.set_omp_ncpus"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.tasks.TaskManager.set_omp_ncpus">[docs]</a>    <span class="k">def</span> <span class="nf">set_omp_ncpus</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">omp_ncpus</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Set the number of OpenMp threads to use.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">qadapter</span><span class="o">.</span><span class="n">set_omp_ncpus</span><span class="p">(</span><span class="n">omp_ncpus</span><span class="p">)</span>
-
-    <span class="c"># TODO</span>
-    <span class="c">#def set_mem_per_cpu(self, mem_per_cpu):</span>
-    <span class="c">#    &quot;&quot;&quot;Set the memory (in gigabytes) per CPU.&quot;&quot;&quot;</span>
-    <span class="c">#    self.qadapter.set_mem_per_cpu(mem_per_cpu)</span>
 </div>
-<div class="viewcode-block" id="TaskManager.autoparal"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.tasks.TaskManager.autoparal">[docs]</a>    <span class="k">def</span> <span class="nf">autoparal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Find an optimal set of parameters for the execution of the task </span>
-<span class="sd">        using the options specified in `TaskPolicy`.</span>
-<span class="sd">        This method can change the ABINIT input variables and/or the </span>
-<span class="sd">        parameters passed to the `TaskManager` e.g. the number of CPUs for MPI and OpenMp.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">           confs, optimal </span>
-<span class="sd">           where confs is a `ParalHints` object with the configuration reported by </span>
-<span class="sd">           autoparal and optimal is the optimal configuration selected.</span>
-<span class="sd">           Returns (None, None) if some problem occurred.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">policy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">policy</span>
-
-        <span class="k">if</span> <span class="n">policy</span><span class="o">.</span><span class="n">autoparal</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">policy</span><span class="o">.</span><span class="n">max_ncpus</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="mi">1</span><span class="p">]:</span> 
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Nothing to do in autoparal, returning (None, None)&quot;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span>
-
-        <span class="k">assert</span> <span class="n">policy</span><span class="o">.</span><span class="n">autoparal</span> <span class="o">==</span> <span class="mi">1</span>
-        <span class="c"># 1) Run ABINIT in sequential to get the possible configurations with max_ncpus</span>
-
-        <span class="c"># Set the variables for automatic parallelization</span>
-        <span class="n">autoparal_vars</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
-            <span class="n">autoparal</span><span class="o">=</span><span class="n">policy</span><span class="o">.</span><span class="n">autoparal</span><span class="p">,</span>
-            <span class="n">max_ncpus</span><span class="o">=</span><span class="n">policy</span><span class="o">.</span><span class="n">max_ncpus</span><span class="p">,</span>
-        <span class="p">)</span>
-
-        <span class="n">task</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">add_extra_abivars</span><span class="p">(</span><span class="n">autoparal_vars</span><span class="p">)</span>
-        <span class="n">task</span><span class="o">.</span><span class="n">build</span><span class="p">()</span>
-
-        <span class="c"># Build a simple manager to run the job in a shell subprocess on the frontend</span>
-        <span class="c"># we don&#39;t want to make a request to the queue manager for this simple job!</span>
-        <span class="n">seq_manager</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_shell_manager</span><span class="p">(</span><span class="n">mpi_ncpus</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-
-        <span class="c"># Return code is always != 0 </span>
-        <span class="n">process</span> <span class="o">=</span> <span class="n">seq_manager</span><span class="o">.</span><span class="n">launch</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
-        <span class="n">process</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span>  
-
-        <span class="c"># Remove the variables added for the automatic parallelization</span>
-        <span class="n">task</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">remove_extra_abivars</span><span class="p">(</span><span class="n">autoparal_vars</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-
-        <span class="c"># 2) Parse the autoparal configurations</span>
-        <span class="n">parser</span> <span class="o">=</span> <span class="n">ParalHintsParser</span><span class="p">()</span>
-
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">confs</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">log_file</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
-
-        <span class="k">except</span> <span class="n">parser</span><span class="o">.</span><span class="n">Error</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span>
-
-        <span class="c"># 3) Select the optimal configuration according to policy</span>
-        <span class="n">optimal</span> <span class="o">=</span> <span class="n">confs</span><span class="o">.</span><span class="n">select_optimal_conf</span><span class="p">(</span><span class="n">policy</span><span class="p">)</span>
-        <span class="k">print</span><span class="p">(</span><span class="s">&quot;optimal Autoparal conf:</span><span class="se">\n</span><span class="s"> </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">optimal</span><span class="p">)</span>
-
-        <span class="c"># 4) Change the input file and/or the submission script</span>
-        <span class="n">task</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">add_extra_abivars</span><span class="p">(</span><span class="n">optimal</span><span class="o">.</span><span class="n">vars</span><span class="p">)</span>
-                                                                  
-        <span class="c"># Change the number of MPI nodes.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">set_mpi_ncpus</span><span class="p">(</span><span class="n">optimal</span><span class="o">.</span><span class="n">mpi_ncpus</span><span class="p">)</span>
-
-        <span class="c"># Change the number of OpenMP threads.</span>
-        <span class="c">#if optimal.omp_ncpus &gt; 1:</span>
-        <span class="c">#    self.set_omp_ncpus(optimal.omp_ncpus)</span>
-        <span class="c">#else:</span>
-        <span class="c">#    self.qadapter.disable_omp()</span>
-
-        <span class="c"># Change the memory per node.</span>
-        <span class="c">#if optimal.mem_per_cpu is not None</span>
-        <span class="c">#    self.qadapter.set_mem_per_cpu(optimal.mem_per_cpu)</span>
-
-        <span class="c"># Reset the status, remove garbage files ...</span>
-        <span class="n">task</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">S_READY</span><span class="p">)</span>
-
-        <span class="c"># Remove the output file since Abinit likes to create new files </span>
-        <span class="c"># with extension .outA, .outB if the file already exists.</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">output_file</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">log_file</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">stderr_file</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">confs</span><span class="p">,</span> <span class="n">optimal</span>
+<div class="viewcode-block" id="TaskManager.set_mem_per_cpu"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.tasks.TaskManager.set_mem_per_cpu">[docs]</a>    <span class="k">def</span> <span class="nf">set_mem_per_cpu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mem_mb</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set the memory (in Megabytes) per CPU.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qadapter</span><span class="o">.</span><span class="n">set_mem_per_cpu</span><span class="p">(</span><span class="n">mem_mb</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="TaskManager.write_jobfile"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.tasks.TaskManager.write_jobfile">[docs]</a>    <span class="k">def</span> <span class="nf">write_jobfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -865,6 +840,7 @@
 <span class="p">])</span>
 
 <span class="k">class</span> <span class="nc">Status</span><span class="p">(</span><span class="nb">int</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This object is an integer representing the status of the `Node`.&quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s">&quot;&lt;</span><span class="si">%s</span><span class="s">: </span><span class="si">%s</span><span class="s">, at </span><span class="si">%s</span><span class="s">&gt;&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
 
@@ -878,7 +854,7 @@
 <span class="sd">    implemented by the nodes of the calculation.</span>
 
 <span class="sd">    Nodes are hashable and can be tested for equality</span>
-<span class="sd">    (both operation use the node identifier).</span>
+<span class="sd">    (hash uses the node identifier, while eq uses workdir).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span>
 
@@ -910,7 +886,9 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Node</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">False</span>
 
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">node_id</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">node_id</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">__class__</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">__class__</span> <span class="ow">and</span> 
+                <span class="bp">self</span><span class="o">.</span><span class="n">workdir</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">workdir</span><span class="p">)</span>
+               <span class="c">#self.node_id == other.node_id and </span>
                                                        
     <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">__eq__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
@@ -937,7 +915,7 @@
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        The name of node </span>
+<span class="sd">        The name of the node </span>
 <span class="sd">        (only used for facilitating its identification in the user interface).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
@@ -967,6 +945,11 @@
     <span class="k">def</span> <span class="nf">finalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">boolean</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_finalized</span> <span class="o">=</span> <span class="n">boolean</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;Finalized on </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">time</span><span class="o">.</span><span class="n">asctime</span><span class="p">())</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">str_history</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;String representation of history.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">)</span>
                                                          
     <span class="c">#@abc.abstractproperty</span>
     <span class="c">#def workdir(self):</span>
@@ -1082,6 +1065,7 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">filepath</span>
         <span class="k">return</span> <span class="s">&quot;&quot;</span>
 
+
 <span class="k">class</span> <span class="nc">FileNode</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A node of the calculation consisting of an already existing file</span>
@@ -1174,9 +1158,8 @@
         <span class="c"># Set the initial status.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">S_INIT</span><span class="p">)</span>
 
-        <span class="c"># Number of restarts effectuated and max number (-1 --&gt; no limit).</span>
+        <span class="c"># Number of restarts effectuated.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_restarts</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">max_num_restarts</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
 
     <span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -1188,9 +1171,11 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span><span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;_process&quot;</span><span class="p">,]}</span>
 
-    <span class="k">def</span> <span class="nf">set_workdir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workdir</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Set the working directory. Cannot be set more than once.&quot;&quot;&quot;</span>
-        <span class="k">assert</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&quot;workdir&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">set_workdir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workdir</span><span class="p">,</span> <span class="n">chroot</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set the working directory. Cannot be set more than once unless chroot is True&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">chroot</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&quot;workdir&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">workdir</span> <span class="o">!=</span> <span class="n">workdir</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;self.workdir != workdir: </span><span class="si">%s</span><span class="s">, </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">,</span>  <span class="n">workdir</span><span class="p">))</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">workdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">workdir</span><span class="p">)</span>
 
         <span class="c"># Files required for the execution.</span>
@@ -1200,6 +1185,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">job_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">,</span> <span class="s">&quot;job.sh&quot;</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">,</span> <span class="s">&quot;run.log&quot;</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">stderr_file</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">,</span> <span class="s">&quot;run.err&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_lockfile</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">,</span> <span class="s">&quot;__startlock__&quot;</span><span class="p">))</span>
 
         <span class="c"># Directories with input|output|temporary data.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">indir</span> <span class="o">=</span> <span class="n">Directory</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">,</span> <span class="s">&quot;indata&quot;</span><span class="p">))</span>
@@ -1279,7 +1265,7 @@
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">can_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;The task can run if its status is &lt; S_SUB and all the other depencies (if any) are done!&quot;&quot;&quot;</span>
-        <span class="n">all_ok</span> <span class="o">=</span> <span class="nb">all</span><span class="p">(</span><span class="n">stat</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">S_OK</span> <span class="k">for</span> <span class="n">stat</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">deps_status</span><span class="p">)</span>
+        <span class="n">all_ok</span> <span class="o">=</span> <span class="nb">all</span><span class="p">([</span><span class="n">stat</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">S_OK</span> <span class="k">for</span> <span class="n">stat</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">deps_status</span><span class="p">])</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">S_SUB</span> <span class="ow">and</span> <span class="n">all_ok</span>
 
     <span class="k">def</span> <span class="nf">not_converged</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -1287,6 +1273,24 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;not_converged method of the base class will always return False&quot;</span><span class="p">)</span>
         <span class="n">report</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_event_report</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">report</span><span class="o">.</span><span class="n">filter_types</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CRITICAL_EVENTS</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">cancel</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Cancel the job. Returns 1 if job was cancelled.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">queue_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">queue_id</span>
+        <span class="k">if</span> <span class="n">queue_id</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span> <span class="mi">0</span> 
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">S_DONE</span><span class="p">:</span> <span class="k">return</span> <span class="mi">0</span> 
+
+        <span class="n">exit_status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">qadapter</span><span class="o">.</span><span class="n">cancel</span><span class="p">(</span><span class="n">queue_id</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">exit_status</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span>
+
+        <span class="c"># Remove output files and reset the status.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="mi">1</span>
 
     <span class="k">def</span> <span class="nf">_on_done</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">fix_ofiles</span><span class="p">()</span>
@@ -1334,49 +1338,31 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">S_READY</span><span class="p">,</span> <span class="n">info_msg</span><span class="o">=</span><span class="s">&quot;Restarted on </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">time</span><span class="o">.</span><span class="n">asctime</span><span class="p">())</span>
 
-        <span class="c"># Increase the counter and relaunch the task.</span>
+        <span class="c"># Increase the counter.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_restarts</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;Restarted on </span><span class="si">%s</span><span class="s">, num_restarts </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">asctime</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_restarts</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
 
-        <span class="k">return</span> <span class="mi">0</span>
+        <span class="c"># Remove the lock file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_lockfile</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+ 
+        <span class="c"># Relaunch the task.</span>
+        <span class="n">fired</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">fired</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;[</span><span class="si">%s</span><span class="s">], restart failed&quot;</span> <span class="o">%</span> <span class="n">time</span><span class="o">.</span><span class="n">asctime</span><span class="p">())</span>
+
+        <span class="k">return</span> <span class="n">fired</span>
 
     <span class="k">def</span> <span class="nf">restart</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Restart the calculation. This method is called if the calculation is not converged </span>
-<span class="sd">        and we can restart the task. See restart_if_needed.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Calling the **empty** restart method of the base class&quot;</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">restart_if_needed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Callback that is executed once the job is done. </span>
-<span class="sd">        The implementation of the two methods: </span>
-
-<span class="sd">           - not_converged</span>
-<span class="sd">           - restart </span>
-<span class="sd">           </span>
-<span class="sd">        is delegated to the subclasses.</span>
+<span class="sd">        Restart the calculation.  Subclasses should provide a concrete version that </span>
+<span class="sd">        performs all the actions needed for preparing the restart and then calls self._restart</span>
+<span class="sd">        to restart the task. The default implementation is empty.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            0 if succes, 1 if restart was not possible.</span>
+<span class="sd">            1 if job was restarted, 0 otherwise.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">not_converged</span><span class="p">():</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_restarts</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_num_restarts</span><span class="p">:</span>
-                <span class="n">info_msg</span> <span class="o">=</span> <span class="s">&quot;Reached maximum number of restarts. Cannot restart anymore Returning&quot;</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">info_msg</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">info_msg</span><span class="p">)</span>
-                <span class="k">return</span> <span class="mi">1</span>
-
-            <span class="k">try</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">restart</span><span class="p">()</span>
-    
-            <span class="k">except</span> <span class="n">TaskRestartError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-                <span class="n">info_msg</span> <span class="o">=</span> <span class="s">&quot;Calculation not converged but restart was not possible!</span><span class="se">\n</span><span class="s">Exception: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">exc</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">info_msg</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">S_ERROR</span><span class="p">,</span> <span class="n">info_msg</span><span class="o">=</span><span class="n">info_msg</span><span class="p">)</span>
-                <span class="k">return</span> <span class="mi">1</span>
-     
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Calling the **empty** restart method of the base class&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="mi">0</span>
 
     <span class="k">def</span> <span class="nf">poll</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -1439,6 +1425,15 @@
             <span class="k">return</span> <span class="mi">1</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">S_INIT</span><span class="p">,</span> <span class="n">info_msg</span><span class="o">=</span><span class="s">&quot;Reset on </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">time</span><span class="o">.</span><span class="n">asctime</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_queue_id</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
+
+        <span class="c"># Remove output files otherwise the EventParser will think the job is still running</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_file</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log_file</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stderr_file</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_lockfile</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qerr_file</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qout_file</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
 
         <span class="c"># TODO send a signal to the flow </span>
         <span class="c">#self.workflow.check_status()</span>
@@ -1871,9 +1866,19 @@
 <span class="sd">            - build dirs and files</span>
 <span class="sd">            - call the _setup method</span>
 <span class="sd">            - execute the job file by executing/submitting the job script.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            1 if task was started, 0 otherwise.</span>
+<span class="sd">            </span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_status</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">S_SUB</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">S_SUB</span><span class="p">:</span>
             <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="s">&quot;Task status: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_lockfile</span><span class="o">.</span><span class="n">exists</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s">&quot;Found lock file: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_lockfile</span><span class="o">.</span><span class="n">relpath</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_lockfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;Started on </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">time</span><span class="o">.</span><span class="n">asctime</span><span class="p">())</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">build</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_setup</span><span class="p">()</span>
@@ -1881,24 +1886,33 @@
         <span class="c"># Add the variables needed to connect the node.</span>
         <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">deps</span><span class="p">:</span>
             <span class="nb">vars</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">connecting_vars</span><span class="p">()</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Adding connecting vars </span><span class="si">%s</span><span class="s"> &quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="nb">vars</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Adding connecting vars </span><span class="si">%s</span><span class="s"> &quot;</span> <span class="o">%</span> <span class="nb">vars</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">add_extra_abivars</span><span class="p">(</span><span class="nb">vars</span><span class="p">)</span>
 
         <span class="c"># Automatic parallelization</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">autoparal</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&quot;autoparal_fake_run&quot;</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">autoparal_fake_run</span><span class="p">()</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="c"># Log the exception and continue with the parameters specified by the user.</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s">&quot;autoparal_fake_run raised:</span><span class="se">\n</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">straceback</span><span class="p">())</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">S_ERROR</span><span class="p">)</span>
+                <span class="k">return</span> <span class="mi">0</span>
 
         <span class="c"># Start the calculation in a subprocess and return.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_process</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">launch</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">start_and_wait</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Helper method to start the task and wait.</span>
+        <span class="k">return</span> <span class="mi">1</span>
 
-<span class="sd">        Mainly used when we are submitting the task via the shell</span>
-<span class="sd">        without passing through a queue manager.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span>
+    <span class="c">#def start_and_wait(self, *args, **kwargs):</span>
+    <span class="c">#    &quot;&quot;&quot;</span>
+    <span class="c">#    Helper method to start the task and wait.</span>
+
+    <span class="c">#    Mainly used when we are submitting the task via the shell</span>
+    <span class="c">#    without passing through a queue manager.</span>
+    <span class="c">#    &quot;&quot;&quot;</span>
+    <span class="c">#    self.start(*args, **kwargs)</span>
+    <span class="c">#    return self.wait()</span>
 
 
 <span class="k">class</span> <span class="nc">AbinitTask</span><span class="p">(</span><span class="n">Task</span><span class="p">):</span>
@@ -1993,6 +2007,102 @@
 
         <span class="k">return</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
 
+    <span class="k">def</span> <span class="nf">autoparal_fake_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find an optimal set of parameters for the execution of the task </span>
+<span class="sd">        using the options specified in `TaskPolicy`.</span>
+<span class="sd">        This method can change the ABINIT input variables and/or the </span>
+<span class="sd">        parameters passed to the `TaskManager` e.g. the number of CPUs for MPI and OpenMp.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">           confs, optimal </span>
+<span class="sd">           where confs is a `ParalHints` object with the configuration reported by </span>
+<span class="sd">           autoparal and optimal is the optimal configuration selected.</span>
+<span class="sd">           Returns (None, None) if some problem occurred.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;in autoparal_fake_run&quot;</span><span class="p">)</span>
+        <span class="n">manager</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span>
+        <span class="n">policy</span> <span class="o">=</span> <span class="n">manager</span><span class="o">.</span><span class="n">policy</span>
+
+        <span class="k">if</span> <span class="n">policy</span><span class="o">.</span><span class="n">autoparal</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">policy</span><span class="o">.</span><span class="n">max_ncpus</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="mi">1</span><span class="p">]:</span> 
+            <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;Nothing to do in autoparal, returning (None, None)&quot;</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span>
+
+        <span class="k">if</span> <span class="n">policy</span><span class="o">.</span><span class="n">autoparal</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&quot;autoparal != 1&quot;</span><span class="p">)</span>
+
+        <span class="c"># 1) Run ABINIT in sequential to get the possible configurations with max_ncpus</span>
+
+        <span class="c"># Set the variables for automatic parallelization</span>
+        <span class="n">autoparal_vars</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">autoparal</span><span class="o">=</span><span class="n">policy</span><span class="o">.</span><span class="n">autoparal</span><span class="p">,</span>
+            <span class="n">max_ncpus</span><span class="o">=</span><span class="n">policy</span><span class="o">.</span><span class="n">max_ncpus</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">add_extra_abivars</span><span class="p">(</span><span class="n">autoparal_vars</span><span class="p">)</span>
+
+        <span class="c"># Build a simple manager to run the job in a shell subprocess on the frontend</span>
+        <span class="c"># we don&#39;t want to make a request to the queue manager for this simple job!</span>
+        <span class="n">seq_manager</span> <span class="o">=</span> <span class="n">manager</span><span class="o">.</span><span class="n">to_shell_manager</span><span class="p">(</span><span class="n">mpi_ncpus</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c"># Return code is always != 0 </span>
+        <span class="n">process</span> <span class="o">=</span> <span class="n">seq_manager</span><span class="o">.</span><span class="n">launch</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="c">#print(&quot;launched&quot;)</span>
+        <span class="n">process</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span>  
+
+        <span class="c"># Remove the variables added for the automatic parallelization</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">remove_extra_abivars</span><span class="p">(</span><span class="n">autoparal_vars</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+        <span class="c"># 2) Parse the autoparal configurations</span>
+        <span class="c">#print(&quot;parsing&quot;)</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">ParalHintsParser</span><span class="p">()</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">confs</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">log_file</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+            <span class="c">#print(&quot;confs&quot;, confs)</span>
+            <span class="c">#self.all_autoparal_confs = confs </span>
+
+        <span class="k">except</span> <span class="n">parser</span><span class="o">.</span><span class="n">Error</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s">&quot;Error while parsing Autoparal section:</span><span class="se">\n</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">straceback</span><span class="p">())</span>
+            <span class="k">return</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span>
+
+        <span class="c"># 3) Select the optimal configuration according to policy</span>
+        <span class="n">optimal</span> <span class="o">=</span> <span class="n">confs</span><span class="o">.</span><span class="n">select_optimal_conf</span><span class="p">(</span><span class="n">policy</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&quot;optimal Autoparal conf:</span><span class="se">\n</span><span class="s"> </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">optimal</span><span class="p">)</span>
+
+        <span class="c"># 4) Change the input file and/or the submission script</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">add_extra_abivars</span><span class="p">(</span><span class="n">optimal</span><span class="o">.</span><span class="n">vars</span><span class="p">)</span>
+                                                                  
+        <span class="c"># Change the number of MPI nodes.</span>
+        <span class="n">manager</span><span class="o">.</span><span class="n">set_mpi_ncpus</span><span class="p">(</span><span class="n">optimal</span><span class="o">.</span><span class="n">mpi_ncpus</span><span class="p">)</span>
+
+        <span class="c"># Change the number of OpenMP threads.</span>
+        <span class="c">#if optimal.omp_ncpus &gt; 1:</span>
+        <span class="c">#    manager.set_omp_ncpus(optimal.omp_ncpus)</span>
+        <span class="c">#else:</span>
+        <span class="c">#    manager.disable_omp()</span>
+
+        <span class="c"># Change the memory per node if automemory evaluates to True.</span>
+        <span class="n">mem_per_cpu</span> <span class="o">=</span> <span class="n">optimal</span><span class="o">.</span><span class="n">mem_per_cpu</span>
+
+        <span class="k">if</span> <span class="n">policy</span><span class="o">.</span><span class="n">automemory</span> <span class="ow">and</span> <span class="n">mem_per_cpu</span><span class="p">:</span>
+            <span class="c"># mem_per_cpu = max(mem_per_cpu, policy.automemory)</span>
+            <span class="n">manager</span><span class="o">.</span><span class="n">set_mem_per_cpu</span><span class="p">(</span><span class="n">mem_per_cpu</span><span class="p">)</span>
+
+        <span class="c"># Reset the status, remove garbage files ...</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">S_INIT</span><span class="p">)</span>
+
+        <span class="c"># Remove the output file since Abinit likes to create new files </span>
+        <span class="c"># with extension .outA, .outB if the file already exists.</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_file</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">log_file</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stderr_file</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">confs</span><span class="p">,</span> <span class="n">optimal</span>
+
+
 <span class="c"># TODO</span>
 <span class="c"># Enable restarting capabilites:</span>
 <span class="c"># Before doing so I need:</span>
@@ -2029,7 +2139,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">add_extra_abivars</span><span class="p">(</span><span class="n">irdvars</span><span class="p">)</span>
 
         <span class="c"># Now we can resubmit the job.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_restart</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_restart</span><span class="p">()</span>
 </div>
 <div class="viewcode-block" id="ScfTask.inspect"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.tasks.ScfTask.inspect">[docs]</a>    <span class="k">def</span> <span class="nf">inspect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -2068,7 +2178,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">add_extra_abivars</span><span class="p">(</span><span class="n">irdvars</span><span class="p">)</span>
 
         <span class="c"># Now we can resubmit the job.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_restart</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_restart</span><span class="p">()</span>
 
 </div></div>
 <div class="viewcode-block" id="RelaxTask"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.tasks.RelaxTask">[docs]</a><span class="k">class</span> <span class="nc">RelaxTask</span><span class="p">(</span><span class="n">AbinitTask</span><span class="p">):</span>
@@ -2134,7 +2244,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">add_extra_abivars</span><span class="p">(</span><span class="n">irdvars</span><span class="p">)</span>
 
         <span class="c"># Now we can resubmit the job.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_restart</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_restart</span><span class="p">()</span>
 </div>
 <div class="viewcode-block" id="RelaxTask.inspect"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.tasks.RelaxTask.inspect">[docs]</a>    <span class="k">def</span> <span class="nf">inspect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -2184,7 +2294,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">add_extra_abivars</span><span class="p">(</span><span class="n">irdvars</span><span class="p">)</span>
 
         <span class="c"># Now we can resubmit the job.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_restart</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_restart</span><span class="p">()</span>
 </div>
 <div class="viewcode-block" id="PhononTask.inspect"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.tasks.PhononTask.inspect">[docs]</a>    <span class="k">def</span> <span class="nf">inspect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -2223,7 +2333,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">add_extra_abivars</span><span class="p">(</span><span class="n">irdvars</span><span class="p">)</span>
 
         <span class="c"># Now we can resubmit the job.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_restart</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_restart</span><span class="p">()</span>
 
 </div></div>
 <span class="k">class</span> <span class="nc">BseTask</span><span class="p">(</span><span class="n">AbinitTask</span><span class="p">):</span>
@@ -2272,8 +2382,7 @@
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">count</span><span class="p">:</span>
             <span class="c"># outdir does not contain the BSR|BSC file.</span>
-            <span class="c"># This means that num_restart &gt; 1 and the files should</span>
-            <span class="c"># be in task.indir</span>
+            <span class="c"># This means that num_restart &gt; 1 and the files should be in task.indir</span>
             <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
             <span class="k">for</span> <span class="n">ext</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;BSR&quot;</span><span class="p">,</span> <span class="s">&quot;BSC&quot;</span><span class="p">]:</span>
                 <span class="n">ifile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">indir</span><span class="o">.</span><span class="n">has_abiext</span><span class="p">(</span><span class="n">ext</span><span class="p">)</span>
@@ -2299,7 +2408,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">add_extra_abivars</span><span class="p">(</span><span class="n">irdvars</span><span class="p">)</span>
 
         <span class="c"># Now we can resubmit the job.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_restart</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_restart</span><span class="p">()</span>
 
 </div></div>
 <div class="viewcode-block" id="OpticTask"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.tasks.OpticTask">[docs]</a><span class="k">class</span> <span class="nc">OpticTask</span><span class="p">(</span><span class="n">Task</span><span class="p">):</span>
@@ -2515,8 +2624,8 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Anaddb allows the user to specify the paths of the input file.</span>
 <span class="sd">        hence we don&#39;t need to create symbolic links.</span>
-<span class="sd">        &quot;&quot;&quot;</span></div></div>
-</pre></div>
+<span class="sd">        &quot;&quot;&quot;</span>
+</pre></div></div></div>
 
           </div>
         </div>
@@ -2549,14 +2658,14 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 2.8.8 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 2.8.9 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>
 
     <div class="footer">
         &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Geoffroy Hautier, William Davidson Richard, Stephen Dacek, Sai Jayaraman, Michael Kocher, Dan Gunter, Shreyas Cholia, Vincent L Chevrier, Rickard Armiento.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

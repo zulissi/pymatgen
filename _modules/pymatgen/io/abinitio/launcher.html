@@ -1,4 +1,3 @@
-
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
@@ -7,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.abinitio.launcher &mdash; pymatgen 2.8.8 documentation</title>
+    <title>pymatgen.io.abinitio.launcher &mdash; pymatgen 2.8.9 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -15,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '2.8.8',
+        VERSION:     '2.8.9',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +24,7 @@
     <script type="text/javascript" src="../../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.8.8 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 2.8.9 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +44,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 2.8.8 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 2.8.9 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -59,27 +58,32 @@
 <span class="sd">&quot;&quot;&quot;Tools for the submission of Tasks.&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
 
-<span class="kn">import</span> <span class="nn">os</span> 
+<span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">import</span> <span class="nn">yaml</span>
+<span class="kn">import</span> <span class="nn">cStringIO</span> <span class="kn">as</span> <span class="nn">StringIO</span>
 
-<span class="kn">from</span> <span class="nn">subprocess</span> <span class="kn">import</span> <span class="n">Popen</span><span class="p">,</span> <span class="n">PIPE</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">timedelta</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.design_patterns</span> <span class="kn">import</span> <span class="n">AttrDict</span>
 <span class="kn">from</span> <span class="nn">pymatgen.util.string_utils</span> <span class="kn">import</span> <span class="n">is_string</span>
 <span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.utils</span> <span class="kn">import</span> <span class="n">File</span>
 
 <span class="kn">import</span> <span class="nn">logging</span>
-<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
 
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s">&quot;ScriptEditor&quot;</span><span class="p">,</span>
     <span class="s">&quot;PyLauncher&quot;</span><span class="p">,</span>
-    <span class="s">&quot;PyFlowsScheduler&quot;</span><span class="p">,</span>
+    <span class="s">&quot;PyFlowScheduler&quot;</span><span class="p">,</span>
 <span class="p">]</span>
+
 
 <span class="k">def</span> <span class="nf">straceback</span><span class="p">():</span>
     <span class="sd">&quot;&quot;&quot;Returns a string with the traceback.&quot;&quot;&quot;</span>
     <span class="kn">import</span> <span class="nn">traceback</span>
+
     <span class="k">return</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()</span>
 
 
@@ -98,7 +102,7 @@
 </div>
     <span class="k">def</span> <span class="nf">_add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">pre</span><span class="o">=</span><span class="s">&quot;&quot;</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">is_string</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pre</span><span class="o">+</span><span class="n">text</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pre</span> <span class="o">+</span> <span class="n">text</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_lines</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">pre</span> <span class="o">+</span> <span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">text</span><span class="p">])</span>
 
@@ -118,13 +122,13 @@
         <span class="k">if</span> <span class="n">val</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
             <span class="n">line</span> <span class="o">=</span> <span class="s">&quot;export &quot;</span> <span class="o">+</span> <span class="n">key</span> <span class="o">+</span> <span class="s">&#39;=&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">line</span> <span class="o">=</span> <span class="s">&quot;unset &quot;</span> <span class="o">+</span> <span class="n">key</span> 
+            <span class="n">line</span> <span class="o">=</span> <span class="s">&quot;unset &quot;</span> <span class="o">+</span> <span class="n">key</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_add</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="ScriptEditor.declare_vars"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.ScriptEditor.declare_vars">[docs]</a>    <span class="k">def</span> <span class="nf">declare_vars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Declare the variables defined in the dictionary d.&quot;&quot;&quot;</span>
-        <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">declare_var</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="ScriptEditor.export_envar"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.ScriptEditor.export_envar">[docs]</a>    <span class="k">def</span> <span class="nf">export_envar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span><span class="p">):</span>
@@ -134,7 +138,7 @@
 </div>
 <div class="viewcode-block" id="ScriptEditor.export_envars"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.ScriptEditor.export_envars">[docs]</a>    <span class="k">def</span> <span class="nf">export_envars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">env</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Export the environment variables contained in the dict env.&quot;&quot;&quot;</span>
-        <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">env</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">export_envar</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="ScriptEditor.add_emptyline"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.ScriptEditor.add_emptyline">[docs]</a>    <span class="k">def</span> <span class="nf">add_emptyline</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -173,17 +177,17 @@
 <span class="sd">    see https://computing.llnl.gov/tutorials/openMP/#EnvironmentVariables</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">_KEYS</span> <span class="o">=</span> <span class="p">[</span>
-       <span class="s">&quot;OMP_SCHEDULE&quot;</span><span class="p">,</span>
-       <span class="s">&quot;OMP_NUM_THREADS&quot;</span><span class="p">,</span>
-       <span class="s">&quot;OMP_DYNAMIC&quot;</span><span class="p">,</span>
-       <span class="s">&quot;OMP_PROC_BIND&quot;</span><span class="p">,</span>
-       <span class="s">&quot;OMP_NESTED&quot;</span><span class="p">,</span>
-       <span class="s">&quot;OMP_STACKSIZE&quot;</span><span class="p">,</span>
-       <span class="s">&quot;OMP_WAIT_POLICY&quot;</span><span class="p">,</span>
-       <span class="s">&quot;OMP_MAX_ACTIVE_LEVELS&quot;</span><span class="p">,</span>
-       <span class="s">&quot;OMP_THREAD_LIMIT&quot;</span><span class="p">,</span>
-       <span class="s">&quot;OMP_STACKSIZE&quot;</span><span class="p">,</span>
-       <span class="s">&quot;OMP_PROC_BIND&quot;</span><span class="p">,</span>
+        <span class="s">&quot;OMP_SCHEDULE&quot;</span><span class="p">,</span>
+        <span class="s">&quot;OMP_NUM_THREADS&quot;</span><span class="p">,</span>
+        <span class="s">&quot;OMP_DYNAMIC&quot;</span><span class="p">,</span>
+        <span class="s">&quot;OMP_PROC_BIND&quot;</span><span class="p">,</span>
+        <span class="s">&quot;OMP_NESTED&quot;</span><span class="p">,</span>
+        <span class="s">&quot;OMP_STACKSIZE&quot;</span><span class="p">,</span>
+        <span class="s">&quot;OMP_WAIT_POLICY&quot;</span><span class="p">,</span>
+        <span class="s">&quot;OMP_MAX_ACTIVE_LEVELS&quot;</span><span class="p">,</span>
+        <span class="s">&quot;OMP_THREAD_LIMIT&quot;</span><span class="p">,</span>
+        <span class="s">&quot;OMP_STACKSIZE&quot;</span><span class="p">,</span>
+        <span class="s">&quot;OMP_PROC_BIND&quot;</span><span class="p">,</span>
     <span class="p">]</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -204,24 +208,25 @@
             <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_KEYS</span><span class="p">:</span>
                 <span class="n">err_msg</span> <span class="o">+=</span> <span class="s">&quot;unknown option </span><span class="si">%s</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">key</span>
 
-        <span class="k">if</span> <span class="n">err_msg</span><span class="p">:</span> 
+        <span class="k">if</span> <span class="n">err_msg</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">err_msg</span><span class="p">)</span>
 
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">from_file</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">allow_empty</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_file</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">allow_empty</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Reads the OpenMP variables from a INI file.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">filename</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&quot;.ini&quot;</span><span class="p">):</span>
             <span class="kn">from</span> <span class="nn">ConfigParser</span> <span class="kn">import</span> <span class="n">SafeConfigParser</span><span class="p">,</span> <span class="n">NoOptionError</span>
+
             <span class="n">parser</span> <span class="o">=</span> <span class="n">SafeConfigParser</span><span class="p">()</span>
             <span class="n">parser</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
 
-            <span class="n">obj</span> <span class="o">=</span> <span class="n">OMPEnv</span><span class="p">()</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">OmpEnv</span><span class="p">()</span>
 
             <span class="c"># Consistency check. Note that we only check if the option name is correct, </span>
             <span class="c"># we do not check whether the value is correct or not.</span>
             <span class="k">if</span> <span class="s">&quot;openmp&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">sections</span><span class="p">():</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">allow_empty</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s"> does not contain any [openmp] section&quot;</span> <span class="o">%</span> <span class="n">filename</span><span class="p">)</span> 
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s"> does not contain any [openmp] section&quot;</span> <span class="o">%</span> <span class="n">filename</span><span class="p">)</span>
                 <span class="k">return</span> <span class="n">obj</span>
 
             <span class="n">err_msg</span> <span class="o">=</span> <span class="s">&quot;&quot;</span>
@@ -229,10 +234,10 @@
                 <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_KEYS</span><span class="p">:</span>
                     <span class="n">err_msg</span> <span class="o">+=</span> <span class="s">&quot;unknown option </span><span class="si">%s</span><span class="s">, maybe a typo&quot;</span> <span class="o">%</span> <span class="n">key</span>
 
-            <span class="k">if</span> <span class="n">err_msg</span><span class="p">:</span> 
+            <span class="k">if</span> <span class="n">err_msg</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">err_msg</span><span class="p">)</span>
 
-            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_KEYS</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">cls</span><span class="o">.</span><span class="n">_KEYS</span><span class="p">:</span>
                 <span class="k">try</span><span class="p">:</span>
                     <span class="n">obj</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">parser</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;openmp&quot;</span><span class="p">,</span> <span class="n">key</span><span class="p">))</span>
                 <span class="k">except</span> <span class="n">NoOptionError</span><span class="p">:</span>
@@ -242,7 +247,7 @@
                         <span class="k">pass</span>
 
             <span class="k">if</span> <span class="ow">not</span> <span class="n">allow_empty</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">obj</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Refusing to return with an empty dict&quot;</span><span class="p">)</span> 
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Refusing to return with an empty dict&quot;</span><span class="p">)</span>
 
             <span class="k">return</span> <span class="n">obj</span>
 
@@ -288,21 +293,23 @@
                 <span class="k">if</span> <span class="n">task</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
                     <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
+                    <span class="c"># No task found, this usually happens when we have dependencies. </span>
+                    <span class="c"># Beware of possible deadlocks here!</span>
                     <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;No task to run! Possible deadlock&quot;</span><span class="p">)</span>
 
             <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Out of tasks.&quot;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;All tasks completed.&quot;</span><span class="p">)</span>
 
         <span class="c"># Submit the tasks and update the database.</span>
         <span class="k">if</span> <span class="n">tasks</span><span class="p">:</span>
             <span class="n">tasks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
             <span class="n">num_launched</span> <span class="o">+=</span> <span class="mi">1</span>
-            
+
             <span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">pickle_dump</span><span class="p">()</span>
 
-        <span class="k">return</span> <span class="n">num_launched</span> 
+        <span class="k">return</span> <span class="n">num_launched</span>
 </div>
-<div class="viewcode-block" id="PyLauncher.rapidfire"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyLauncher.rapidfire">[docs]</a>    <span class="k">def</span> <span class="nf">rapidfire</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_nlaunch</span><span class="o">=-</span><span class="mi">1</span><span class="p">):</span>  <span class="c"># nlaunches=0, max_loops=-1, sleep_time=None</span>
+<div class="viewcode-block" id="PyLauncher.rapidfire"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyLauncher.rapidfire">[docs]</a>    <span class="k">def</span> <span class="nf">rapidfire</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_nlaunch</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_loops</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">sleep_time</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span> <span class="c"># nlaunches=0, </span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Keeps submitting `Tasks` until we are out of jobs or no job is ready to run.</span>
 
@@ -320,51 +327,113 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            The number of tasks launched.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c">#sleep_time = sleep_time if sleep_time else FWConfig().RAPIDFIRE_SLEEP_SECS</span>
+        <span class="n">sleep_time</span> <span class="o">=</span> <span class="n">sleep_time</span> <span class="k">if</span> <span class="n">sleep_time</span> <span class="k">else</span> <span class="mi">5</span>
         <span class="c">#nlaunches = -1 if nlaunches == &#39;infinite&#39; else int(nlaunches)</span>
-        <span class="c">#num_loops = 0</span>
-        <span class="n">num_launched</span><span class="p">,</span> <span class="n">launched</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="p">[]</span>
+        <span class="n">num_loops</span><span class="p">,</span> <span class="n">num_launched</span><span class="p">,</span> <span class="n">launched</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">[]</span>
+        <span class="n">got_empty_list</span> <span class="o">=</span> <span class="mi">0</span>
 
-        <span class="k">for</span> <span class="n">work</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">num_launched</span> <span class="o">==</span> <span class="n">max_nlaunch</span><span class="p">:</span> 
+        <span class="k">while</span> <span class="n">num_loops</span> <span class="o">!=</span> <span class="n">max_loops</span><span class="p">:</span>
+            <span class="n">tasks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fetch_tasks_to_run</span><span class="p">()</span>
+
+            <span class="c"># I don&#39;t know why but we receive duplicated tasks.</span>
+            <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">tasks</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">launched</span><span class="p">:</span>
+                    <span class="n">err_msg</span> <span class="o">=</span> <span class="s">&quot;task </span><span class="si">%s</span><span class="s"> already in launched list:</span><span class="se">\n</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="n">launched</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="n">err_msg</span><span class="p">)</span>
+
+            <span class="c"># Preventive test.</span>
+            <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">tasks</span> <span class="k">if</span> <span class="n">t</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">launched</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">tasks</span><span class="p">:</span>
+                <span class="n">got_empty_list</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="k">if</span> <span class="n">got_empty_list</span> <span class="o">==</span> <span class="n">max_loops</span><span class="p">:</span>
                 <span class="k">break</span>
 
-            <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
-                <span class="k">try</span><span class="p">:</span>
-                    <span class="n">task</span> <span class="o">=</span> <span class="n">work</span><span class="o">.</span><span class="n">fetch_task_to_run</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">tasks</span><span class="p">:</span>
+                <span class="n">fired</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
 
-                    <span class="k">if</span> <span class="n">task</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
-                        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;fetch_task_to_run returned None.&quot;</span><span class="p">)</span>
-                        <span class="k">break</span>
-
-                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Starting task </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">task</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">launched</span><span class="p">:</span>
-                        <span class="n">err_msg</span> <span class="o">=</span> <span class="s">&quot;task </span><span class="si">%s</span><span class="s"> in already in launched </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">task</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">launched</span><span class="p">))</span>
-                        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">err_msg</span><span class="p">)</span>
-
-                    <span class="n">task</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">fired</span><span class="p">:</span>
                     <span class="n">launched</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
-
                     <span class="n">num_launched</span> <span class="o">+=</span> <span class="mi">1</span>
 
-                    <span class="k">if</span> <span class="n">num_launched</span> <span class="o">==</span> <span class="n">max_nlaunch</span><span class="p">:</span>
-                        <span class="k">break</span>
-
-                <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
-                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Out of tasks.&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">num_launched</span> <span class="o">==</span> <span class="n">max_nlaunch</span><span class="p">:</span>
+                    <span class="c"># Exit the outermst loop.</span>
+                    <span class="n">num_loops</span> <span class="o">=</span> <span class="n">max_loops</span>
                     <span class="k">break</span>
 
+            <span class="c">#time.sleep(sleep_time)</span>
+            <span class="n">num_loops</span> <span class="o">+=</span> <span class="mi">1</span>
+
         <span class="c"># Update the database.</span>
-        <span class="c">#if num_launched:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">check_status</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">pickle_dump</span><span class="p">()</span>
 
-        <span class="k">return</span> <span class="n">num_launched</span> 
+        <span class="k">return</span> <span class="n">num_launched</span>
+</div>
+<div class="viewcode-block" id="PyLauncher.fetch_tasks_to_run"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyLauncher.fetch_tasks_to_run">[docs]</a>    <span class="k">def</span> <span class="nf">fetch_tasks_to_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the list of tasks that can be submitted.</span>
+<span class="sd">        Empty list if no task has been found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tasks_to_run</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">work</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">task</span> <span class="o">=</span> <span class="n">work</span><span class="o">.</span><span class="n">fetch_task_to_run</span><span class="p">()</span>
+
+                <span class="k">if</span> <span class="n">task</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                    <span class="n">tasks_to_run</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c"># No task found, this usually happens when we have dependencies. </span>
+                    <span class="c"># Beware of possible deadlocks here!</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;fetch_task_to_run returned None.&quot;</span><span class="p">)</span>
+
+            <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+                <span class="c"># All the tasks in work are done.</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Out of tasks in work </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">work</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">tasks_to_run</span>
 
 </div></div>
-<div class="viewcode-block" id="PyFlowsScheduler"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowsScheduler">[docs]</a><span class="k">class</span> <span class="nc">PyFlowsScheduler</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">boxed</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">ch</span><span class="o">=</span><span class="s">&quot;=&quot;</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">pad</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="n">pad</span> <span class="o">*</span> <span class="n">ch</span> <span class="o">+</span> <span class="n">msg</span> <span class="o">+</span> <span class="n">pad</span> <span class="o">*</span> <span class="n">ch</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">weeks</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">days</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">hours</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">minutes</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">seconds</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">start_date</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="o">*</span> <span class="n">ch</span><span class="p">,</span>
+                      <span class="n">msg</span><span class="p">,</span>
+                      <span class="nb">len</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="o">*</span> <span class="n">ch</span><span class="p">,</span>
+                      <span class="s">&quot;&quot;</span><span class="p">,</span> <span class="p">])</span>
+
+
+<div class="viewcode-block" id="PyFlowScheduler"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowScheduler">[docs]</a><span class="k">class</span> <span class="nc">PyFlowScheduler</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This object schedules the submission of the tasks in an `AbinitFlow`.</span>
+<span class="sd">    There are two types of errors that might occur during the execution of the jobs: </span>
+<span class="sd">    </span>
+<span class="sd">        #. Python exceptions </span>
+<span class="sd">        #. Abinit Errors.</span>
+<span class="sd">    </span>
+<span class="sd">    Python exceptions are easy to detect and are usually due to a bug in abinitio or random errors such as IOError.</span>
+<span class="sd">    The set of Abinit Errors is much much broader. It includes wrong input data, segmentation</span>
+<span class="sd">    faults, problems with the resource manager, etc. Abinitio tries to handle the most common cases</span>
+<span class="sd">    but there&#39;s still a lot of room for improvement. </span>
+<span class="sd">    Note, in particular, that `PyFlowScheduler` will shutdown automatically if </span>
+<span class="sd">    </span>
+<span class="sd">        #. The number of python exceptions is &gt; MAX_NUM_PYEXC</span>
+
+<span class="sd">        #. The number of Abinit Errors (i.e. the number of tasks whose status is S_ERROR) is &gt; MAX_NUM_ERRORS</span>
+
+<span class="sd">        #. The number of jobs launched becomes greater than (SAFETY_RATIO * total_number_of_tasks).</span>
+
+<span class="sd">        #. The scheduler will send an email to the user (specified by mailto) every REMINDME_S seconds.</span>
+<span class="sd">           If the mail cannot be sent, it will shutdown automatically. </span>
+<span class="sd">           This check prevents the scheduler from being trapped in an infinite loop.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c"># Configuration file.</span>
+    <span class="n">YAML_FILE</span> <span class="o">=</span> <span class="s">&quot;scheduler.yml&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Args:</span>
 <span class="sd">            weeks:</span>
@@ -377,42 +446,95 @@
 <span class="sd">                number of minutes to wait</span>
 <span class="sd">            seconds:</span>
 <span class="sd">                number of seconds to wait</span>
-<span class="sd">            start_date:</span>
-<span class="sd">                when to first execute the job and start the counter (default is after the given interval)</span>
+<span class="sd">            verbose:</span>
+<span class="sd">                (int) verbosity level</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c"># Time Options passed to the scheduler.</span>
+        <span class="c"># Options passed to the scheduler.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sched_options</span> <span class="o">=</span> <span class="n">AttrDict</span><span class="p">(</span>
-             <span class="n">weeks</span><span class="o">=</span><span class="n">weeks</span><span class="p">,</span>
-             <span class="n">days</span><span class="o">=</span><span class="n">days</span><span class="p">,</span>
-             <span class="n">hours</span><span class="o">=</span><span class="n">hours</span><span class="p">,</span>
-             <span class="n">minutes</span><span class="o">=</span><span class="n">minutes</span><span class="p">,</span>
-             <span class="n">seconds</span><span class="o">=</span><span class="n">seconds</span><span class="p">,</span>
-             <span class="n">start_date</span><span class="o">=</span><span class="n">start_date</span><span class="p">,</span>
+            <span class="n">weeks</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&quot;weeks&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="n">days</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&quot;days&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="n">hours</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&quot;hours&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="n">minutes</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&quot;minutes&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="n">seconds</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&quot;seconds&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="c">#start_date=kwargs.pop(&quot;start_date&quot;, None),</span>
         <span class="p">)</span>
 
+        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="ow">not</span> <span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sched_options</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Wrong set of options passed to the scheduler.&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">mailto</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&quot;mailto&quot;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&quot;verbose&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">REMINDME_S</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&quot;REMINDME_S&quot;</span><span class="p">,</span> <span class="mi">24</span> <span class="o">*</span> <span class="mi">3600</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">MAX_NUM_PYEXCS</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&quot;MAX_NUM_PYEXCS&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">MAX_NUM_ABIERRS</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&quot;MAX_NUM_ABIERRS&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">SAFETY_RATIO</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&quot;SAFETY_RATIO&quot;</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+        <span class="c">#self.MAX_ETIME_S = kwargs.pop(&quot;MAX_ETIME_S&quot;, )</span>
+
+        <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Unknown arguments </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">kwargs</span><span class="p">)</span>
+
         <span class="kn">from</span> <span class="nn">apscheduler.scheduler</span> <span class="kn">import</span> <span class="n">Scheduler</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">sched</span> <span class="o">=</span> <span class="n">Scheduler</span><span class="p">(</span><span class="n">standalone</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_pidfiles2flows</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nlaunch</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_reminders</span> <span class="o">=</span> <span class="mi">1</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">exceptions</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c"># Used to keep track of the exceptions raised while the scheduler is running</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exceptions</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">deque</span><span class="p">(</span><span class="n">maxlen</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">MAX_NUM_PYEXCS</span> <span class="o">+</span> <span class="mi">10</span><span class="p">)</span>
 
+        <span class="c"># Used to push additional info during the execution. </span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">deque</span><span class="p">(</span><span class="n">maxlen</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="PyFlowScheduler.from_file"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowScheduler.from_file">[docs]</a>    <span class="k">def</span> <span class="nf">from_file</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">filepath</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Read the configuration parameters from a Yaml file.&quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fh</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="o">**</span><span class="n">d</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="PyFlowScheduler.from_user_config"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowScheduler.from_user_config">[docs]</a>    <span class="k">def</span> <span class="nf">from_user_config</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize the `PyFlowScheduler` from the YAML file &#39;scheduler.yml&#39;.</span>
+<span class="sd">        Search first in the working directory and then in the configuration</span>
+<span class="sd">        directory of abipy.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            RuntimeError if file is not found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Try in the current directory.</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">(),</span> <span class="n">cls</span><span class="o">.</span><span class="n">YAML_FILE</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="c"># Try in the configuration directory.</span>
+        <span class="n">home</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s">&quot;HOME&quot;</span><span class="p">)</span>
+        <span class="n">dirpath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">home</span><span class="p">,</span> <span class="s">&quot;.abinit&quot;</span><span class="p">,</span> <span class="s">&quot;abipy&quot;</span><span class="p">)</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dirpath</span><span class="p">,</span> <span class="n">cls</span><span class="o">.</span><span class="n">YAML_FILE</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="n">err_msg</span> <span class="o">=</span> <span class="s">&quot;Cannot locate </span><span class="si">%s</span><span class="s"> neither in current directory nor in </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">YAML_FILE</span><span class="p">,</span> <span class="n">dirpath</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">err_msg</span><span class="p">)</span>
+</div>
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;String representation.&quot;&quot;&quot;</span>
         <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span> <span class="o">+</span> <span class="s">&quot;, Pid: </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">pid</span><span class="p">]</span>
         <span class="n">app</span> <span class="o">=</span> <span class="n">lines</span><span class="o">.</span><span class="n">append</span>
 
-        <span class="n">app</span><span class="p">(</span><span class="s">&quot;Scheduler options: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sched_options</span><span class="p">))</span> 
-
-        <span class="k">for</span> <span class="n">flow</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">flows</span><span class="p">:</span>
-            <span class="n">app</span><span class="p">(</span><span class="mi">80</span> <span class="o">*</span> <span class="s">&quot;=&quot;</span><span class="p">)</span>
-            <span class="n">app</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">flow</span><span class="p">))</span>
+        <span class="n">app</span><span class="p">(</span><span class="s">&quot;Scheduler options: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sched_options</span><span class="p">))</span>
+        <span class="n">app</span><span class="p">(</span><span class="mi">80</span> <span class="o">*</span> <span class="s">&quot;=&quot;</span><span class="p">)</span>
+        <span class="n">app</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="p">))</span>
 
         <span class="k">return</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
 
     <span class="nd">@property</span>
-<div class="viewcode-block" id="PyFlowsScheduler.pid"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowsScheduler.pid">[docs]</a>    <span class="k">def</span> <span class="nf">pid</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Pid of the process&quot;&quot;&quot;</span>
+<div class="viewcode-block" id="PyFlowScheduler.pid"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowScheduler.pid">[docs]</a>    <span class="k">def</span> <span class="nf">pid</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The pid of the process associated to the scheduler.&quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pid</span>
 
@@ -421,111 +543,341 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pid</span>
 </div>
     <span class="nd">@property</span>
-<div class="viewcode-block" id="PyFlowsScheduler.pid_files"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowsScheduler.pid_files">[docs]</a>    <span class="k">def</span> <span class="nf">pid_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;List of files with the pid. The files are located in the workdir of the flows&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pidfiles2flows</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
-                                                                                            </div>
-    <span class="nd">@property</span>
-<div class="viewcode-block" id="PyFlowsScheduler.flows"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowsScheduler.flows">[docs]</a>    <span class="k">def</span> <span class="nf">flows</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;List of `AbinitFlows`.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pidfiles2flows</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+<div class="viewcode-block" id="PyFlowScheduler.pid_file"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowScheduler.pid_file">[docs]</a>    <span class="k">def</span> <span class="nf">pid_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Absolute path of the file with the pid. </span>
+<span class="sd">        The file is located in the workdir of the flow</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pid_file</span>
 </div>
-<div class="viewcode-block" id="PyFlowsScheduler.add_flow"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowsScheduler.add_flow">[docs]</a>    <span class="k">def</span> <span class="nf">add_flow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flow</span><span class="p">):</span>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="PyFlowScheduler.flow"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowScheduler.flow">[docs]</a>    <span class="k">def</span> <span class="nf">flow</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;`AbinitFlow`.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_flow</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="PyFlowScheduler.num_excs"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowScheduler.num_excs">[docs]</a>    <span class="k">def</span> <span class="nf">num_excs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Number of exceptions raised so far.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exceptions</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PyFlowScheduler.get_delta_etime"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowScheduler.get_delta_etime">[docs]</a>    <span class="k">def</span> <span class="nf">get_delta_etime</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns a `timedelta` object representing with the elapsed time.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="PyFlowScheduler.add_flow"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowScheduler.add_flow">[docs]</a>    <span class="k">def</span> <span class="nf">add_flow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flow</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Add an `AbinitFlow` to the scheduler.&quot;&quot;&quot;</span>
-        <span class="n">pid_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">flow</span><span class="o">.</span><span class="n">workdir</span><span class="p">,</span> <span class="s">&quot;_PyFlowsScheduler.pid&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&quot;_flow&quot;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Only one flow can be added to the scheduler.&quot;</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">pid_file</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pidfiles2flows</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Cannot add the same flow twice!&quot;</span><span class="p">)</span>
+        <span class="n">pid_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">flow</span><span class="o">.</span><span class="n">workdir</span><span class="p">,</span> <span class="s">&quot;_PyFlowScheduler.pid&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">pid_file</span><span class="p">):</span>
+            <span class="n">flow</span><span class="o">.</span><span class="n">show_status</span><span class="p">()</span>
+
             <span class="n">err_msg</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="s">&quot;pid_file </span><span class="si">%s</span><span class="s"> already exists</span><span class="se">\n</span><span class="s">&quot;</span>
                 <span class="s">&quot;There are two possibilities:</span><span class="se">\n\n</span><span class="s">&quot;</span>
-                <span class="s">&quot;       1) There&#39;s an another instance of PyFlowsScheduler running.</span><span class="se">\n</span><span class="s">&quot;</span>
-                <span class="s">&quot;       2) The previous scheduler didn&#39;t exit in a clean way.</span><span class="se">\n\n</span><span class="s">&quot;</span>
+                <span class="s">&quot;   1) There&#39;s an another instance of PyFlowScheduler running.</span><span class="se">\n</span><span class="s">&quot;</span>
+                <span class="s">&quot;   2) The previous scheduler didn&#39;t exit in a clean way.</span><span class="se">\n\n</span><span class="s">&quot;</span>
                 <span class="s">&quot;To solve case 1:</span><span class="se">\n</span><span class="s">&quot;</span>
-                <span class="s">&quot;       Kill the previous scheduler (use `kill pid` where pid is the number reported in the file)</span><span class="se">\n</span><span class="s">&quot;</span>
-                <span class="s">&quot;       Then you run can start the new scheduler.</span><span class="se">\n\n</span><span class="s">&quot;</span>
+                <span class="s">&quot;   Kill the previous scheduler (use &#39;kill pid&#39; where pid is the number reported in the file)</span><span class="se">\n</span><span class="s">&quot;</span>
+                <span class="s">&quot;   Then you run can start the new scheduler.</span><span class="se">\n\n</span><span class="s">&quot;</span>
                 <span class="s">&quot;To solve case 2:</span><span class="se">\n</span><span class="s">&quot;</span>
-                <span class="s">&quot;   Remove the pid_file and rerun the scheduler.</span><span class="se">\n\n</span><span class="s">&quot;</span>
+                <span class="s">&quot;   Remove the pid_file and restart the scheduler.</span><span class="se">\n\n</span><span class="s">&quot;</span>
                 <span class="s">&quot;Exiting</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">pid_file</span>
-                <span class="p">)</span>
+            <span class="p">)</span>
 
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">err_msg</span><span class="p">)</span>
 
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">pid_file</span><span class="p">,</span> <span class="s">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
-                <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pid</span><span class="p">))</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">pid_file</span><span class="p">,</span> <span class="s">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pid</span><span class="p">))</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_pidfiles2flows</span><span class="p">[</span><span class="n">pid_file</span><span class="p">]</span> <span class="o">=</span> <span class="n">flow</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pid_file</span> <span class="o">=</span> <span class="n">pid_file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_flow</span> <span class="o">=</span> <span class="n">flow</span>
 </div>
-<div class="viewcode-block" id="PyFlowsScheduler.start"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowsScheduler.start">[docs]</a>    <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="PyFlowScheduler.start"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowScheduler.start">[docs]</a>    <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Starts the scheduler in a new thread.</span>
 <span class="sd">        In standalone mode, this method will block until there are no more scheduled jobs.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sched</span><span class="o">.</span><span class="n">add_interval_job</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_runem_all</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">sched_options</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;Started on </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">time</span><span class="o">.</span><span class="n">asctime</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sched</span><span class="o">.</span><span class="n">add_interval_job</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">callback</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">sched_options</span><span class="p">)</span>
+
+        <span class="c"># Try to run the job immediately. If something goes wrong </span>
+        <span class="c"># return without initializing the scheduler.</span>
+        <span class="n">retcode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_runem_all</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">retcode</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cleanup</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">send_email</span><span class="p">(</span><span class="n">msg</span><span class="o">=</span><span class="s">&quot;Error while trying to run the flow for the first time!&quot;</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">sched</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
 </div>
     <span class="k">def</span> <span class="nf">_runem_all</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;The function that will be executed by the scheduler.&quot;&quot;&quot;</span>
-        <span class="n">nlaunch</span><span class="p">,</span> <span class="n">max_nlaunch</span><span class="p">,</span> <span class="n">exceptions</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">[]</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This function tries to run all the tasks that can be submitted.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">max_nlaunch</span><span class="p">,</span> <span class="n">excs</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">[]</span>
 
-        <span class="k">for</span> <span class="n">flow</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">flows</span><span class="p">:</span>
-            <span class="n">flow</span><span class="o">.</span><span class="n">check_status</span><span class="p">()</span>
+        <span class="n">flow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flow</span>
+        <span class="n">flow</span><span class="o">.</span><span class="n">check_status</span><span class="p">()</span>
 
+        <span class="c"># Try to restart the unconverged tasks</span>
+        <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">unconverged_tasks</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">nlaunch</span> <span class="o">+=</span> <span class="n">PyLauncher</span><span class="p">(</span><span class="n">flow</span><span class="p">)</span><span class="o">.</span><span class="n">rapidfire</span><span class="p">(</span><span class="n">max_nlaunch</span><span class="o">=</span><span class="n">max_nlaunch</span><span class="p">)</span>
+                <span class="n">fired</span> <span class="o">=</span> <span class="n">task</span><span class="o">.</span><span class="n">restart</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">fired</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">nlaunch</span> <span class="o">+=</span> <span class="mi">1</span>
 
-            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-                <span class="n">exceptions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">straceback</span><span class="p">())</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="n">excs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">straceback</span><span class="p">())</span>
 
-        <span class="k">print</span><span class="p">(</span><span class="s">&quot;Number of launches: &quot;</span><span class="p">,</span> <span class="n">nlaunch</span><span class="p">)</span>
-        <span class="n">flow</span><span class="o">.</span><span class="n">show_status</span><span class="p">()</span>
-        
-        <span class="k">if</span> <span class="n">exceptions</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s">&quot;Scheduler exceptions: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">exceptions</span><span class="p">))</span>
+        <span class="n">flow</span><span class="o">.</span><span class="n">pickle_dump</span><span class="p">()</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">exceptions</span><span class="p">)</span>
+        <span class="c"># Test whether some task should be restarted.</span>
+        <span class="c">#if self.auto_restart:</span>
+        <span class="c">#    num_restarts = 0</span>
+        <span class="c">#    for task, wt in self.iflat_tasks(status=Task.S_UNCONVERGED):</span>
+        <span class="c">#        msg = &quot;AbinitFlow will try restart task %s&quot; % task</span>
+        <span class="c">#        print(msg)</span>
+        <span class="c">#        logger.info(msg)</span>
+        <span class="c">#        retcode = task.restart_if_needed()</span>
+        <span class="c">#        if retcode == 0: </span>
+        <span class="c">#            num_restarts += 1</span>
+        <span class="c">#                                                                 </span>
+        <span class="c">#    if num_restarts:</span>
+        <span class="c">#        print(&quot;num_restarts done successfully: &quot;, num_restarts)</span>
+        <span class="c">#        self.pickle_dump()</span>
 
-        <span class="c"># Too many exceptions. Shutdown the scheduler.</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exceptions</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
-            <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;Number of exceptions &gt; 2. Will shutdown the scheduler and exit&quot;</span>
-            <span class="n">msg</span> <span class="o">=</span> <span class="mi">5</span><span class="o">*</span><span class="s">&quot;=&quot;</span> <span class="o">+</span> <span class="n">msg</span> <span class="o">+</span> <span class="mi">5</span><span class="o">*</span><span class="s">&quot;=&quot;</span>
-                                                                                      
-            <span class="k">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span><span class="o">*</span> <span class="s">&quot;=&quot;</span><span class="p">)</span>
-            <span class="k">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-            <span class="k">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span><span class="o">*</span> <span class="s">&quot;=&quot;</span><span class="p">)</span>
+        <span class="c">#if self.num_restarts == self.max_num_restarts:</span>
+        <span class="c">#    info_msg = &quot;Reached maximum number of restarts. Cannot restart anymore Returning&quot;</span>
+        <span class="c">#    logger.info(info_msg)</span>
+        <span class="c">#    self.history.append(info_msg)</span>
+        <span class="c">#    return 1</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">shutdown</span><span class="p">()</span>
+        <span class="c"># Submit the tasks that are ready.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">nlaunch</span> <span class="o">=</span> <span class="n">PyLauncher</span><span class="p">(</span><span class="n">flow</span><span class="p">)</span><span class="o">.</span><span class="n">rapidfire</span><span class="p">(</span><span class="n">max_nlaunch</span><span class="o">=</span><span class="n">max_nlaunch</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nlaunch</span> <span class="o">+=</span> <span class="n">nlaunch</span>
+
+            <span class="k">if</span> <span class="n">nlaunch</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&quot;[</span><span class="si">%s</span><span class="s">] Number of launches: </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">asctime</span><span class="p">(),</span> <span class="n">nlaunch</span><span class="p">))</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="n">excs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">straceback</span><span class="p">())</span>
+
+        <span class="n">show_status</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="ow">or</span> <span class="n">flow</span><span class="o">.</span><span class="n">num_errored_tasks</span> <span class="ow">or</span> <span class="n">flow</span><span class="o">.</span><span class="n">num_unconverged_tasks</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">show_status</span><span class="p">:</span> <span class="n">flow</span><span class="o">.</span><span class="n">show_status</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">excs</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s">&quot;*** Scheduler exceptions:</span><span class="se">\n</span><span class="s"> *** </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">excs</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">excs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PyFlowScheduler.callback"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowScheduler.callback">[docs]</a>    <span class="k">def</span> <span class="nf">callback</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The function that will be executed by the scheduler.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callback</span><span class="p">()</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="c"># All exceptions raised here will trigger the shutdown!</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">straceback</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">shutdown</span><span class="p">(</span><span class="n">msg</span><span class="o">=</span><span class="s">&quot;Exception raised in callback!&quot;</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">_callback</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The actual callback.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_runem_all</span><span class="p">()</span>
 
         <span class="c"># Mission accomplished. Shutdown the scheduler.</span>
-        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">flow</span><span class="o">.</span><span class="n">all_ok</span> <span class="k">for</span> <span class="n">flow</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">flows</span><span class="p">):</span>
-            <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;All tasks have reached S_OK. Will shutdown the scheduler and exit&quot;</span>
-            <span class="n">msg</span> <span class="o">=</span> <span class="mi">5</span><span class="o">*</span><span class="s">&quot;=&quot;</span> <span class="o">+</span> <span class="n">msg</span> <span class="o">+</span> <span class="mi">5</span><span class="o">*</span><span class="s">&quot;=&quot;</span>
+        <span class="n">all_ok</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">all_ok</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s">&quot;all_ok&quot;</span><span class="p">,</span> <span class="n">all_ok</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">all_ok</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">shutdown</span><span class="p">(</span><span class="n">msg</span><span class="o">=</span><span class="s">&quot;All tasks have reached S_OK. Will shutdown the scheduler and exit&quot;</span><span class="p">)</span>
 
-            <span class="k">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span><span class="o">*</span> <span class="s">&quot;=&quot;</span><span class="p">)</span>
-            <span class="k">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-            <span class="k">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span><span class="o">*</span> <span class="s">&quot;=&quot;</span><span class="p">)</span>
+        <span class="c"># Handle failures.</span>
+        <span class="n">err_msg</span> <span class="o">=</span> <span class="s">&quot;&quot;</span>
 
-            <span class="bp">self</span><span class="o">.</span><span class="n">shutdown</span><span class="p">()</span>
+        <span class="c"># Shall we send a reminder to the user?</span>
+        <span class="n">delta_etime</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_delta_etime</span><span class="p">()</span>
 
-        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">exceptions</span><span class="p">)</span> 
+        <span class="k">if</span> <span class="n">delta_etime</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_reminders</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">REMINDME_S</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">num_reminders</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s">&quot;Just to remind you that the scheduler with pid </span><span class="si">%s</span><span class="s">, flow </span><span class="si">%s</span><span class="se">\n</span><span class="s"> has been running for </span><span class="si">%s</span><span class="s"> &quot;</span> <span class="o">%</span>
+                   <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pid</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="p">,</span> <span class="n">delta_etime</span><span class="p">))</span>
+            <span class="n">retcode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">send_email</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s">&quot;[REMINDER]&quot;</span><span class="p">)</span>
 
-<div class="viewcode-block" id="PyFlowsScheduler.shutdown"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowsScheduler.shutdown">[docs]</a>    <span class="k">def</span> <span class="nf">shutdown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Shutdown the scheduler.&quot;&quot;&quot;</span>
-        <span class="k">for</span> <span class="n">pid_file</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pid_files</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">pid_file</span><span class="p">)</span>
-            <span class="k">except</span><span class="p">:</span>
-                <span class="k">pass</span>
-                                                                    
+            <span class="k">if</span> <span class="n">retcode</span><span class="p">:</span>
+                <span class="c"># Cannot send mail, shutdown now!</span>
+                <span class="n">msg</span> <span class="o">+=</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">The scheduler tried to send an e-mail to remind user but send_email returned </span><span class="si">%d</span><span class="s">. Aborting now&quot;</span> <span class="o">%</span> <span class="n">retcode</span>
+                <span class="n">err_msg</span> <span class="o">+=</span> <span class="n">msg</span>
+
+        <span class="c">#if delta_etime.total_seconds() &gt; self.MAX_ETIME_S:</span>
+        <span class="c">#    err_msg += &quot;\nExceeded MAX_ETIME_S %s. Will shutdown the scheduler and exit&quot; % self.MAX_ETIME_S</span>
+
+        <span class="c"># Too many exceptions. Shutdown the scheduler.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_excs</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">MAX_NUM_PYEXCS</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;Number of exceptions </span><span class="si">%s</span><span class="s"> &gt; </span><span class="si">%s</span><span class="s">. Will shutdown the scheduler and exit&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">num_excs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">MAX_NUM_PYEXCS</span><span class="p">)</span>
+            <span class="n">err_msg</span> <span class="o">+=</span> <span class="n">boxed</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="c"># Paranoid check: disable the scheduler if we have submitted </span>
+        <span class="c"># too many jobs (it might be due to some bug or other external reasons such as race conditions betwee difference callbacks.!) </span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nlaunch</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">SAFETY_RATIO</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">num_tasks</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;Too many jobs launched </span><span class="si">%d</span><span class="s">. Total number of tasks = </span><span class="si">%s</span><span class="s">, Will shutdown the scheduler and exit&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nlaunch</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">num_tasks</span><span class="p">)</span>
+            <span class="n">err_msg</span> <span class="o">+=</span> <span class="n">boxed</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="c"># Count the number of tasks with status == S_ERROR.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">num_errored_tasks</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">MAX_NUM_ABIERRS</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;Number of tasks with ERROR status </span><span class="si">%s</span><span class="s"> &gt; </span><span class="si">%s</span><span class="s">. Will shutdown the scheduler and exit&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">num_errored_tasks</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">MAX_NUM_ABIERRS</span><span class="p">)</span>
+            <span class="n">err_msg</span> <span class="o">+=</span> <span class="n">boxed</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="c"># Count the number of tasks with status == S_UNCONVERGED.</span>
+        <span class="c">#if self.flow.num_unconverged_tasks:</span>
+        <span class="c">#    # TODO: this is needed to avoid deadlocks, automatic restarting is not available yet</span>
+        <span class="c">#    msg = (&quot;Found %d unconverged tasks.&quot; </span>
+        <span class="c">#           &quot;Automatic restarting is not available yet. Will shutdown the scheduler and exit&quot; </span>
+        <span class="c">#           % self.flow.num_unconverged_tasks)</span>
+        <span class="c">#    err_msg += boxed(msg)</span>
+
+        <span class="c">#deadlocks = self.detect_deadlocks()</span>
+        <span class="c">#if deadlocks:</span>
+        <span class="c">#    msg = (&quot;Detected deadlocks in flow. Will shutdown the scheduler and exit&quot; </span>
+        <span class="c">#           % self.flow.num_unconverged_tasks)</span>
+        <span class="c">#    err_msg += boxed(msg)</span>
+
+        <span class="k">if</span> <span class="n">err_msg</span><span class="p">:</span>
+            <span class="c"># Something wrong. Quit</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">shutdown</span><span class="p">(</span><span class="n">err_msg</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exceptions</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PyFlowScheduler.cleanup"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowScheduler.cleanup">[docs]</a>    <span class="k">def</span> <span class="nf">cleanup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Cleanup routine: remove the pid file and save the pickle database</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pid_file</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s">&quot;Could not remove pid_file&quot;</span><span class="p">)</span>
+            <span class="k">pass</span>
+
         <span class="c"># Save the final status of the flow.</span>
-        <span class="k">for</span> <span class="n">flow</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">flows</span><span class="p">:</span>
-            <span class="n">flow</span><span class="o">.</span><span class="n">pickle_dump</span><span class="p">()</span>
-                                                                    
-        <span class="c"># Shutdown the scheduler thus allowing the process to exit.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sched</span><span class="o">.</span><span class="n">shutdown</span><span class="p">(</span><span class="n">wait</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span></div></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">pickle_dump</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="PyFlowScheduler.shutdown"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowScheduler.shutdown">[docs]</a>    <span class="k">def</span> <span class="nf">shutdown</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Shutdown the scheduler.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cleanup</span><span class="p">()</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;Completed on </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">time</span><span class="o">.</span><span class="n">asctime</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;Elapsed time </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_delta_etime</span><span class="p">())</span>
+
+            <span class="n">retcode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">send_email</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&quot;send_mail retcode&quot;</span><span class="p">,</span> <span class="n">retcode</span><span class="p">)</span>
+
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="c"># Write file with the list of exceptions:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exceptions</span><span class="p">:</span>
+                <span class="n">dump_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">workdir</span><span class="p">,</span> <span class="s">&quot;_exceptions&quot;</span><span class="p">)</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">dump_file</span><span class="p">,</span> <span class="s">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+                    <span class="n">fh</span><span class="o">.</span><span class="n">writelines</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exceptions</span><span class="p">)</span>
+
+            <span class="c"># Shutdown the scheduler thus allowing the process to exit.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sched</span><span class="o">.</span><span class="n">shutdown</span><span class="p">(</span><span class="n">wait</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="PyFlowScheduler.send_email"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.launcher.PyFlowScheduler.send_email">[docs]</a>    <span class="k">def</span> <span class="nf">send_email</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Send an e-mail before completing the shutdown.</span>
+<span class="sd">        Returns 0 if success.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_send_email</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">tag</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">straceback</span><span class="p">())</span>
+            <span class="k">return</span> <span class="o">-</span><span class="mi">2</span>
+</div>
+    <span class="k">def</span> <span class="nf">_send_email</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">tag</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mailto</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="o">-</span><span class="mi">1</span>
+
+        <span class="n">header</span> <span class="o">=</span> <span class="n">msg</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+        <span class="n">app</span> <span class="o">=</span> <span class="n">header</span><span class="o">.</span><span class="n">append</span>
+
+        <span class="n">app</span><span class="p">(</span><span class="s">&quot;Submitted on </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">time</span><span class="o">.</span><span class="n">ctime</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start_time</span><span class="p">))</span>
+        <span class="n">app</span><span class="p">(</span><span class="s">&quot;Completed on </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">time</span><span class="o">.</span><span class="n">asctime</span><span class="p">())</span>
+        <span class="n">app</span><span class="p">(</span><span class="s">&quot;Elapsed time </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_delta_etime</span><span class="p">()))</span>
+        <span class="n">app</span><span class="p">(</span><span class="s">&quot;Number of errored tasks: </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">num_errored_tasks</span><span class="p">)</span>
+        <span class="n">app</span><span class="p">(</span><span class="s">&quot;Number of unconverged tasks: </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">num_unconverged_tasks</span><span class="p">)</span>
+
+        <span class="n">strio</span> <span class="o">=</span> <span class="n">StringIO</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+        <span class="n">strio</span><span class="o">.</span><span class="n">writelines</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">header</span><span class="p">)</span> <span class="o">+</span> <span class="mi">4</span> <span class="o">*</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
+
+        <span class="c"># Add the status of the flow.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">show_status</span><span class="p">(</span><span class="n">stream</span><span class="o">=</span><span class="n">strio</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exceptions</span><span class="p">:</span>
+            <span class="c"># Report the list of exceptions.</span>
+            <span class="n">strio</span><span class="o">.</span><span class="n">writelines</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exceptions</span><span class="p">)</span>
+
+        <span class="n">text</span> <span class="o">=</span> <span class="n">strio</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+        <span class="c">#print(&quot;text&quot;, text)</span>
+
+        <span class="k">if</span> <span class="n">tag</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">tag</span> <span class="o">=</span> <span class="s">&quot; [ALL OK]&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">all_ok</span> <span class="k">else</span> <span class="s">&quot; [WARNING]&quot;</span>
+
+        <span class="k">return</span> <span class="n">sendmail</span><span class="p">(</span><span class="n">subject</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">flow</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="n">tag</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="n">text</span><span class="p">,</span> <span class="n">mailto</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mailto</span><span class="p">)</span>
+
+</div>
+<span class="k">def</span> <span class="nf">sendmail</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">mailto</span><span class="p">,</span> <span class="n">sender</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Sends an e-mail either with unix sendmail. </span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        subject:</span>
+<span class="sd">            String with the subject of the mail.</span>
+<span class="sd">        text:</span>
+<span class="sd">            String with the body of the mail.</span>
+<span class="sd">        mailto:</span>
+<span class="sd">            String or list of string with the recipients.</span>
+<span class="sd">        sender:</span>
+<span class="sd">            string with the sender address.</span>
+<span class="sd">            If sender is None, username@hostname is used.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">user_at_host</span><span class="p">():</span>
+        <span class="kn">from</span> <span class="nn">socket</span> <span class="kn">import</span> <span class="n">gethostname</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">getlogin</span><span class="p">()</span> <span class="o">+</span> <span class="s">&quot;@&quot;</span> <span class="o">+</span> <span class="n">gethostname</span><span class="p">()</span>
+
+    <span class="c"># Body of the message.</span>
+    <span class="n">sender</span> <span class="o">=</span> <span class="n">user_at_host</span><span class="p">()</span> <span class="k">if</span> <span class="n">sender</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">sender</span>
+    <span class="k">if</span> <span class="n">is_string</span><span class="p">(</span><span class="n">mailto</span><span class="p">):</span> <span class="n">mailto</span> <span class="o">=</span> <span class="p">[</span><span class="n">mailto</span><span class="p">]</span>
+
+    <span class="kn">from</span> <span class="nn">email.mime.text</span> <span class="kn">import</span> <span class="n">MIMEText</span>
+
+    <span class="n">mail</span> <span class="o">=</span> <span class="n">MIMEText</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+    <span class="n">mail</span><span class="p">[</span><span class="s">&quot;Subject&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">subject</span>
+    <span class="n">mail</span><span class="p">[</span><span class="s">&quot;From&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sender</span>
+    <span class="n">mail</span><span class="p">[</span><span class="s">&quot;To&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">mailto</span><span class="p">)</span>
+
+    <span class="n">msg</span> <span class="o">=</span> <span class="n">mail</span><span class="o">.</span><span class="n">as_string</span><span class="p">()</span>
+
+    <span class="c"># sendmail works much better than the python interface.</span>
+    <span class="c"># Note that sendmail is available only on Unix-like OS.</span>
+    <span class="kn">from</span> <span class="nn">subprocess</span> <span class="kn">import</span> <span class="n">Popen</span><span class="p">,</span> <span class="n">PIPE</span>
+
+    <span class="n">SENDMAIL</span> <span class="o">=</span> <span class="s">&quot;/usr/sbin/sendmail&quot;</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">Popen</span><span class="p">([</span><span class="n">SENDMAIL</span><span class="p">,</span> <span class="s">&quot;-t&quot;</span><span class="p">],</span> <span class="n">stdin</span><span class="o">=</span><span class="n">PIPE</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="n">PIPE</span><span class="p">)</span>
+
+    <span class="n">outdata</span><span class="p">,</span> <span class="n">errdata</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">communicate</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">errdata</span><span class="p">)</span>
+
+
+<span class="c"># Test for sendmail</span>
+<span class="c">#def sendmail_test():</span>
+<span class="c">#    text = &quot;hello\nworld&quot;&quot;&quot;</span>
+<span class="c">#    mailto = &quot;matteo.giantomassi@uclouvain.be&quot;</span>
+<span class="c">#    retcode = sendmail(&quot;sendmail_test&quot;, text, mailto)</span>
+<span class="c">#    print(&quot;Retcode&quot;, retcode)</span>
 </pre></div>
 
           </div>
@@ -559,14 +911,14 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 2.8.8 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 2.8.9 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>
 
     <div class="footer">
         &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Geoffroy Hautier, William Davidson Richard, Stephen Dacek, Sai Jayaraman, Michael Kocher, Dan Gunter, Shreyas Cholia, Vincent L Chevrier, Rickard Armiento.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

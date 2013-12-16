@@ -1,4 +1,3 @@
-
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
@@ -7,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.analysis.structure_matcher &mdash; pymatgen 2.8.8 documentation</title>
+    <title>pymatgen.analysis.structure_matcher &mdash; pymatgen 2.8.9 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -15,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '2.8.8',
+        VERSION:     '2.8.9',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +24,7 @@
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.8.8 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 2.8.9 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +44,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.8.8 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 2.8.9 documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -83,6 +82,7 @@
 <span class="kn">from</span> <span class="nn">pymatgen.optimization.linear_assignment</span> <span class="kn">import</span> <span class="n">LinearAssignment</span>
 <span class="kn">from</span> <span class="nn">pymatgen.util.coord_utils</span> <span class="kn">import</span> <span class="n">get_points_in_sphere_pbc</span><span class="p">,</span> \
     <span class="n">pbc_shortest_vectors</span>
+<span class="kn">from</span> <span class="nn">pymatgen.symmetry.finder</span> <span class="kn">import</span> <span class="n">SymmetryFinder</span>
 
 
 <div class="viewcode-block" id="AbstractComparator"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.structure_matcher.AbstractComparator">[docs]</a><span class="k">class</span> <span class="nc">AbstractComparator</span><span class="p">(</span><span class="n">MSONable</span><span class="p">):</span>
@@ -185,6 +185,62 @@
 <span class="sd">            SpeciesComparator.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">structure</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">reduced_formula</span>
+
+</div></div>
+<div class="viewcode-block" id="SpinComparator"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.structure_matcher.SpinComparator">[docs]</a><span class="k">class</span> <span class="nc">SpinComparator</span><span class="p">(</span><span class="n">AbstractComparator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A Comparator that matches magnetic structures to their inverse spins.</span>
+<span class="sd">    This comparator is primarily used to filter magnetically ordered</span>
+<span class="sd">    structures with opposite spins, which are equivalent.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SpinComparator.are_equal"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.structure_matcher.SpinComparator.are_equal">[docs]</a>    <span class="k">def</span> <span class="nf">are_equal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sp1</span><span class="p">,</span> <span class="n">sp2</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        True if species are exactly the same, i.e., Fe2+ == Fe2+ but not</span>
+<span class="sd">        Fe3+. and the spins are reversed. i.e., spin up maps to spin down,</span>
+<span class="sd">        and vice versa.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            sp1:</span>
+<span class="sd">                First species. A dict of {specie/element: amt} as per the</span>
+<span class="sd">                definition in Site and PeriodicSite.</span>
+<span class="sd">            sp2:</span>
+<span class="sd">                Second species. A dict of {specie/element: amt} as per the</span>
+<span class="sd">                definition in Site and PeriodicSite.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Boolean indicating whether species are equal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">s1</span><span class="p">,</span> <span class="n">amt2</span> <span class="ow">in</span> <span class="n">sp1</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">spin1</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="s">&quot;spin&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">oxi1</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="s">&quot;oxi_state&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">found</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="k">for</span> <span class="n">s2</span><span class="p">,</span> <span class="n">amt2</span> <span class="ow">in</span> <span class="n">sp2</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">spin2</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">s2</span><span class="p">,</span> <span class="s">&quot;spin&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="n">oxi2</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">s2</span><span class="p">,</span> <span class="s">&quot;oxi_state&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">s1</span><span class="o">.</span><span class="n">symbol</span> <span class="o">==</span> <span class="n">s2</span><span class="o">.</span><span class="n">symbol</span> <span class="ow">and</span> <span class="n">oxi1</span> <span class="o">==</span> <span class="n">oxi2</span>
+                        <span class="ow">and</span> <span class="n">spin2</span> <span class="o">==</span> <span class="o">-</span><span class="n">spin1</span><span class="p">):</span>
+                    <span class="n">found</span> <span class="o">=</span> <span class="bp">True</span>
+                    <span class="k">break</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">found</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">False</span>
+        <span class="k">return</span> <span class="bp">True</span>
+</div>
+<div class="viewcode-block" id="SpinComparator.get_structure_hash"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.structure_matcher.SpinComparator.get_structure_hash">[docs]</a>    <span class="k">def</span> <span class="nf">get_structure_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Hash for structure.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            structure:</span>
+<span class="sd">                A structure</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Reduced formula for the structure is used as a hash for the</span>
+<span class="sd">            SpeciesComparator.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">SymmetryFinder</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s">&quot;{} {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">get_spacegroup_number</span><span class="p">(),</span>
+                              <span class="n">structure</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">reduced_formula</span><span class="p">)</span>
 
 </div></div>
 <div class="viewcode-block" id="ElementComparator"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.structure_matcher.ElementComparator">[docs]</a><span class="k">class</span> <span class="nc">ElementComparator</span><span class="p">(</span><span class="n">AbstractComparator</span><span class="p">):</span>
@@ -974,7 +1030,7 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;get_supercell_matrix cannot be used with the &quot;</span>
                              <span class="s">&quot;primitive cell option&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_supercell</span> \
-                <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_supercell_size</span><span class="p">(</span><span class="n">supercell</span><span class="p">,</span> <span class="n">struct</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_supercell_size</span><span class="p">(</span><span class="n">supercell</span><span class="p">,</span> <span class="n">struct</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;The non-supercell must be put onto the basis&quot;</span>
                              <span class="s">&quot; of the supercell, not the other way around&quot;</span><span class="p">)</span>
         <span class="n">match</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_find_match</span><span class="p">(</span><span class="n">supercell</span><span class="p">,</span> <span class="n">struct</span><span class="p">,</span> <span class="n">break_on_match</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
@@ -993,7 +1049,7 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_primitive_cell</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;get_s2_like_s1 cannot be used with the primitive&quot;</span>
                              <span class="s">&quot; cell option&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_supercell</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_supercell_size</span><span class="p">(</span><span class="n">struct1</span><span class="p">,</span> <span class="n">struct2</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_supercell</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_supercell_size</span><span class="p">(</span><span class="n">struct1</span><span class="p">,</span> <span class="n">struct2</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;The non-supercell must be put onto the basis&quot;</span>
                              <span class="s">&quot; of the supercell, not the other way around&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subset</span> <span class="ow">and</span> <span class="n">struct2</span><span class="o">.</span><span class="n">num_sites</span> <span class="o">&gt;</span> <span class="n">struct1</span><span class="o">.</span><span class="n">num_sites</span><span class="p">:</span>
@@ -1044,14 +1100,14 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.8.8 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 2.8.9 documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>
 
     <div class="footer">
         &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Geoffroy Hautier, William Davidson Richard, Stephen Dacek, Sai Jayaraman, Michael Kocher, Dan Gunter, Shreyas Cholia, Vincent L Chevrier, Rickard Armiento.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

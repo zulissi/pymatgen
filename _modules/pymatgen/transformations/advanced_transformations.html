@@ -1,4 +1,3 @@
-
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
@@ -7,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.transformations.advanced_transformations &mdash; pymatgen 2.8.8 documentation</title>
+    <title>pymatgen.transformations.advanced_transformations &mdash; pymatgen 2.8.9 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -15,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '2.8.8',
+        VERSION:     '2.8.9',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +24,7 @@
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.8.8 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 2.8.9 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +44,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.8.8 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 2.8.9 documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -64,7 +63,7 @@
 
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
 
-<span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong, Stephen Dacek&quot;</span>
 <span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot;Copyright 2012, The Materials Project&quot;</span>
 <span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;1.0&quot;</span>
 <span class="n">__maintainer__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong&quot;</span>
@@ -72,7 +71,9 @@
 <span class="n">__date__</span> <span class="o">=</span> <span class="s">&quot;Jul 24, 2012&quot;</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">fractions</span> <span class="kn">import</span> <span class="n">gcd</span><span class="p">,</span> <span class="n">Fraction</span>
 
+<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="kn">import</span> <span class="n">Specie</span><span class="p">,</span> <span class="n">Composition</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="kn">import</span> <span class="n">smart_element_or_specie</span>
 <span class="kn">from</span> <span class="nn">pymatgen.transformations.transformation_abc</span> <span class="kn">import</span> <span class="n">AbstractTransformation</span>
 <span class="kn">from</span> <span class="nn">pymatgen.transformations.standard_transformations</span> <span class="kn">import</span> \
@@ -83,6 +84,11 @@
 <span class="kn">from</span> <span class="nn">pymatgen.symmetry.finder</span> <span class="kn">import</span> <span class="n">SymmetryFinder</span>
 <span class="kn">from</span> <span class="nn">pymatgen.structure_prediction.substitution_probability</span> <span class="kn">import</span> \
     <span class="n">SubstitutionPredictor</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.structure_matcher</span> <span class="kn">import</span> <span class="n">StructureMatcher</span><span class="p">,</span> \
+    <span class="n">SpinComparator</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.energy_models</span> <span class="kn">import</span> <span class="n">SymmetryModel</span><span class="p">,</span> \
+    <span class="n">EwaldElectrostaticModel</span><span class="p">,</span> <span class="n">NsitesModel</span>
+<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">PMGJSONDecoder</span>
 
 
 <div class="viewcode-block" id="ChargeBalanceTransformation"><a class="viewcode-back" href="../../../pymatgen.transformations.html#pymatgen.transformations.advanced_transformations.ChargeBalanceTransformation">[docs]</a><span class="k">class</span> <span class="nc">ChargeBalanceTransformation</span><span class="p">(</span><span class="n">AbstractTransformation</span><span class="p">):</span>
@@ -109,13 +115,13 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;addition of specie not yet supported by &quot;</span>
                              <span class="s">&quot;ChargeBalanceTransformation&quot;</span><span class="p">)</span>
         <span class="n">trans</span> <span class="o">=</span> <span class="n">SubstitutionTransformation</span><span class="p">({</span><span class="bp">self</span><span class="o">.</span><span class="n">_charge_balance_sp</span><span class="p">:</span>
-                                            <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_charge_balance_sp</span><span class="p">:</span>
-                                             <span class="mi">1</span> <span class="o">-</span> <span class="n">removal_fraction</span><span class="p">}})</span>
+                                                <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_charge_balance_sp</span><span class="p">:</span>
+                                                     <span class="mi">1</span> <span class="o">-</span> <span class="n">removal_fraction</span><span class="p">}})</span>
         <span class="k">return</span> <span class="n">trans</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
 </div>
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s">&quot;Charge Balance Transformation : &quot;</span> <span class="o">+</span> \
-            <span class="s">&quot;Species to remove = {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_charge_balance_sp</span><span class="p">))</span>
+               <span class="s">&quot;Species to remove = {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_charge_balance_sp</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__str__</span><span class="p">()</span>
@@ -166,7 +172,7 @@
 </div>
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s">&quot;Super Transformation : Transformations = &quot;</span> <span class="o">+</span> \
-            <span class="s">&quot;{}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transformations</span><span class="p">]))</span>
+               <span class="s">&quot;{}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transformations</span><span class="p">]))</span>
 
     <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__str__</span><span class="p">()</span>
@@ -244,7 +250,7 @@
                 <span class="n">sign</span> <span class="o">=</span> <span class="s">&quot;-&quot;</span>
             <span class="n">dummy_sp</span> <span class="o">=</span> <span class="s">&quot;X{}{}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">charge</span><span class="p">),</span> <span class="n">sign</span><span class="p">)</span>
             <span class="n">mapping</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_sp_to_replace</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_sp_to_replace</span><span class="p">:</span>
-                                            <span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_r_fraction</span><span class="p">,</span>
+                                                <span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_r_fraction</span><span class="p">,</span>
                                             <span class="n">dummy_sp</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_r_fraction</span><span class="p">}</span>
             <span class="n">trans</span> <span class="o">=</span> <span class="n">SubstitutionTransformation</span><span class="p">(</span><span class="n">mapping</span><span class="p">)</span>
             <span class="n">dummy_structure</span> <span class="o">=</span> <span class="n">trans</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
@@ -261,8 +267,8 @@
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">sign</span> <span class="o">=</span> <span class="s">&quot;-&quot;</span>
                 <span class="n">st</span> <span class="o">=</span> <span class="n">SubstitutionTransformation</span><span class="p">({</span><span class="s">&quot;X{}+&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">charge</span><span class="p">)):</span>
-                                                 <span class="s">&quot;{}{}{}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">el</span><span class="p">,</span> <span class="n">charge</span><span class="p">,</span>
-                                                                 <span class="n">sign</span><span class="p">)})</span>
+                                                     <span class="s">&quot;{}{}{}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">el</span><span class="p">,</span> <span class="n">charge</span><span class="p">,</span>
+                                                                     <span class="n">sign</span><span class="p">)})</span>
                 <span class="n">new_structure</span> <span class="o">=</span> <span class="n">st</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">dummy_structure</span><span class="p">)</span>
                 <span class="n">outputs</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s">&quot;structure&quot;</span><span class="p">:</span> <span class="n">new_structure</span><span class="p">})</span>
         <span class="k">return</span> <span class="n">outputs</span>
@@ -289,7 +295,7 @@
                               <span class="s">&quot;r_fraction&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_r_fraction</span><span class="p">,</span>
                               <span class="s">&quot;substitution_dict&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_substitution_dict</span><span class="p">,</span>
                               <span class="s">&quot;charge_balance_species&quot;</span><span class="p">:</span>
-                              <span class="bp">self</span><span class="o">.</span><span class="n">_charge_balance_species</span><span class="p">},</span>
+                                  <span class="bp">self</span><span class="o">.</span><span class="n">_charge_balance_species</span><span class="p">},</span>
                 <span class="s">&quot;@module&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span><span class="p">,</span>
                 <span class="s">&quot;@class&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">}</span>
 
@@ -364,10 +370,10 @@
             <span class="n">finder</span> <span class="o">=</span> <span class="n">SymmetryFinder</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">symm_prec</span><span class="p">)</span>
             <span class="n">structure</span> <span class="o">=</span> <span class="n">finder</span><span class="o">.</span><span class="n">get_refined_structure</span><span class="p">()</span>
 
-        <span class="n">contains_oxidation_state</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="n">contains_oxidation_state</span> <span class="o">=</span> <span class="bp">False</span>
         <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">structure</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">elements</span><span class="p">:</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">sp</span><span class="p">,</span> <span class="s">&quot;oxi_state&quot;</span><span class="p">):</span>
-                <span class="n">contains_oxidation_state</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">sp</span><span class="p">,</span> <span class="s">&quot;oxi_state&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">sp</span><span class="o">.</span><span class="n">_oxi_state</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">contains_oxidation_state</span> <span class="o">=</span> <span class="bp">True</span>
                 <span class="k">break</span>
 
         <span class="n">adaptor</span> <span class="o">=</span> <span class="n">EnumlibAdaptor</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">min_cell_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">min_cell_size</span><span class="p">,</span>
@@ -450,15 +456,16 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_kwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_threshold</span> <span class="o">=</span> <span class="n">threshold</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_substitutor</span> <span class="o">=</span> <span class="n">SubstitutionPredictor</span><span class="p">(</span><span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_substitutor</span> <span class="o">=</span> <span class="n">SubstitutionPredictor</span><span class="p">(</span><span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span><span class="p">,</span>
+                                                  <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
 <div class="viewcode-block" id="SubstitutionPredictorTransformation.apply_transformation"><a class="viewcode-back" href="../../../pymatgen.transformations.html#pymatgen.transformations.advanced_transformations.SubstitutionPredictorTransformation.apply_transformation">[docs]</a>    <span class="k">def</span> <span class="nf">apply_transformation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">return_ranked_list</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">return_ranked_list</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;SubstitutionPredictorTransformation doesn&#39;t&quot;</span>
                              <span class="s">&quot; support returning 1 structure&quot;</span><span class="p">)</span>
 
-        <span class="n">preds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_substitutor</span><span class="o">.</span><span class="n">composition_prediction</span><span class="p">(</span><span class="n">structure</span><span class="o">.</span><span class="n">composition</span><span class="p">,</span>
-                                                         <span class="n">to_this_composition</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="n">preds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_substitutor</span><span class="o">.</span><span class="n">composition_prediction</span><span class="p">(</span>
+            <span class="n">structure</span><span class="o">.</span><span class="n">composition</span><span class="p">,</span> <span class="n">to_this_composition</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
         <span class="n">preds</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="s">&#39;probability&#39;</span><span class="p">],</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
 
         <span class="n">outputs</span> <span class="o">=</span> <span class="p">[]</span>
@@ -493,7 +500,151 @@
              <span class="s">&quot;init_args&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_kwargs</span><span class="p">,</span> <span class="s">&quot;@module&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span><span class="p">,</span>
              <span class="s">&quot;@class&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">}</span>
         <span class="n">d</span><span class="p">[</span><span class="s">&quot;init_args&quot;</span><span class="p">][</span><span class="s">&quot;threshold&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_threshold</span>
-        <span class="k">return</span> <span class="n">d</span></div></div>
+        <span class="k">return</span> <span class="n">d</span>
+
+</div></div>
+<div class="viewcode-block" id="MagOrderingTransformation"><a class="viewcode-back" href="../../../pymatgen.transformations.html#pymatgen.transformations.advanced_transformations.MagOrderingTransformation">[docs]</a><span class="k">class</span> <span class="nc">MagOrderingTransformation</span><span class="p">(</span><span class="n">AbstractTransformation</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This transformation takes a structure and returns a list of magnetic</span>
+<span class="sd">    orderings. Currently only works for ordered structures.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mag_species_spin</span><span class="p">,</span> <span class="n">order_parameter</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                 <span class="n">energy_model</span><span class="o">=</span><span class="n">SymmetryModel</span><span class="p">(),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            mag_elements_spin:</span>
+<span class="sd">                A mapping of elements/species to magnetically order to spin</span>
+<span class="sd">                magnitudes. E.g., {&quot;Fe3+&quot;: 5, &quot;Mn3+&quot;: 4}</span>
+<span class="sd">            order_parameter:</span>
+<span class="sd">                degree of magnetization. 0.5 corresponds to</span>
+<span class="sd">                antiferromagnetic order</span>
+<span class="sd">            energy_model:</span>
+<span class="sd">                Energy model used to rank the structures. Some models are</span>
+<span class="sd">                provided in :mod:`pymatgen.analysis.energy_models`.</span>
+<span class="sd">            **kwargs:</span>
+<span class="sd">                Same keyword args as :class:`EnumerateStructureTransformation`,</span>
+<span class="sd">                i.e., min_cell_size, etc.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mag_species_spin</span> <span class="o">=</span> <span class="n">mag_species_spin</span>
+        <span class="k">if</span> <span class="n">order_parameter</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">order_parameter</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;Order Parameter must lie between 0 and 1&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">order_parameter</span> <span class="o">=</span> <span class="n">order_parameter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">emodel</span> <span class="o">=</span> <span class="n">energy_model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">enum_kwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="MagOrderingTransformation.determine_min_cell"><a class="viewcode-back" href="../../../pymatgen.transformations.html#pymatgen.transformations.advanced_transformations.MagOrderingTransformation.determine_min_cell">[docs]</a>    <span class="k">def</span> <span class="nf">determine_min_cell</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">mag_species_spin</span><span class="p">,</span> <span class="n">order_parameter</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Determine the smallest supercell that is able to enumerate</span>
+<span class="sd">        the provided structure with the given order parameter</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">def</span> <span class="nf">lcm</span><span class="p">(</span><span class="n">n1</span><span class="p">,</span> <span class="n">n2</span><span class="p">):</span>
+            <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            Find least common multiple of two numbers</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="k">return</span> <span class="n">n1</span> <span class="o">*</span> <span class="n">n2</span> <span class="o">/</span> <span class="n">gcd</span><span class="p">(</span><span class="n">n1</span><span class="p">,</span> <span class="n">n2</span><span class="p">)</span>
+
+        <span class="n">denom</span> <span class="o">=</span> <span class="n">Fraction</span><span class="p">(</span><span class="n">order_parameter</span><span class="p">)</span><span class="o">.</span><span class="n">limit_denominator</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span><span class="o">.</span><span class="n">denominator</span>
+
+        <span class="n">atom_per_specie</span> <span class="o">=</span> <span class="p">[</span><span class="n">structure</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
+                           <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">mag_species_spin</span><span class="o">.</span><span class="n">keys</span><span class="p">()]</span>
+
+        <span class="n">n_gcd</span> <span class="o">=</span> <span class="nb">reduce</span><span class="p">(</span><span class="n">gcd</span><span class="p">,</span> <span class="n">atom_per_specie</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">n_gcd</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;The specified species do not exist in the structure&#39;</span>
+                             <span class="s">&#39; to be enumerated&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">lcm</span><span class="p">(</span><span class="n">n_gcd</span><span class="p">,</span> <span class="n">denom</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_gcd</span>
+</div>
+<div class="viewcode-block" id="MagOrderingTransformation.apply_transformation"><a class="viewcode-back" href="../../../pymatgen.transformations.html#pymatgen.transformations.advanced_transformations.MagOrderingTransformation.apply_transformation">[docs]</a>    <span class="k">def</span> <span class="nf">apply_transformation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">return_ranked_list</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="c">#Make a mutable structure first</span>
+        <span class="n">mods</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_sites</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">sp</span><span class="p">,</span> <span class="n">spin</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">mag_species_spin</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">sp</span> <span class="o">=</span> <span class="n">smart_element_or_specie</span><span class="p">(</span><span class="n">sp</span><span class="p">)</span>
+            <span class="n">oxi_state</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">sp</span><span class="p">,</span> <span class="s">&quot;oxi_state&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">up</span> <span class="o">=</span> <span class="n">Specie</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">symbol</span><span class="p">,</span> <span class="n">oxi_state</span><span class="p">,</span> <span class="p">{</span><span class="s">&quot;spin&quot;</span><span class="p">:</span> <span class="nb">abs</span><span class="p">(</span><span class="n">spin</span><span class="p">)})</span>
+            <span class="n">down</span> <span class="o">=</span> <span class="n">Specie</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">symbol</span><span class="p">,</span> <span class="n">oxi_state</span><span class="p">,</span> <span class="p">{</span><span class="s">&quot;spin&quot;</span><span class="p">:</span> <span class="o">-</span><span class="nb">abs</span><span class="p">(</span><span class="n">spin</span><span class="p">)})</span>
+            <span class="n">mods</span><span class="o">.</span><span class="n">replace_species</span><span class="p">(</span>
+                <span class="p">{</span><span class="n">sp</span><span class="p">:</span> <span class="n">Composition</span><span class="p">({</span><span class="n">up</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">order_parameter</span><span class="p">,</span>
+                                  <span class="n">down</span><span class="p">:</span> <span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">order_parameter</span><span class="p">})})</span>
+
+        <span class="n">enum_args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">enum_kwargs</span>
+
+        <span class="n">enum_args</span><span class="p">[</span><span class="s">&quot;min_cell_size&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span>
+            <span class="n">MagOrderingTransformation</span><span class="o">.</span><span class="n">determine_min_cell</span><span class="p">(</span>
+                <span class="n">structure</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mag_species_spin</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">order_parameter</span><span class="p">)),</span>
+            <span class="n">enum_args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;min_cell_size&quot;</span><span class="p">))</span>
+
+        <span class="n">max_cell</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">enum_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;max_cell_size&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">max_cell</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">enum_args</span><span class="p">[</span><span class="s">&quot;min_cell_size&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">max_cell</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;Specified max cell size is smaller&#39;</span>
+                                 <span class="s">&#39; than the minimum enumerable cell size&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">enum_args</span><span class="p">[</span><span class="s">&quot;max_cell_size&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">enum_args</span><span class="p">[</span><span class="s">&quot;min_cell_size&quot;</span><span class="p">]</span>
+
+        <span class="n">t</span> <span class="o">=</span> <span class="n">EnumerateStructureTransformation</span><span class="p">(</span><span class="o">**</span><span class="n">enum_args</span><span class="p">)</span>
+
+        <span class="n">alls</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">mods</span><span class="p">,</span>
+                                      <span class="n">return_ranked_list</span><span class="o">=</span><span class="n">return_ranked_list</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">num_to_return</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">return_ranked_list</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="n">num_to_return</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="n">num_to_return</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">alls</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s">&quot;structure&quot;</span><span class="p">]</span>
+
+        <span class="n">m</span> <span class="o">=</span> <span class="n">StructureMatcher</span><span class="p">(</span><span class="n">comparator</span><span class="o">=</span><span class="n">SpinComparator</span><span class="p">())</span>
+
+        <span class="n">grouped</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">group_structures</span><span class="p">([</span><span class="n">d</span><span class="p">[</span><span class="s">&quot;structure&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">alls</span><span class="p">])</span>
+
+        <span class="n">alls</span> <span class="o">=</span> <span class="p">[{</span><span class="s">&quot;structure&quot;</span><span class="p">:</span> <span class="n">g</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">&quot;energy&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">emodel</span><span class="o">.</span><span class="n">get_energy</span><span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="mi">0</span><span class="p">])}</span>
+                <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">grouped</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_structures</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">alls</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">d</span><span class="p">:</span> <span class="n">d</span><span class="p">[</span><span class="s">&quot;energy&quot;</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_structures</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">num_to_return</span><span class="p">]</span>
+</div>
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;MagOrderingTransformation&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__str__</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="MagOrderingTransformation.inverse"><a class="viewcode-back" href="../../../pymatgen.transformations.html#pymatgen.transformations.advanced_transformations.MagOrderingTransformation.inverse">[docs]</a>    <span class="k">def</span> <span class="nf">inverse</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">None</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="MagOrderingTransformation.is_one_to_many"><a class="viewcode-back" href="../../../pymatgen.transformations.html#pymatgen.transformations.advanced_transformations.MagOrderingTransformation.is_one_to_many">[docs]</a>    <span class="k">def</span> <span class="nf">is_one_to_many</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">True</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="MagOrderingTransformation.to_dict"><a class="viewcode-back" href="../../../pymatgen.transformations.html#pymatgen.transformations.advanced_transformations.MagOrderingTransformation.to_dict">[docs]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s">&quot;name&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="s">&quot;version&quot;</span><span class="p">:</span> <span class="n">__version__</span><span class="p">,</span>
+            <span class="s">&quot;init_args&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s">&quot;mag_species_spin&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">mag_species_spin</span><span class="p">,</span>
+                          <span class="s">&quot;order_parameter&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">order_parameter</span><span class="p">,</span>
+                          <span class="s">&quot;energy_model&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">emodel</span><span class="o">.</span><span class="n">to_dict</span><span class="p">,</span>
+                          <span class="s">&quot;enum_kwargs&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">enum_kwargs</span><span class="p">},</span>
+            <span class="s">&quot;@module&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span><span class="p">,</span>
+            <span class="s">&quot;@class&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">}</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="MagOrderingTransformation.from_dict"><a class="viewcode-back" href="../../../pymatgen.transformations.html#pymatgen.transformations.advanced_transformations.MagOrderingTransformation.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
+        <span class="n">init</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="s">&quot;init_args&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">MagOrderingTransformation</span><span class="p">(</span>
+            <span class="n">init</span><span class="p">[</span><span class="s">&quot;mag_species_spin&quot;</span><span class="p">],</span> <span class="n">init</span><span class="p">[</span><span class="s">&quot;order_parameter&quot;</span><span class="p">],</span>
+            <span class="n">energy_model</span><span class="o">=</span><span class="n">PMGJSONDecoder</span><span class="p">()</span><span class="o">.</span><span class="n">process_decoded</span><span class="p">(</span>
+                <span class="n">init</span><span class="p">[</span><span class="s">&quot;energy_model&quot;</span><span class="p">]),</span>
+            <span class="o">**</span><span class="n">init</span><span class="p">[</span><span class="s">&quot;enum_kwargs&quot;</span><span class="p">])</span></div></div>
 </pre></div>
 
           </div>
@@ -527,14 +678,14 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.8.8 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 2.8.9 documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>
 
     <div class="footer">
         &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Geoffroy Hautier, William Davidson Richard, Stephen Dacek, Sai Jayaraman, Michael Kocher, Dan Gunter, Shreyas Cholia, Vincent L Chevrier, Rickard Armiento.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

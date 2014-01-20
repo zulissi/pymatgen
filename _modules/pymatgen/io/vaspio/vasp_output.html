@@ -111,6 +111,33 @@
 <span class="sd">    differ depending on whether the read_electronic_structure option is set to</span>
 <span class="sd">    True.</span>
 
+<span class="sd">    Args:</span>
+<span class="sd">        filename (str): Filename to parse</span>
+<span class="sd">        ionic_step_skip (int): If ionic_step_skip is a number &gt; 1,</span>
+<span class="sd">            only every ionic_step_skip ionic steps will be read for</span>
+<span class="sd">            structure and energies. This is very useful if you are parsing</span>
+<span class="sd">            very large vasprun.xml files and you are not interested in every</span>
+<span class="sd">            single ionic step. Note that the final energies may not be the</span>
+<span class="sd">            actual final energy in the vasprun.</span>
+<span class="sd">        ionic_step_offset (int): Used together with ionic_step_skip. If set,</span>
+<span class="sd">            the first ionic step read will be offset by the amount of</span>
+<span class="sd">            ionic_step_offset. For example, if you want to start reading</span>
+<span class="sd">            every 10th structure but only from the 3rd structure onwards,</span>
+<span class="sd">            set ionic_step_skip to 10 and ionic_step_offset to 3. Main use</span>
+<span class="sd">            case is when doing statistical structure analysis with</span>
+<span class="sd">            extremely long time scale multiple VASP calculations of</span>
+<span class="sd">            varying numbers of steps.</span>
+<span class="sd">        parse_dos (bool): Whether to parse the dos. Defaults to True. Set</span>
+<span class="sd">            to False to shave off significant time from the parsing if you</span>
+<span class="sd">            are not interested in getting those data.</span>
+<span class="sd">        parse_eigen (bool): Whether to parse the eigenvalues. Defaults to</span>
+<span class="sd">            True. Set to False to shave off significant time from the</span>
+<span class="sd">            parsing if you are not interested in getting those data.</span>
+<span class="sd">        parse_projected_eigen (bool): Whether to parse the projected</span>
+<span class="sd">            eigenvalues. Defaults to False. Set to True to obtain projected</span>
+<span class="sd">            eigenvalues. **Note that this can take an extreme amount of time</span>
+<span class="sd">            and memory.** So use this wisely.</span>
+
 <span class="sd">    **Vasp results**</span>
 
 <span class="sd">    .. attribute:: ionic_steps</span>
@@ -220,40 +247,6 @@
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">ionic_step_skip</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
                  <span class="n">ionic_step_offset</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">parse_dos</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
                  <span class="n">parse_eigen</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">parse_projected_eigen</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Args:</span>
-<span class="sd">            filename:</span>
-<span class="sd">                Filename to parse</span>
-<span class="sd">            ionic_step_skip:</span>
-<span class="sd">                If ionic_step_skip is a number &gt; 1, only every ionic_step_skip</span>
-<span class="sd">                ionic steps will be read for structure and energies. This is</span>
-<span class="sd">                very useful if you are parsing very large vasprun.xml files and</span>
-<span class="sd">                you are not interested in every single ionic step. Note that</span>
-<span class="sd">                the final energies and structure may not be the actual final</span>
-<span class="sd">                energy in the vasprun.</span>
-<span class="sd">            ionic_step_offset:</span>
-<span class="sd">                Used together with ionic_step_skip. If &gt; 0, the first</span>
-<span class="sd">                ionic step read will be offset by the amount of</span>
-<span class="sd">                ionic_step_offset. For example, if you want to start reading</span>
-<span class="sd">                every 10th structure but only from the 3rd structure onwards,</span>
-<span class="sd">                set ionic_step_skip to 10 and ionic_step_offset to 3. Main use</span>
-<span class="sd">                case is when doing statistical structure analysis with</span>
-<span class="sd">                extremely long time scale multiple VASP calculations of</span>
-<span class="sd">                varying numbers of steps.</span>
-<span class="sd">            parse_dos:</span>
-<span class="sd">                Whether to parse the dos. Defaults to True. Set</span>
-<span class="sd">                to False to shave off significant time from the parsing if you</span>
-<span class="sd">                are not interested in getting those data.</span>
-<span class="sd">            parse_eigen:</span>
-<span class="sd">                Whether to parse the eigenvalues. Defaults to True. Set</span>
-<span class="sd">                to False to shave off significant time from the parsing if you</span>
-<span class="sd">                are not interested in getting those data.</span>
-<span class="sd">            parse_projected_eigen:</span>
-<span class="sd">                Whether to parse the projected eigenvalues. Defaults to False.</span>
-<span class="sd">                Set to True to obtain projected eigenvalues. **Note that this</span>
-<span class="sd">                can take an extreme amount of time and memory.** So use this</span>
-<span class="sd">                wisely.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ionic_step_skip</span> <span class="o">=</span> <span class="n">ionic_step_skip</span>
 
@@ -374,22 +367,17 @@
 <span class="sd">        Returns the band structure as a BandStructure object</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            kpoints_filename:</span>
-<span class="sd">                Full path of the KPOINTS file from which the band structure is</span>
-<span class="sd">                generated.</span>
+<span class="sd">            kpoints_filename (str): Full path of the KPOINTS file from which</span>
+<span class="sd">                the band structure is generated.</span>
 <span class="sd">                If none is provided, the code will try to intelligently</span>
 <span class="sd">                determine the appropriate KPOINTS file by substituting the</span>
 <span class="sd">                filename of the vasprun.xml with KPOINTS.</span>
 <span class="sd">                The latter is the default behavior.</span>
-
-<span class="sd">            efermi:</span>
-<span class="sd">                If you want to specify manually the fermi energy this is where</span>
-<span class="sd">                you should do it. By default, the None value means the code</span>
-<span class="sd">                will get it from the vasprun.</span>
-
-<span class="sd">            line_mode:</span>
-<span class="sd">                force the band structure to be considered as a run along</span>
-<span class="sd">                symmetry lines</span>
+<span class="sd">            efermi (float): If you want to specify manually the fermi energy</span>
+<span class="sd">                this is where you should do it. By default, the None value</span>
+<span class="sd">                means the code will get it from the vasprun.</span>
+<span class="sd">            line_mode (bool): Force the band structure to be considered as</span>
+<span class="sd">                a run along symmetry lines.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            a BandStructure object (or more specifically a</span>
@@ -1076,8 +1064,8 @@
 <span class="sd">    Boolean, int and float types are converted.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        val_type : Value type parsed from vasprun.xml.</span>
-<span class="sd">        val : Actual string value parsed for vasprun.xml.</span>
+<span class="sd">        val_type: Value type parsed from vasprun.xml.</span>
+<span class="sd">        val: Actual string value parsed for vasprun.xml.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">val_type</span> <span class="o">==</span> <span class="s">&quot;logical&quot;</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">val</span> <span class="o">==</span> <span class="s">&quot;T&quot;</span>
@@ -1095,16 +1083,13 @@
 <span class="sd">    type. Boolean, int and float types are converted.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        val_type:</span>
-<span class="sd">            Value type parsed from vasprun.xml.</span>
-<span class="sd">        val:</span>
-<span class="sd">            Actual string value parsed for vasprun.xml.</span>
-<span class="sd">        filename:</span>
-<span class="sd">            Fullpath of vasprun.xml. Used for robust error handling.  E.g.,</span>
-<span class="sd">            if vasprun.xml contains \*\*\* for some Incar parameters, the code</span>
-<span class="sd">            will try to read from an INCAR file present in the same directory.</span>
-<span class="sd">        param_name:</span>
-<span class="sd">            Name of parameter.</span>
+<span class="sd">        val_type: Value type parsed from vasprun.xml.</span>
+<span class="sd">        val: Actual string value parsed for vasprun.xml.</span>
+<span class="sd">        filename: Fullpath of vasprun.xml. Used for robust error handling.</span>
+<span class="sd">            E.g., if vasprun.xml contains \*\*\* for some Incar parameters,</span>
+<span class="sd">            the code will try to read from an INCAR file present in the same</span>
+<span class="sd">            directory.</span>
+<span class="sd">        param_name: Name of parameter.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Parsed value.</span>
@@ -1160,6 +1145,9 @@
 
 <span class="sd">    Creating the OUTCAR class with a filename reads &quot;regular parameters&quot; that</span>
 <span class="sd">    are always present.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        filename (str): OUTCAR filename to parse.</span>
 
 <span class="sd">    .. attribute:: magnetization</span>
 
@@ -1568,14 +1556,11 @@
 <span class="sd">        summation and other operations between VolumetricData objects.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            structure:</span>
-<span class="sd">                Structure associated with the volumetric data</span>
-<span class="sd">            data:</span>
-<span class="sd">                Actual volumetric data.</span>
-<span class="sd">            distance_matrix:</span>
-<span class="sd">                A pre-computed distance matrix if available. Useful so pass</span>
-<span class="sd">                distance_matrices between sums, shortcircuiting an otherwise</span>
-<span class="sd">                expensive operation.</span>
+<span class="sd">            structure: Structure associated with the volumetric data</span>
+<span class="sd">            data: Actual volumetric data.</span>
+<span class="sd">            distance_matrix: A pre-computed distance matrix if available.</span>
+<span class="sd">                Useful so pass distance_matrices between sums,</span>
+<span class="sd">                shortcircuiting an otherwise expensive operation.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">structure</span> <span class="o">=</span> <span class="n">structure</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_spin_polarized</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span>
@@ -1608,8 +1593,7 @@
 <span class="sd">        Returns the grid for a particular axis.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            ind:</span>
-<span class="sd">                Axis index.</span>
+<span class="sd">            ind (int): Axis index.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">ng</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dim</span>
         <span class="n">num_pts</span> <span class="o">=</span> <span class="n">ng</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span>
@@ -1629,10 +1613,8 @@
 <span class="sd">        linear sum.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            other:</span>
-<span class="sd">                Another VolumetricData object</span>
-<span class="sd">            scale_factor:</span>
-<span class="sd">                Factor to scale the other data by.</span>
+<span class="sd">            other (VolumetricData): Another VolumetricData object</span>
+<span class="sd">            scale_factor (float): Factor to scale the other data by.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            VolumetricData corresponding to self + scale_factor * other.</span>
@@ -1654,8 +1636,7 @@
 <span class="sd">        like format. Used by subclasses for parsing file.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            filename:</span>
-<span class="sd">                Path of file to parse</span>
+<span class="sd">            filename (str): Path of file to parse</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            (poscar, data)</span>
@@ -1715,10 +1696,8 @@
 <span class="sd">        Write the VolumetricData object to a vasp compatible file.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            file_name:</span>
-<span class="sd">                the path to a file</span>
-<span class="sd">            vasp4_compatible:</span>
-<span class="sd">                True if the format is vasp4 compatible</span>
+<span class="sd">            file_name (str): Path to a file</span>
+<span class="sd">            vasp4_compatible (bool): True if the format is vasp4 compatible</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="n">f</span> <span class="o">=</span> <span class="n">zopen</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s">&quot;w&quot;</span><span class="p">)</span>
@@ -1755,14 +1734,11 @@
 <span class="sd">        grid points are in the VolumetricData.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            ind:</span>
-<span class="sd">                Index of atom.</span>
-<span class="sd">            radius:</span>
-<span class="sd">                Radius of integration.</span>
-<span class="sd">            nbins:</span>
-<span class="sd">                Number of bins. Defaults to 1. This allows one to obtain the</span>
-<span class="sd">                charge integration up to a list of the cumulative charge</span>
-<span class="sd">                integration values for radii for [radius/nbins,</span>
+<span class="sd">            ind (int): Index of atom.</span>
+<span class="sd">            radius (float): Radius of integration.</span>
+<span class="sd">            nbins (int): Number of bins. Defaults to 1. This allows one to</span>
+<span class="sd">                obtain the charge integration up to a list of the cumulative</span>
+<span class="sd">                charge integration values for radii for [radius/nbins,</span>
 <span class="sd">                2 * radius/nbins, ....].</span>
 
 <span class="sd">        Returns:</span>
@@ -1815,7 +1791,7 @@
 <span class="sd">        file.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            ind : Index of axis.</span>
+<span class="sd">            ind (int): Index of axis.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Average total along axis</span>
@@ -1834,16 +1810,13 @@
 <div class="viewcode-block" id="Locpot"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Locpot">[docs]</a><span class="k">class</span> <span class="nc">Locpot</span><span class="p">(</span><span class="n">VolumetricData</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Simple object for reading a LOCPOT file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        poscar (Poscar): Poscar object containing structure.</span>
+<span class="sd">        data: Actual data.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">poscar</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Args:</span>
-<span class="sd">            poscar:</span>
-<span class="sd">                Poscar object containing structure.</span>
-<span class="sd">            data:</span>
-<span class="sd">                Actual data.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">VolumetricData</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">poscar</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">poscar</span><span class="o">.</span><span class="n">comment</span>
 
@@ -1856,16 +1829,13 @@
 <div class="viewcode-block" id="Chgcar"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Chgcar">[docs]</a><span class="k">class</span> <span class="nc">Chgcar</span><span class="p">(</span><span class="n">VolumetricData</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Simple object for reading a CHGCAR file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        poscar (Poscar): Poscar object containing structure.</span>
+<span class="sd">        data: Actual data.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">poscar</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Args:</span>
-<span class="sd">            poscar:</span>
-<span class="sd">                Poscar object containing structure.</span>
-<span class="sd">            data:</span>
-<span class="sd">                Actual data.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">VolumetricData</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">poscar</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">poscar</span> <span class="o">=</span> <span class="n">poscar</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">poscar</span><span class="o">.</span><span class="n">comment</span>
@@ -1880,6 +1850,9 @@
 <div class="viewcode-block" id="Procar"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Procar">[docs]</a><span class="k">class</span> <span class="nc">Procar</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Object for reading a PROCAR file.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        filename: Name of file containing PROCAR.</span>
 
 <span class="sd">    .. attribute:: data</span>
 
@@ -1905,11 +1878,6 @@
 <span class="sd">            }</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Args:</span>
-<span class="sd">            filename:</span>
-<span class="sd">                Name of file containing PROCAR.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
         <span class="n">headers</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="k">with</span> <span class="n">zopen</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
@@ -1957,11 +1925,10 @@
 <span class="sd">        Returns the d occupation of a particular atom.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            atom_index:</span>
-<span class="sd">                Index of atom in PROCAR. It should be noted that VASP uses</span>
-<span class="sd">                1-based indexing for atoms, but this is converted to</span>
-<span class="sd">                zero-based indexing in this parser to be consistent with</span>
-<span class="sd">                representation of structures in pymatgen.</span>
+<span class="sd">            atom_index (int): Index of atom in PROCAR. It should be noted</span>
+<span class="sd">                that VASP uses 1-based indexing for atoms, but this is</span>
+<span class="sd">                converted to 0-based indexing in this parser to be</span>
+<span class="sd">                consistent with representation of structures in pymatgen.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            d-occupation of atom at atom_index.</span>
@@ -1975,17 +1942,15 @@
 <span class="sd">        Returns the occupation for a particular orbital of a particular atom.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            atom_num:</span>
-<span class="sd">                Index of atom in the PROCAR. It should be noted that VASP uses</span>
-<span class="sd">                1-based indexing for atoms, but this is converted to</span>
-<span class="sd">                zero-based indexing in this parser to be consistent with</span>
-<span class="sd">                representation of structures in pymatgen.</span>
-<span class="sd">            orbital:</span>
-<span class="sd">                A string representing an orbital. If it is a single</span>
-<span class="sd">                character, e.g., s, p, d or f, the sum of all s-type,</span>
-<span class="sd">                p-type, d-type or f-type orbitals occupations are returned</span>
-<span class="sd">                respectively. If it is a specific orbital, e.g., px, dxy,</span>
-<span class="sd">                etc., only the occupation of that orbital is returned.</span>
+<span class="sd">            atom_num (int): Index of atom in the PROCAR. It should be noted</span>
+<span class="sd">                that VASP uses 1-based indexing for atoms, but this is</span>
+<span class="sd">                converted to 0-based indexing in this parser to be</span>
+<span class="sd">                consistent with representation of structures in pymatgen.</span>
+<span class="sd">            orbital (str): An orbital. If it is a single character, e.g., s,</span>
+<span class="sd">                p, d or f, the sum of all s-type, p-type, d-type or f-type</span>
+<span class="sd">                orbitals occupations are returned respectively. If it is a</span>
+<span class="sd">                specific orbital, e.g., px, dxy, etc., only the occupation</span>
+<span class="sd">                of that orbital is returned.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Sum occupation of orbital of atom.</span>
@@ -2011,6 +1976,9 @@
 <span class="sd">    recommend that you use the Vasprun parser instead, which gives far richer</span>
 <span class="sd">    information about a run.</span>
 
+<span class="sd">    Args:</span>
+<span class="sd">        filename (str): Filename of file to parse</span>
+
 <span class="sd">    .. attribute:: electronic_steps</span>
 
 <span class="sd">            All electronic steps as a list of list of dict. e.g.,</span>
@@ -2031,11 +1999,6 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Args:</span>
-<span class="sd">            filename:</span>
-<span class="sd">                Filename of file to parse</span>
-<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">electronic_steps</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">ionic_steps</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">ionic_pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&quot;(\d+)\s+F=\s*([\d\-\.E\+]+)\s+&quot;</span>
@@ -2116,7 +2079,7 @@
 <div class="viewcode-block" id="get_band_structure_from_vasp_multiple_branches"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.get_band_structure_from_vasp_multiple_branches">[docs]</a><span class="k">def</span> <span class="nf">get_band_structure_from_vasp_multiple_branches</span><span class="p">(</span><span class="n">dir_name</span><span class="p">,</span> <span class="n">efermi</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
                                                    <span class="n">projections</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    this method is used to get band structure info from a VASP directory. It</span>
+<span class="sd">    This method is used to get band structure info from a VASP directory. It</span>
 <span class="sd">    takes into account that the run can be divided in several branches named</span>
 <span class="sd">    &quot;branch_x&quot;. If the run has not been divided in branches the method will</span>
 <span class="sd">    turn to parsing vasprun.xml directly.</span>
@@ -2124,13 +2087,10 @@
 <span class="sd">    The method returns None is there&quot;s a parsing error</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        dir_name:</span>
-<span class="sd">            Directory containing all bandstructure runs.</span>
-<span class="sd">        efermi:</span>
-<span class="sd">            Efermi for bandstructure.</span>
-<span class="sd">        projections:</span>
-<span class="sd">            True if you want to get the data on site projections if any</span>
-<span class="sd">            Note that this is sometimes very large</span>
+<span class="sd">        dir_name: Directory containing all bandstructure runs.</span>
+<span class="sd">        efermi: Efermi for bandstructure.</span>
+<span class="sd">        projections: True if you want to get the data on site projections if</span>
+<span class="sd">            any. Note that this is sometimes very large</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        A BandStructure Object</span>
@@ -2184,12 +2144,9 @@
 <span class="sd">    level. This procedure has shown to detect correctly most insulators.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        cbm:</span>
-<span class="sd">            the cbm of the static run</span>
-<span class="sd">        efermi:</span>
-<span class="sd">            the fermi energy of the static run</span>
-<span class="sd">        run_bandstructure:</span>
-<span class="sd">            a band_structure object</span>
+<span class="sd">        efermi (float): Fermi energy of the static run</span>
+<span class="sd">        cbm (float): Conduction band minimum of the static run</span>
+<span class="sd">        run_bandstructure: a band_structure object</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        a new adjusted fermi level</span>

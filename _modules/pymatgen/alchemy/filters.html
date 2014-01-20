@@ -80,15 +80,20 @@
 
 <div class="viewcode-block" id="AbstractStructureFilter"><a class="viewcode-back" href="../../../pymatgen.alchemy.html#pymatgen.alchemy.filters.AbstractStructureFilter">[docs]</a><span class="k">class</span> <span class="nc">AbstractStructureFilter</span><span class="p">(</span><span class="n">MSONable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Abstract structure filter class.</span>
+<span class="sd">    AbstractStructureFilter that defines an API to perform testing of</span>
+<span class="sd">    Structures. Structures that return True to a test are retained during</span>
+<span class="sd">    transmutation while those that return False are removed.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span>
 
     <span class="nd">@abc.abstractmethod</span>
 <div class="viewcode-block" id="AbstractStructureFilter.test"><a class="viewcode-back" href="../../../pymatgen.alchemy.html#pymatgen.alchemy.filters.AbstractStructureFilter.test">[docs]</a>    <span class="k">def</span> <span class="nf">test</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns a boolean for any structure. Structures that return true are</span>
-<span class="sd">        kept in the Transmuter object during filtering.</span>
+<span class="sd">        Method to execute the test.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            (bool) Structures that return true are kept in the Transmuter</span>
+<span class="sd">            object during filtering.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span>
 </div>
@@ -104,24 +109,18 @@
 
 </div></div>
 <div class="viewcode-block" id="ContainsSpecieFilter"><a class="viewcode-back" href="../../../pymatgen.alchemy.html#pymatgen.alchemy.filters.ContainsSpecieFilter">[docs]</a><span class="k">class</span> <span class="nc">ContainsSpecieFilter</span><span class="p">(</span><span class="n">AbstractStructureFilter</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Filter for structures containing certain elements or species.</span>
-<span class="sd">    By default compares by atomic number</span>
-<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">strict_compare</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">AND</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">exclude</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Filter for structures containing certain elements or species.</span>
+<span class="sd">        By default compares by atomic number</span>
+
 <span class="sd">        Args:</span>
-<span class="sd">            species:</span>
-<span class="sd">                list of species to look for</span>
-<span class="sd">            AND:</span>
-<span class="sd">                whether all species must be present to pass (or fail)</span>
-<span class="sd">                filter.</span>
-<span class="sd">            strict_compare:</span>
-<span class="sd">                if true, compares objects by specie or element object</span>
-<span class="sd">                if false, compares atomic number</span>
-<span class="sd">            exclude:</span>
-<span class="sd">                if true, returns false for any structures with the specie</span>
+<span class="sd">            species ([Specie/Element]): list of species to look for</span>
+<span class="sd">            AND: whether all species must be present to pass (or fail) filter.</span>
+<span class="sd">            strict_compare: if true, compares objects by specie or element</span>
+<span class="sd">                object if false, compares atomic number</span>
+<span class="sd">            exclude: If true, returns false for any structures with the specie</span>
 <span class="sd">                (excludes them from the Transmuter)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_species</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">smart_element_or_specie</span><span class="p">,</span> <span class="n">species</span><span class="p">)</span>
@@ -173,19 +172,18 @@
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    This filter removes structures that have certain species that are too close</span>
 <span class="sd">    together.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        specie_and_min_dist_dict: A species string to float mapping. For</span>
+<span class="sd">            example, {&quot;Na+&quot;: 1} means that all Na+ ions must be at least 1</span>
+<span class="sd">            Angstrom away from each other. Multiple species criteria can be</span>
+<span class="sd">            applied. Note that the testing is done based on the actual object</span>
+<span class="sd">            . If you have a structure with Element, you must use {&quot;Na&quot;:1}</span>
+<span class="sd">            instead to filter based on Element and not Specie.</span>
+
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">specie_and_min_dist_dict</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Args:</span>
-<span class="sd">            specie_and_min_dist_dict:</span>
-<span class="sd">                A species string to float mapping. For example, {&quot;Na+&quot;: 1}</span>
-<span class="sd">                means that all Na+ ions must be at least 1 Angstrom away from</span>
-<span class="sd">                each other. Multiple species criteria can be applied. Note that</span>
-<span class="sd">                the testing is done based on the actual object. If you have a</span>
-<span class="sd">                structure with Element, you must use {&quot;Na&quot;:1} instead to filter</span>
-<span class="sd">                based on Element and not Specie.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">specie_and_min_dist</span> <span class="o">=</span> <span class="p">{</span><span class="n">smart_element_or_specie</span><span class="p">(</span><span class="n">k</span><span class="p">):</span> <span class="n">v</span>
                                     <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span>
                                     <span class="ow">in</span> <span class="n">specie_and_min_dist_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
@@ -227,13 +225,11 @@
 <span class="sd">        and symmetry (if symprec is given).</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            structure_matcher:</span>
-<span class="sd">                Provides a structure matcher to be used for structure</span>
-<span class="sd">                comparison.</span>
-<span class="sd">            symprec:</span>
-<span class="sd">                The precision in the symmetry finder algorithm</span>
-<span class="sd">                if None (default value), no symmetry check is performed and</span>
-<span class="sd">                only the structure matcher is used. A recommended value is 1e-5</span>
+<span class="sd">            structure_matcher: Provides a structure matcher to be used for</span>
+<span class="sd">                structure comparison.</span>
+<span class="sd">            symprec: The precision in the symmetry finder algorithm if None (</span>
+<span class="sd">                default value), no symmetry check is performed and only the</span>
+<span class="sd">                structure matcher is used. A recommended value is 1e-5.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_symprec</span> <span class="o">=</span> <span class="n">symprec</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_structure_list</span> <span class="o">=</span> <span class="p">[]</span>
@@ -326,7 +322,7 @@
 
     <div class="footer">
         &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Geoffroy Hautier, William Davidson Richard, Stephen Dacek, Sai Jayaraman, Michael Kocher, Dan Gunter, Shreyas Cholia, Vincent L Chevrier, Rickard Armiento.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.1.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

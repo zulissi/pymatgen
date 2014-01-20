@@ -68,7 +68,7 @@
 
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
 
-<span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong, Wei Chen, Will Richards&quot;</span>
+<span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong, Wei Chen, Will Richards, Geoffroy Hautier&quot;</span>
 <span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot;Copyright 2011, The Materials Project&quot;</span>
 <span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;1.0&quot;</span>
 <span class="n">__maintainer__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong&quot;</span>
@@ -234,7 +234,8 @@
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">config_dict</span><span class="p">,</span> <span class="n">hubbard_off</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
                  <span class="n">user_incar_settings</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-                 <span class="n">constrain_total_magmom</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">sort_structure</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+                 <span class="n">constrain_total_magmom</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">sort_structure</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                 <span class="n">ediff_per_atom</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Args:</span>
 <span class="sd">            name:</span>
@@ -259,6 +260,11 @@
 <span class="sd">                Defaults to True, the behavior you would want most of the</span>
 <span class="sd">                time. This ensures that similar atomic species are grouped</span>
 <span class="sd">                together.</span>
+<span class="sd">            ediff_per_atom:</span>
+<span class="sd">                Whether the EDIFF is specified on a per atom basis. This is</span>
+<span class="sd">                generally desired, though for some calculations (e.g. NEB)</span>
+<span class="sd">                this should be turned off (and an appropriate EDIFF supplied</span>
+<span class="sd">                in user_incar_settings)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">potcar_settings</span> <span class="o">=</span> <span class="n">config_dict</span><span class="p">[</span><span class="s">&quot;POTCAR&quot;</span><span class="p">]</span>
@@ -266,6 +272,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">incar_settings</span> <span class="o">=</span> <span class="n">config_dict</span><span class="p">[</span><span class="s">&#39;INCAR&#39;</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_nupdown</span> <span class="o">=</span> <span class="n">constrain_total_magmom</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sort_structure</span> <span class="o">=</span> <span class="n">sort_structure</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ediff_per_atom</span> <span class="o">=</span> <span class="n">ediff_per_atom</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">hubbard_off</span> <span class="o">=</span> <span class="n">hubbard_off</span>
         <span class="k">if</span> <span class="n">hubbard_off</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">incar_settings</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
@@ -303,7 +310,10 @@
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">incar</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">poscar</span><span class="o">.</span><span class="n">site_symbols</span><span class="p">)</span>
             <span class="k">elif</span> <span class="n">key</span> <span class="o">==</span> <span class="s">&quot;EDIFF&quot;</span><span class="p">:</span>
-                <span class="n">incar</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">setting</span><span class="p">)</span> <span class="o">*</span> <span class="n">structure</span><span class="o">.</span><span class="n">num_sites</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ediff_per_atom</span><span class="p">:</span>
+                    <span class="n">incar</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">setting</span><span class="p">)</span> <span class="o">*</span> <span class="n">structure</span><span class="o">.</span><span class="n">num_sites</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">incar</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">setting</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">incar</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">setting</span>
 
@@ -483,7 +493,8 @@
 
 <div class="viewcode-block" id="MITNEBVaspInputSet"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.vaspio_set.MITNEBVaspInputSet">[docs]</a><span class="k">class</span> <span class="nc">MITNEBVaspInputSet</span><span class="p">(</span><span class="n">DictVaspInputSet</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Class for writing NEB inputs.</span>
+<span class="sd">    Class for writing NEB inputs. Note that EDIFF is not on a per atom</span>
+<span class="sd">    basis for this input set</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nimages</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">user_incar_settings</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -499,10 +510,11 @@
                     <span class="s">&#39;LORBIT&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&#39;LCHARG&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">}</span>
         <span class="k">if</span> <span class="n">user_incar_settings</span><span class="p">:</span>
             <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">user_incar_settings</span><span class="p">)</span>
-        
+
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MITVaspInputSet.json&quot;</span><span class="p">))</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
             <span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&quot;MIT NEB&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">),</span>
-                                      <span class="n">user_incar_settings</span><span class="o">=</span><span class="n">defaults</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                                      <span class="n">user_incar_settings</span><span class="o">=</span><span class="n">defaults</span><span class="p">,</span>
+                                      <span class="n">ediff_per_atom</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">nimages</span> <span class="o">=</span> <span class="n">nimages</span>
 
 <div class="viewcode-block" id="MITNEBVaspInputSet.write_input"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.vaspio_set.MITNEBVaspInputSet.write_input">[docs]</a>    <span class="k">def</span> <span class="nf">write_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structures</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">,</span> <span class="n">make_dir_if_not_present</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
@@ -843,8 +855,30 @@
                     <span class="n">write_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output_dir</span><span class="p">,</span> <span class="s">&quot;KPOINTS&quot;</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">new_kpoints</span><span class="o">.</span><span class="n">write_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output_dir</span><span class="p">,</span> <span class="s">&quot;KPOINTS&quot;</span><span class="p">))</span>
-
 </div></div>
+<div class="viewcode-block" id="MPStaticDielectricDFPTVaspInputSet"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.vaspio_set.MPStaticDielectricDFPTVaspInputSet">[docs]</a><span class="k">class</span> <span class="nc">MPStaticDielectricDFPTVaspInputSet</span><span class="p">(</span><span class="n">DictVaspInputSet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Using MP parameters to compute a static dielectric constant</span>
+<span class="sd">    with DFPT. This includes the electronic and ionic contributions</span>
+<span class="sd">    to the static dielectric constant</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_incar_settings</span><span class="o">=</span><span class="p">{}):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            user_incar_settings:</span>
+<span class="sd">            A dict specifying additional incar settings</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MPVaspInputSet.json&quot;</span><span class="p">))</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
+                <span class="bp">self</span><span class="p">,</span> <span class="s">&quot;MaterialsProject Static Dielectric DFPT&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user_incar_settings</span> <span class="o">=</span> <span class="n">user_incar_settings</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">incar_settings</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="p">{</span><span class="s">&quot;IBRION&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span> <span class="s">&quot;LEPSILON&quot;</span><span class="p">:</span> <span class="bp">True</span><span class="p">})</span>
+        <span class="k">if</span> <span class="s">&#39;NPAR&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">incar_settings</span><span class="p">:</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">incar_settings</span><span class="p">[</span><span class="s">&#39;NPAR&#39;</span><span class="p">]</span>
+
+</div>
 <div class="viewcode-block" id="MPNonSCFVaspInputSet"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.vaspio_set.MPNonSCFVaspInputSet">[docs]</a><span class="k">class</span> <span class="nc">MPNonSCFVaspInputSet</span><span class="p">(</span><span class="n">MPStaticVaspInputSet</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Implementation of VaspInputSet overriding MaterialsProjectVaspInputSet</span>
@@ -1085,7 +1119,7 @@
 
     <div class="footer">
         &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Geoffroy Hautier, William Davidson Richard, Stephen Dacek, Sai Jayaraman, Michael Kocher, Dan Gunter, Shreyas Cholia, Vincent L Chevrier, Rickard Armiento.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.1.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

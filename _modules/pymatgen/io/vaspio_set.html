@@ -637,16 +637,32 @@
 <span class="sd">    It is recommended to use the static from_previous_run method to construct</span>
 <span class="sd">    the input set to inherit most of the functions.</span>
 
-<span class="sd">    Supports the same kwargs as :class:`DictVaspInputSet`.</span>
-
 <span class="sd">    Args:</span>
-<span class="sd">        kpoints_density: kpoints density for the reciprocal cell of</span>
+<span class="sd">        kpoints_density (int): kpoints density for the reciprocal cell of</span>
 <span class="sd">            structure. Might need to increase the default value when</span>
 <span class="sd">            calculating metallic materials.</span>
 <span class="sd">        sym_prec (float): Tolerance for symmetry finding</span>
+
+<span class="sd">    kwargs:</span>
+<span class="sd">        hubbard_off (bool): Whether to turn off Hubbard U if it is specified in</span>
+<span class="sd">            config_dict (&quot;MP Static&quot;). Defaults to False, i.e., follow settings in</span>
+<span class="sd">            config_dict.</span>
+<span class="sd">        user_incar_settings (dict): User INCAR settings. This allows a user</span>
+<span class="sd">            to override INCAR settings, e.g., setting a different MAGMOM for</span>
+<span class="sd">            various elements or species.</span>
+<span class="sd">        constrain_total_magmom (bool): Whether to constrain the total magmom</span>
+<span class="sd">            (NUPDOWN in INCAR) to be the sum of the expected MAGMOM for all</span>
+<span class="sd">            species. Defaults to False.</span>
+<span class="sd">        sort_structure (bool): Whether to sort the structure (using the</span>
+<span class="sd">            default sort order of electronegativity) before generating input</span>
+<span class="sd">            files. Defaults to True, the behavior you would want most of the</span>
+<span class="sd">            time. This ensures that similar atomic species are grouped</span>
+<span class="sd">            together.</span>
+<span class="sd">        ediff_per_atom (bool): Whether the EDIFF is specified on a per atom</span>
+<span class="sd">            basis.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kpoints_density</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span> <span class="n">sym_prec</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kpoints_density</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span> <span class="n">sym_prec</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MPVaspInputSet.json&quot;</span><span class="p">))</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
             <span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
                 <span class="bp">self</span><span class="p">,</span> <span class="s">&quot;MP Static&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -661,6 +677,9 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get a KPOINTS file using the fully automated grid method. Uses</span>
 <span class="sd">        Gamma centered meshes for hexagonal cells and Monk grids otherwise.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            structure (Structure/IStructure): structure to get kpoints</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">kpoints_settings</span><span class="p">[</span><span class="s">&#39;grid_density&#39;</span><span class="p">]</span> <span class="o">=</span> \
             <span class="bp">self</span><span class="o">.</span><span class="n">kpoints_settings</span><span class="p">[</span><span class="s">&quot;kpoints_density&quot;</span><span class="p">]</span> <span class="o">*</span> \
@@ -669,6 +688,13 @@
         <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">MPStaticVaspInputSet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">get_kpoints</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="MPStaticVaspInputSet.get_poscar"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.vaspio_set.MPStaticVaspInputSet.get_poscar">[docs]</a>    <span class="k">def</span> <span class="nf">get_poscar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get a POSCAR file with a primitive standardized cell of</span>
+<span class="sd">        the giving structure.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            structure (Structure/IStructure): structure to get POSCAR</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">sym_finder</span> <span class="o">=</span> <span class="n">SymmetryFinder</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sym_prec</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">Poscar</span><span class="p">(</span><span class="n">sym_finder</span><span class="o">.</span><span class="n">get_primitive_standard_structure</span><span class="p">())</span>
 </div>
@@ -685,12 +711,13 @@
 <span class="sd">                previous run.</span>
 <span class="sd">            initial_structure (bool): Whether to return the structure from</span>
 <span class="sd">                previous run. Default is False.</span>
-<span class="sd">            additional_info (bool): Whether to return additional symmetry</span>
-<span class="sd">                info related to the structure. If True, return a list of the</span>
-<span class="sd">                refined structure (conventional cell), the conventional</span>
-<span class="sd">                standard structure, the symmetry dataset and symmetry</span>
-<span class="sd">                operations of the structure (see SymmetryFinder doc for</span>
-<span class="sd">                details).</span>
+<span class="sd">            additional_info (bool):</span>
+<span class="sd">                Whether to return additional symmetry info related to the</span>
+<span class="sd">                structure. If True, return a list of the refined structure (</span>
+<span class="sd">                conventional cell), the conventional standard structure,</span>
+<span class="sd">                the symmetry dataset and symmetry operations of the</span>
+<span class="sd">                structure (see SymmetryFinder doc for details).</span>
+<span class="sd">            sym_prec (float): Tolerance for symmetry finding</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Returns the magmom-decorated structure that can be passed to get</span>
@@ -731,12 +758,17 @@
 <span class="sd">        directory of previous Vasp run.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            previous_vasp_dir (str): Directory containing the outputs(vasprun</span>
-<span class="sd">                .xml and OUTCAR) ofprevious vasp run.</span>
+<span class="sd">            previous_vasp_dir (str): Directory containing the outputs(</span>
+<span class="sd">                vasprun.xml and OUTCAR) of previous vasp run.</span>
 <span class="sd">            output_dir (str): Directory to write the VASP input files for</span>
 <span class="sd">                the static calculations. Defaults to current directory.</span>
 <span class="sd">            make_dir_if_not_present (bool): Set to True if you want the</span>
-<span class="sd">            directory (and the whole path) to be created if it is not present.</span>
+<span class="sd">                directory (and the whole path) to be created if it is not</span>
+<span class="sd">                present.</span>
+<span class="sd">            kpoints_density (int): kpoints density for the reciprocal cell</span>
+<span class="sd">                of structure. Might need to increase the default value when</span>
+<span class="sd">                calculating metallic materials.</span>
+<span class="sd">            sym_prec (float): Tolerance for symmetry finding</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># Read input and output from previous run</span>
         <span class="k">try</span><span class="p">:</span>
@@ -805,6 +837,7 @@
                     <span class="n">write_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output_dir</span><span class="p">,</span> <span class="s">&quot;KPOINTS&quot;</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">new_kpoints</span><span class="o">.</span><span class="n">write_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output_dir</span><span class="p">,</span> <span class="s">&quot;KPOINTS&quot;</span><span class="p">))</span>
+
 </div></div>
 <div class="viewcode-block" id="MPStaticDielectricDFPTVaspInputSet"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.vaspio_set.MPStaticDielectricDFPTVaspInputSet">[docs]</a><span class="k">class</span> <span class="nc">MPStaticDielectricDFPTVaspInputSet</span><span class="p">(</span><span class="n">DictVaspInputSet</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -836,21 +869,28 @@
 <span class="sd">    a static run to calculate bandstructure, density of states(DOS) and etc.</span>
 <span class="sd">    It is recommended to use the NonSCF from_previous_run method to construct</span>
 <span class="sd">    the input set to inherit most of the functions.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        user_incar_settings (dict): A dict specify customized settings</span>
+<span class="sd">            for INCAR. Must contain a NBANDS value, suggest to use</span>
+<span class="sd">            1.2*(NBANDS from static run).</span>
+<span class="sd">        mode: Line: Generate k-points along symmetry lines for</span>
+<span class="sd">            bandstructure. Uniform: Generate uniform k-points</span>
+<span class="sd">            grids for DOS.</span>
+<span class="sd">        constrain_total_magmom (bool): Whether to constrain the total</span>
+<span class="sd">            magmom (NUPDOWN in INCAR) to be the sum of the expected</span>
+<span class="sd">            MAGMOM for all species. Defaults to False.</span>
+<span class="sd">        kpoints_density (int): kpoints density for the reciprocal cell</span>
+<span class="sd">            of structure. Might need to increase the default value when</span>
+<span class="sd">            calculating metallic materials.</span>
+<span class="sd">        sort_structure (bool): Whether to sort structure. Defaults to</span>
+<span class="sd">            False.</span>
+<span class="sd">        sym_prec (float): Tolerance for symmetry finding</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_incar_settings</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&quot;Line&quot;</span><span class="p">,</span>
                  <span class="n">constrain_total_magmom</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">sort_structure</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
                  <span class="n">kpoints_density</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">sym_prec</span><span class="o">=</span><span class="mf">0.01</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Args:</span>
-<span class="sd">            user_incar_settings:</span>
-<span class="sd">                A dict specify customized settings for INCAR.</span>
-<span class="sd">                Must contain a NBANDS value, suggest to use</span>
-<span class="sd">                1.2*(NBANDS from static run).</span>
-<span class="sd">            mode:</span>
-<span class="sd">                Line: Generate k-points along symmetry lines for bandstructure</span>
-<span class="sd">                Uniform: Generate uniform k-points grids for DOS</span>
-<span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sym_prec</span><span class="o">=</span> <span class="n">sym_prec</span>
         <span class="k">if</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;Line&quot;</span><span class="p">,</span> <span class="s">&quot;Uniform&quot;</span><span class="p">]:</span>
@@ -882,11 +922,7 @@
 <span class="sd">        Gamma-centered mesh grid. Kpoints are written explicitly in both cases.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            kpoints_density:</span>
-<span class="sd">                kpoints density for the reciprocal cell of structure.</span>
-<span class="sd">                Suggest to use a large kpoints_density.</span>
-<span class="sd">                Might need to increase the default value when calculating</span>
-<span class="sd">                metallic materials.</span>
+<span class="sd">            structure (Structure/IStructure): structure to get Kpoints</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s">&quot;Line&quot;</span><span class="p">:</span>
             <span class="n">kpath</span> <span class="o">=</span> <span class="n">HighSymmKpath</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
@@ -918,6 +954,13 @@
 <div class="viewcode-block" id="MPNonSCFVaspInputSet.get_incar_settings"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.vaspio_set.MPNonSCFVaspInputSet.get_incar_settings">[docs]</a>    <span class="k">def</span> <span class="nf">get_incar_settings</span><span class="p">(</span><span class="n">vasp_run</span><span class="p">,</span> <span class="n">outcar</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Helper method to get necessary user_incar_settings from previous run.</span>
+
+<span class="sd">            Args:</span>
+<span class="sd">                vasp_run (Vasprun): Vasprun that contains the final</span>
+<span class="sd">                    structure from previous run.</span>
+<span class="sd">                outcar (Outcar): Outcar that contains the magnetization info</span>
+<span class="sd">                    from previous run.</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c"># Turn off spin when magmom for every site is smaller than 0.02.</span>
         <span class="k">if</span> <span class="n">outcar</span> <span class="ow">and</span> <span class="n">outcar</span><span class="o">.</span><span class="n">magnetization</span><span class="p">:</span>
@@ -949,17 +992,21 @@
 <span class="sd">        directory of previous static Vasp run.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            previous_vasp_dir:</span>
-<span class="sd">                The directory contains the outputs(vasprun.xml and OUTCAR) of</span>
-<span class="sd">                previous vasp run.</span>
-<span class="sd">            output_dir:</span>
-<span class="sd">                The directory to write the VASP input files for the NonSCF</span>
-<span class="sd">                calculations. Default to write in the current directory.</span>
-<span class="sd">            copy_chgcar:</span>
-<span class="sd">                Default to copy CHGCAR from SC run</span>
-<span class="sd">            make_dir_if_not_present:</span>
-<span class="sd">                Set to True if you want the directory (and the whole path) to</span>
-<span class="sd">                be created if it is not present.</span>
+<span class="sd">            previous_vasp_dir (str): The directory contains the outputs(</span>
+<span class="sd">                vasprun.xml and OUTCAR) of previous vasp run.</span>
+<span class="sd">            output_dir (str): The directory to write the VASP input files</span>
+<span class="sd">                for the NonSCF calculations. Default to write in the current</span>
+<span class="sd">                directory.</span>
+<span class="sd">            mode (str): Line: Generate k-points along symmetry lines for</span>
+<span class="sd">                bandstructure. Uniform: Generate uniform k-points</span>
+<span class="sd">                grids for DOS.</span>
+<span class="sd">            user_incar_settings (dict): A dict specify customized settings</span>
+<span class="sd">                for INCAR. Must contain a NBANDS value, suggest to use</span>
+<span class="sd">                1.2*(NBANDS from static run).</span>
+<span class="sd">            copy_chgcar (bool): Default to copy CHGCAR from SC run</span>
+<span class="sd">            make_dir_if_not_present (bool): Set to True if you want the</span>
+<span class="sd">                directory (and the whole path) to be created if it is not</span>
+<span class="sd">                present.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">vasp_run</span> <span class="o">=</span> <span class="n">Vasprun</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">previous_vasp_dir</span><span class="p">,</span> <span class="s">&quot;vasprun.xml&quot;</span><span class="p">),</span>

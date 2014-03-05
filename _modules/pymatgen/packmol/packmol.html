@@ -1,0 +1,235 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.packmol.packmol &mdash; pymatgen 2.9.3 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '2.9.3',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
+    <link rel="top" title="pymatgen 2.9.3 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" />
+ 
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-33990148-1']);
+  _gaq.push(['_trackPageview']);
+</script>
+
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">pymatgen 2.9.3 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for pymatgen.packmol.packmol</h1><div class="highlight"><pre>
+<span class="c">#!/usr/bin/env python</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">from</span> <span class="nn">monty.io</span> <span class="kn">import</span> <span class="n">ScratchDir</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen</span> <span class="kn">import</span> <span class="n">Molecule</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.babelio</span> <span class="kn">import</span> <span class="n">BabelMolAdaptor</span>
+<span class="kn">import</span> <span class="nn">pybel</span> <span class="kn">as</span> <span class="nn">pb</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">subprocess</span> <span class="kn">import</span> <span class="n">Popen</span><span class="p">,</span> <span class="n">PIPE</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+
+
+<div class="viewcode-block" id="PackmolRunner"><a class="viewcode-back" href="../../../pymatgen.packmol.html#pymatgen.packmol.packmol.PackmolRunner">[docs]</a><span class="k">class</span> <span class="nc">PackmolRunner</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create MD simulation box using packmol.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mols</span><span class="p">,</span> <span class="n">param_list</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create PackMolRunner</span>
+<span class="sd">        :param mols: [Molecule] - list of Molecules to pack</span>
+<span class="sd">        :param param_list: [{}, {}] - array of parameters containing dicts for each Structure</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mols</span> <span class="o">=</span> <span class="n">mols</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">param_list</span> <span class="o">=</span> <span class="n">param_list</span>
+
+    <span class="k">def</span> <span class="nf">_format_packmol_str</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">some_obj</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Internal method to format packmol strings</span>
+<span class="sd">        :param some_obj: Some object to turn into String</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">some_obj</span><span class="p">,</span><span class="nb">list</span><span class="p">):</span>
+            <span class="k">return</span> <span class="s">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">some_obj</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">some_obj</span>
+
+    <span class="k">def</span> <span class="nf">_get_auto_boxsize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        TODO: Put docs here!!</span>
+<span class="sd">        :param idx:</span>
+<span class="sd">        :raise NotImplementedError:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">volume</span><span class="o">=</span><span class="mf">0.0</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span><span class="n">mol</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mols</span><span class="p">):</span>
+<span class="c">#        for mol in self.mols</span>
+<span class="c">#        mol=self.mols[idx]</span>
+<span class="c">#        print mol[0]</span>
+<span class="c">#        print self.mols[idx][0]</span>
+<span class="c">#        lx=max(mol[i].coords[0] for i,atom in enumerate(mol))-min(mol[i].coords[0] for i,atom in enumerate(mol))</span>
+<span class="c">#        ly=max(mol[i].coords[1] for i,atom in enumerate(mol))-min(mol[i].coords[1] for i,atom in enumerate(mol))</span>
+<span class="c">#        lz=max(mol[i].coords[2] for i,atom in enumerate(mol))-min(mol[i].coords[2] for i,atom in enumerate(mol))</span>
+            <span class="n">lx</span><span class="p">,</span><span class="n">ly</span><span class="p">,</span><span class="n">lz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">mol</span><span class="o">.</span><span class="n">cart_coords</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">mol</span><span class="o">.</span><span class="n">cart_coords</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">lx</span> <span class="o">+=</span> <span class="mf">2.0</span>
+            <span class="n">ly</span> <span class="o">+=</span> <span class="mf">2.0</span>
+            <span class="n">lz</span> <span class="o">+=</span> <span class="mf">2.0</span>
+            <span class="n">length</span><span class="o">=</span><span class="nb">max</span><span class="p">(</span><span class="n">lx</span><span class="p">,</span><span class="n">ly</span><span class="p">,</span><span class="n">lz</span><span class="p">)</span>
+            <span class="k">print</span> <span class="n">length</span>
+<span class="c">#            length=length*int(self.param_list[idx][&#39;number&#39;])</span>
+            <span class="n">volume</span> <span class="o">+=</span> <span class="n">length</span><span class="o">**</span><span class="p">(</span><span class="mf">3.0</span><span class="p">)</span><span class="o">*</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">param_list</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="s">&#39;number&#39;</span><span class="p">])</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="n">volume</span><span class="o">**</span><span class="p">(</span><span class="mf">1.0</span><span class="o">/</span><span class="mf">3.0</span><span class="p">)</span>
+        <span class="k">print</span> <span class="n">length</span>
+
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span><span class="n">mol</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mols</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">param_list</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="s">&#39;inside box&#39;</span><span class="p">]</span><span class="o">=</span><span class="s">&#39;0.0 0.0 0.0 {} {} {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">length</span><span class="p">,</span><span class="n">length</span><span class="p">,</span><span class="n">length</span><span class="p">)</span>
+<span class="c">#        print self.param_list[idx][&#39;inside box&#39;]</span>
+<span class="c">#        raise NotImplementedError(&#39;Auto box size is not implemented yet!&#39;)</span>
+
+<div class="viewcode-block" id="PackmolRunner.run"><a class="viewcode-back" href="../../../pymatgen.packmol.html#pymatgen.packmol.packmol.PackmolRunner.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Runs packmol</span>
+<span class="sd">        :return: a Molecule object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">scratch</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">gettempdir</span><span class="p">()</span>
+        <span class="k">with</span> <span class="n">ScratchDir</span><span class="p">(</span><span class="n">scratch</span><span class="p">,</span><span class="n">copy_to_current_on_exit</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="c">#        with ScratchDir(scratch) as d:</span>
+            <span class="c"># convert mols to pdb files</span>
+            <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">mol</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mols</span><span class="p">):</span>
+                <span class="n">a</span> <span class="o">=</span> <span class="n">BabelMolAdaptor</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+                <span class="n">pm</span> <span class="o">=</span> <span class="n">pb</span><span class="o">.</span><span class="n">Molecule</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">openbabel_mol</span><span class="p">)</span>
+                <span class="n">pm</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;pdb&quot;</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="s">&#39;{}.pdb&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">idx</span><span class="p">)),</span> <span class="n">overwrite</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+            <span class="c"># TODO: also check if user specified outside box, etc.</span>
+            <span class="c"># Do not use auto mode if user specified any type of box</span>
+            <span class="k">if</span> <span class="s">&#39;inside box&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">param_list</span><span class="p">[</span><span class="n">idx</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_get_auto_boxsize</span><span class="p">()</span>
+
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="s">&#39;pack.inp&#39;</span><span class="p">),</span> <span class="s">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">inp</span><span class="p">:</span>
+                <span class="c"># create packmol control file</span>
+                <span class="n">inp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;tolerance 2.0</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+                <span class="n">inp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;filetype pdb</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+                <span class="n">inp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;output {}</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="s">&quot;box.pdb&quot;</span><span class="p">)))</span>
+                <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">mol</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mols</span><span class="p">):</span>
+                    <span class="n">inp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+                    <span class="n">inp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;structure {}.pdb</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">idx</span><span class="p">))))</span>
+
+                    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">param_list</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+                        <span class="n">inp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;  {} {}</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_format_packmol_str</span><span class="p">(</span><span class="n">v</span><span class="p">)))</span>
+                    <span class="n">inp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;end structure</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+
+            <span class="n">proc</span> <span class="o">=</span> <span class="n">Popen</span><span class="p">([</span><span class="s">&#39;packmol&#39;</span><span class="p">],</span> <span class="n">stdin</span><span class="o">=</span><span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="s">&#39;pack.inp&#39;</span><span class="p">),</span> <span class="s">&#39;r&#39;</span><span class="p">),</span><span class="n">stdout</span><span class="o">=</span><span class="n">PIPE</span><span class="p">)</span>
+            <span class="p">(</span><span class="n">stdout</span><span class="p">,</span> <span class="n">stderr</span><span class="p">)</span> <span class="o">=</span> <span class="n">proc</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
+
+
+            <span class="n">a</span> <span class="o">=</span> <span class="n">BabelMolAdaptor</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="s">&quot;box.pdb&quot;</span><span class="p">),</span> <span class="s">&quot;pdb&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">a</span><span class="o">.</span><span class="n">pymatgen_mol</span>
+</div></div>
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">coords</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">],</span>
+           <span class="p">[</span><span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">,</span>  <span class="mf">1.089000</span><span class="p">],</span>
+           <span class="p">[</span><span class="mf">1.026719</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.363000</span><span class="p">],</span>
+           <span class="p">[</span><span class="o">-</span><span class="mf">0.513360</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.889165</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.363000</span><span class="p">],</span>
+           <span class="p">[</span><span class="o">-</span><span class="mf">0.513360</span><span class="p">,</span> <span class="mf">0.889165</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.363000</span><span class="p">]]</span>
+    <span class="n">mol</span> <span class="o">=</span> <span class="n">Molecule</span><span class="p">([</span><span class="s">&quot;C&quot;</span><span class="p">,</span> <span class="s">&quot;H&quot;</span><span class="p">,</span> <span class="s">&quot;H&quot;</span><span class="p">,</span> <span class="s">&quot;H&quot;</span><span class="p">,</span> <span class="s">&quot;H&quot;</span><span class="p">],</span> <span class="n">coords</span><span class="p">)</span> 
+<span class="c">#    pmr = PackmolRunner([mol, mol], [{&quot;number&quot;:4,&quot;inside box&quot;:[0.,0.,0.,40.,40.,40.]}, {&quot;number&quot;:5, &quot;inside box&quot;:[0.,0.,0.,40.,40.,40.]}])</span>
+    <span class="n">pmr</span> <span class="o">=</span> <span class="n">PackmolRunner</span><span class="p">([</span><span class="n">mol</span><span class="p">,</span> <span class="n">mol</span><span class="p">],</span> <span class="p">[{</span><span class="s">&quot;number&quot;</span><span class="p">:</span><span class="mi">4</span><span class="p">,</span><span class="s">&quot;inside box&quot;</span><span class="p">:[</span><span class="mf">0.</span><span class="p">,</span><span class="mf">0.</span><span class="p">,</span><span class="mf">0.</span><span class="p">,</span><span class="mf">40.</span><span class="p">,</span><span class="mf">40.</span><span class="p">,</span><span class="mf">40.</span><span class="p">]},</span> <span class="p">{</span><span class="s">&quot;number&quot;</span><span class="p">:</span><span class="mi">5</span><span class="p">}])</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">pmr</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+    <span class="k">print</span> <span class="n">s</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">pymatgen 2.9.3 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+
+    <div class="footer">
+        &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Geoffroy Hautier, William Davidson Richard, Stephen Dacek, Sai Jayaraman, Michael Kocher, Dan Gunter, Shreyas Cholia, Vincent L Chevrier, Rickard Armiento.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+<script type="text/javascript">
+  (function() {
+    var ga = document.createElement('script');
+    ga.src = ('https:' == document.location.protocol ?
+              'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    ga.setAttribute('async', 'true');
+    document.documentElement.firstChild.appendChild(ga);
+  })();
+</script>
+</div>
+
+  </body>
+</html>

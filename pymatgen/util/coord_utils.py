@@ -96,6 +96,37 @@ def coord_list_mapping(subset, superset):
     return inds
 
 
+def coord_list_mapping_pbc(subset, superset, atol=1e-8):
+    """
+    Gives the index mapping from a subset to a superset.
+    Subset and superset cannot contain duplicate rows
+    
+    Args:
+        subset, superset: List of frac_coords
+        
+    Returns:
+        list of indices such that superset[indices] = subset
+    """
+    c1 = np.array(subset)
+    c2 = np.array(superset)
+    
+    diff = c1[:, None, :] - c2[None, :, :]
+    diff -= np.round(diff)
+    inds = np.where(np.all(np.abs(diff) < atol, axis = 2))[1]
+    
+    #verify result (its easier to check validity of the result than
+    #the validity of inputs)
+    test = c2[inds] - c1
+    test -= np.round(test)
+    if not np.allclose(test, 0):
+        if not is_coord_subset_pbc(subset, superset):
+            raise ValueError("subset is not a subset of superset")
+    if not test.shape == c1.shape:
+        raise ValueError("Something wrong with the inputs, likely duplicates in "
+                         "superset")
+    return inds
+
+
 def get_linear_interpolated_value(x_values, y_values, x):
     """
     Returns an interpolated value by linear interpolation between two values.
@@ -295,6 +326,25 @@ def in_coord_list_pbc(fcoord_list, fcoord, atol=1e-8):
         True if coord is in the coord list.
     """
     return len(find_in_coord_list_pbc(fcoord_list, fcoord, atol=atol)) > 0
+
+
+def is_coord_subset_pbc(subset, superset, atol=1e-8):
+    """
+    Tests if all fractional coords in subset are contained in superset.
+    
+    Args:
+        subset, superset: List of fractional coords
+        
+    Returns:
+        True if all of subset is in superset.
+    """
+    c1 = np.array(subset)
+    c2 = np.array(superset)
+    dist = c1[:, None, :] - c2[None, :, :]
+    dist -= np.round(dist)
+    is_close = np.all(np.abs(dist) < atol, axis=-1)
+    any_close = np.any(is_close, axis=-1)
+    return np.all(any_close)
 
 
 def get_points_in_sphere_pbc(lattice, frac_points, center, r):

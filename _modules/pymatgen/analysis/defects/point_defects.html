@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.analysis.defects.point_defects &mdash; pymatgen 2.9.3 documentation</title>
+    <title>pymatgen.analysis.defects.point_defects &mdash; pymatgen 2.9.4 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '2.9.3',
+        VERSION:     '2.9.4',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -24,7 +24,7 @@
     <script type="text/javascript" src="../../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.9.3 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 2.9.4 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -44,7 +44,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 2.9.3 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 2.9.4 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -69,12 +69,13 @@
 
 <span class="kn">from</span> <span class="nn">pymatgen.core.sites</span> <span class="kn">import</span> <span class="n">PeriodicSite</span>
 <span class="kn">from</span> <span class="nn">pymatgen.symmetry.finder</span> <span class="kn">import</span> <span class="n">SymmetryFinder</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.zeoio</span> <span class="kn">import</span> <span class="n">get_voronoi_nodes</span><span class="p">,</span> <span class="n">get_void_volume_surfarea</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.zeoio</span> <span class="kn">import</span> <span class="n">get_voronoi_nodes</span><span class="p">,</span> <span class="n">get_void_volume_surfarea</span><span class="p">,</span> \
+        <span class="n">get_high_accuracy_voronoi_nodes</span>
 <span class="kn">from</span> <span class="nn">pymatgen.command_line.gulp_caller</span> <span class="kn">import</span> <span class="n">get_energy_buckingham</span>
 <span class="kn">from</span> <span class="nn">pymatgen.command_line.gulp_caller</span> <span class="kn">import</span> \
-    <span class="n">get_energy_relax_structure_buckingham</span>
+        <span class="n">get_energy_relax_structure_buckingham</span>
 <span class="kn">from</span> <span class="nn">pymatgen.analysis.structure_analyzer</span> <span class="kn">import</span> <span class="n">VoronoiCoordFinder</span><span class="p">,</span> \
-    <span class="n">RelaxationAnalyzer</span>
+        <span class="n">RelaxationAnalyzer</span>
 <span class="kn">from</span> <span class="nn">pymatgen.analysis.structure_matcher</span> <span class="kn">import</span> <span class="n">StructureMatcher</span>
 <span class="kn">from</span> <span class="nn">pymatgen.analysis.bond_valence</span> <span class="kn">import</span> <span class="n">BVAnalyzer</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="kn">import</span> <span class="n">Specie</span>
@@ -554,18 +555,22 @@
 <span class="sd">    Subclass of Defect to generate interstitial sites</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">valences</span><span class="p">,</span> <span class="n">radii</span><span class="p">,</span> <span class="n">site_type</span><span class="o">=</span><span class="s">&#39;voronoi_vertex&#39;</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">valences</span><span class="p">,</span> <span class="n">radii</span><span class="p">,</span> <span class="n">site_type</span><span class="o">=</span><span class="s">&#39;voronoi_vertex&#39;</span><span class="p">,</span>
+                 <span class="n">accuracy</span><span class="o">=</span><span class="s">&#39;Normal&#39;</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Given a structure, generate symmetrically distinct interstitial sites.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            structure: pymatgen.core.structure.Structure</span>
-<span class="sd">            valences: Dictionary of oxidation states of elements in {</span>
-<span class="sd">                El:valence} form</span>
+<span class="sd">            valences: Dictionary of oxidation states of elements in </span>
+<span class="sd">                      {el:valence} form</span>
 <span class="sd">            radii: Radii of elemnts in the structure</span>
-<span class="sd">            site_type: voronoi_vertex uses voronoi nodes</span>
-<span class="sd">                       voronoi_facecenter uses voronoi polyhedra face centers</span>
-<span class="sd">                       Default is voronoi_vertex</span>
+<span class="sd">            site_type: &quot;voronoi_vertex&quot; uses voronoi nodes</span>
+<span class="sd">                       &quot;voronoi_facecenter&quot; uses voronoi polyhedra face centers</span>
+<span class="sd">                       Default is &quot;voronoi_vertex&quot;</span>
+<span class="sd">            accuracy: Flag denoting whether to use high accuracy version </span>
+<span class="sd">                      of Zeo++. Options are &quot;Normal&quot; and &quot;High&quot;.</span>
+<span class="sd">                      Default is normal.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="k">try</span><span class="p">:</span>
@@ -587,8 +592,14 @@
 <span class="sd">        and the symmetry reduced voronoi nodes are possible candidates</span>
 <span class="sd">        for interstitial sites.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">accuracy</span> <span class="o">==</span> <span class="s">&quot;Normal&quot;</span><span class="p">:</span>
+            <span class="n">high_accuracy_flag</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">elif</span> <span class="n">accuracy</span> <span class="o">==</span> <span class="s">&quot;High&quot;</span><span class="p">:</span>
+            <span class="n">high_accuracy_flag</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Accuracy setting not understood.&quot;</span><span class="p">)</span>
         <span class="n">vor_node_sites</span><span class="p">,</span> <span class="n">vor_facecenter_sites</span> <span class="o">=</span> <span class="n">symmetry_reduced_voronoi_nodes</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_structure</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rad_dict</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_structure</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rad_dict</span><span class="p">,</span> <span class="n">high_accuracy_flag</span>
                 <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">site_type</span> <span class="o">==</span> <span class="s">&#39;voronoi_vertex&#39;</span><span class="p">:</span>
@@ -1304,7 +1315,8 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_coord_charge_no</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">coord_chrg</span><span class="p">)</span>
 
 </div>
-<div class="viewcode-block" id="symmetry_reduced_voronoi_nodes"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.html#pymatgen.analysis.defects.point_defects.symmetry_reduced_voronoi_nodes">[docs]</a><span class="k">def</span> <span class="nf">symmetry_reduced_voronoi_nodes</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">rad_dict</span><span class="p">):</span>
+<div class="viewcode-block" id="symmetry_reduced_voronoi_nodes"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.html#pymatgen.analysis.defects.point_defects.symmetry_reduced_voronoi_nodes">[docs]</a><span class="k">def</span> <span class="nf">symmetry_reduced_voronoi_nodes</span><span class="p">(</span>
+        <span class="n">structure</span><span class="p">,</span> <span class="n">rad_dict</span><span class="p">,</span> <span class="n">high_accuracy_flag</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Obtain symmetry reduced voronoi nodes using Zeo++ and</span>
 <span class="sd">    pymatgen.symmetry.finder.SymmetryFinder</span>
@@ -1331,28 +1343,92 @@
             <span class="n">ind</span> <span class="o">=</span> <span class="n">avg_dists</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">min_avg_dist</span><span class="p">)</span>
             <span class="n">dist_sites</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">equiv_sites</span><span class="p">[</span><span class="n">ind</span><span class="p">])</span>
 
-    <span class="n">vor_node_struct</span><span class="p">,</span> <span class="n">vor_facecenter_struct</span>  <span class="o">=</span> <span class="n">get_voronoi_nodes</span><span class="p">(</span>
-                    <span class="n">structure</span><span class="p">,</span> <span class="n">rad_dict</span><span class="p">)</span>
-    <span class="n">vor_node_symmetry_finder</span> <span class="o">=</span> <span class="n">SymmetryFinder</span><span class="p">(</span><span class="n">vor_node_struct</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mf">1e-1</span><span class="p">)</span>
-    <span class="n">vor_node_symm_struct</span> <span class="o">=</span> <span class="n">vor_node_symmetry_finder</span><span class="o">.</span><span class="n">get_symmetrized_structure</span><span class="p">()</span>
-    <span class="n">node_equiv_sites_list</span> <span class="o">=</span> <span class="n">vor_node_symm_struct</span><span class="o">.</span><span class="n">equivalent_sites</span>
+    <span class="k">def</span> <span class="nf">cmp_memoize_last_site</span><span class="p">(</span><span class="n">f</span><span class="p">):</span> <span class="c">#Compares and stores last site</span>
+        <span class="k">def</span> <span class="nf">not_duplicates</span><span class="p">(</span><span class="n">site1</span><span class="p">,</span> <span class="n">site2</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">site1</span><span class="o">.</span><span class="n">distance</span><span class="p">(</span><span class="n">site2</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-5</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">False</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">True</span>
 
-    <span class="n">node_dist_sites</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">for</span> <span class="n">equiv_sites</span> <span class="ow">in</span> <span class="n">node_equiv_sites_list</span><span class="p">:</span>
-        <span class="n">add_closest_equiv_site</span><span class="p">(</span><span class="n">node_dist_sites</span><span class="p">,</span> <span class="n">equiv_sites</span><span class="p">)</span>
+        <span class="n">cmp_memoize_last_site</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">def</span> <span class="nf">helper</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">cmp_memoize_last_site</span><span class="o">.</span><span class="n">cache</span><span class="p">:</span> 
+                <span class="n">cmp_memoize_last_site</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+                <span class="k">return</span> <span class="bp">True</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">not_duplicates</span><span class="p">(</span><span class="n">cmp_memoize_last_site</span><span class="o">.</span><span class="n">cache</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+                <span class="n">cmp_memoize_last_site</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="n">y</span>
+                <span class="k">return</span> <span class="bp">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">False</span>
+        <span class="k">return</span> <span class="n">helper</span>
 
-    <span class="n">vor_fc_symmetry_finder</span> <span class="o">=</span> <span class="n">SymmetryFinder</span><span class="p">(</span>
-                    <span class="n">vor_facecenter_struct</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mf">1e-1</span><span class="p">)</span>
-    <span class="n">vor_fc_symm_struct</span> <span class="o">=</span> <span class="n">vor_fc_symmetry_finder</span><span class="o">.</span><span class="n">get_symmetrized_structure</span><span class="p">()</span>
-    <span class="n">facecenter_equiv_sites_list</span> <span class="o">=</span> <span class="n">vor_fc_symm_struct</span><span class="o">.</span><span class="n">equivalent_sites</span>
+    <span class="nd">@cmp_memoize_last_site</span>
+    <span class="k">def</span> <span class="nf">check_not_duplicates</span><span class="p">(</span><span class="n">site</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">site</span>
 
-    <span class="n">facecenter_dist_sites</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">for</span> <span class="n">equiv_sites</span> <span class="ow">in</span> <span class="n">facecenter_equiv_sites_list</span><span class="p">:</span>
-        <span class="n">add_closest_equiv_site</span><span class="p">(</span><span class="n">facecenter_dist_sites</span><span class="p">,</span> <span class="n">equiv_sites</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">facecenter_equiv_sites_list</span><span class="p">:</span>     <span class="c"># Fix this so doesn&#39;t arise</span>
-        <span class="n">facecenter_dist_sites</span> <span class="o">=</span> <span class="n">vor_facecenter_struct</span><span class="o">.</span><span class="n">sites</span>
 
-    <span class="k">return</span> <span class="n">node_dist_sites</span><span class="p">,</span> <span class="n">facecenter_dist_sites</span></div>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">high_accuracy_flag</span><span class="p">:</span>
+        <span class="n">vor_node_struct</span><span class="p">,</span> <span class="n">vor_facecenter_struct</span>  <span class="o">=</span> <span class="n">get_voronoi_nodes</span><span class="p">(</span>
+                        <span class="n">structure</span><span class="p">,</span> <span class="n">rad_dict</span><span class="p">)</span>
+        <span class="n">vor_node_symmetry_finder</span> <span class="o">=</span> <span class="n">SymmetryFinder</span><span class="p">(</span><span class="n">vor_node_struct</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mf">1e-1</span><span class="p">)</span>
+        <span class="n">vor_node_symm_struct</span> <span class="o">=</span> <span class="n">vor_node_symmetry_finder</span><span class="o">.</span><span class="n">get_symmetrized_structure</span><span class="p">()</span>
+        <span class="n">node_equiv_sites_list</span> <span class="o">=</span> <span class="n">vor_node_symm_struct</span><span class="o">.</span><span class="n">equivalent_sites</span>
+
+        <span class="n">node_dist_sites</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">equiv_sites</span> <span class="ow">in</span> <span class="n">node_equiv_sites_list</span><span class="p">:</span>
+            <span class="n">add_closest_equiv_site</span><span class="p">(</span><span class="n">node_dist_sites</span><span class="p">,</span> <span class="n">equiv_sites</span><span class="p">)</span>
+
+        <span class="n">vor_fc_symmetry_finder</span> <span class="o">=</span> <span class="n">SymmetryFinder</span><span class="p">(</span>
+                        <span class="n">vor_facecenter_struct</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mf">1e-1</span><span class="p">)</span>
+        <span class="n">vor_fc_symm_struct</span> <span class="o">=</span> <span class="n">vor_fc_symmetry_finder</span><span class="o">.</span><span class="n">get_symmetrized_structure</span><span class="p">()</span>
+        <span class="n">facecenter_equiv_sites_list</span> <span class="o">=</span> <span class="n">vor_fc_symm_struct</span><span class="o">.</span><span class="n">equivalent_sites</span>
+
+        <span class="n">facecenter_dist_sites</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">equiv_sites</span> <span class="ow">in</span> <span class="n">facecenter_equiv_sites_list</span><span class="p">:</span>
+            <span class="n">add_closest_equiv_site</span><span class="p">(</span><span class="n">facecenter_dist_sites</span><span class="p">,</span> <span class="n">equiv_sites</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">facecenter_equiv_sites_list</span><span class="p">:</span>     <span class="c"># Fix this so doesn&#39;t arise</span>
+            <span class="n">facecenter_dist_sites</span> <span class="o">=</span> <span class="n">vor_facecenter_struct</span><span class="o">.</span><span class="n">sites</span>
+
+        <span class="k">return</span> <span class="n">node_dist_sites</span><span class="p">,</span> <span class="n">facecenter_dist_sites</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c"># Only the nodes are from high accuracy voronoi decomposition</span>
+        <span class="n">vor_node_struct</span><span class="p">,</span> <span class="n">vor_facecenter_struct</span>  <span class="o">=</span> \
+                <span class="n">get_high_accuracy_voronoi_nodes</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">rad_dict</span><span class="p">)</span>
+
+        <span class="c"># Before getting the symmetry, remove the duplicates</span>
+        <span class="n">vor_node_struct</span><span class="o">.</span><span class="n">sites</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">site</span><span class="p">:</span> <span class="n">site</span><span class="o">.</span><span class="n">voronoi_radius</span><span class="p">)</span>
+        <span class="c">#print type(vor_node_struct.sites[0])</span>
+        <span class="n">dist_sites</span> <span class="o">=</span> <span class="nb">filter</span><span class="p">(</span><span class="n">check_not_duplicates</span><span class="p">,</span> <span class="n">vor_node_struct</span><span class="o">.</span><span class="n">sites</span><span class="p">)</span>
+        <span class="c"># Increase the symmetry precision to 0.25</span>
+        <span class="n">spg</span> <span class="o">=</span> <span class="n">SymmetryFinder</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span><span class="n">symprec</span><span class="o">=</span><span class="mf">2.5e-1</span><span class="p">)</span><span class="o">.</span><span class="n">get_spacegroup</span><span class="p">()</span>
+        
+        <span class="c"># Remove symmetrically equivalent sites</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="p">(</span><span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">dist_sites</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="n">sites1</span> <span class="o">=</span> <span class="p">[</span><span class="n">dist_sites</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span>
+            <span class="n">sites2</span> <span class="o">=</span> <span class="p">[</span><span class="n">dist_sites</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]]</span>
+            <span class="k">if</span> <span class="n">spg</span><span class="o">.</span><span class="n">are_symmetrically_equivalent</span><span class="p">(</span><span class="n">sites1</span><span class="p">,</span><span class="n">sites2</span><span class="p">):</span>
+                <span class="k">del</span> <span class="n">dist_sites</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">i</span> <span class="o">=</span> <span class="n">i</span><span class="o">+</span><span class="mi">1</span>
+
+
+        <span class="n">node_dist_sites</span> <span class="o">=</span> <span class="n">dist_sites</span>
+
+        <span class="n">vor_fc_symmetry_finder</span> <span class="o">=</span> <span class="n">SymmetryFinder</span><span class="p">(</span>
+                        <span class="n">vor_facecenter_struct</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mf">1e-1</span><span class="p">)</span>
+        <span class="n">vor_fc_symm_struct</span> <span class="o">=</span> <span class="n">vor_fc_symmetry_finder</span><span class="o">.</span><span class="n">get_symmetrized_structure</span><span class="p">()</span>
+        <span class="n">facecenter_equiv_sites_list</span> <span class="o">=</span> <span class="n">vor_fc_symm_struct</span><span class="o">.</span><span class="n">equivalent_sites</span>
+
+        <span class="n">facecenter_dist_sites</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">equiv_sites</span> <span class="ow">in</span> <span class="n">facecenter_equiv_sites_list</span><span class="p">:</span>
+            <span class="n">add_closest_equiv_site</span><span class="p">(</span><span class="n">facecenter_dist_sites</span><span class="p">,</span> <span class="n">equiv_sites</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">facecenter_equiv_sites_list</span><span class="p">:</span>     <span class="c"># Fix this so doesn&#39;t arise</span>
+            <span class="n">facecenter_dist_sites</span> <span class="o">=</span> <span class="n">vor_facecenter_struct</span><span class="o">.</span><span class="n">sites</span>
+
+        <span class="k">return</span> <span class="n">node_dist_sites</span><span class="p">,</span> <span class="n">facecenter_dist_sites</span></div>
 </pre></div>
 
           </div>
@@ -1386,7 +1462,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 2.9.3 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 2.9.4 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

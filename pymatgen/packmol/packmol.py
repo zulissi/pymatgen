@@ -35,53 +35,27 @@ class PackmolRunner(object):
             return some_obj
 
 
-#    def _get_auto_boxsize(self):
-#        """
-#        TODO: Put docs here!!
-#        :param idx:
-#        :raise NotImplementedError:
-#        """
-#
-#        volume=0.0
-#        for idx,mol in enumerate(self.mols):
-#            lx,ly,lz = np.max(mol.cart_coords,0)-np.min(mol.cart_coords,0)
-##            print lx,ly,lz
-#            lx += 2.0  # assume tolerance = 2.0
-#            ly += 2.0
-#            lz += 2.0
-#            length=max(lx,ly,lz)
-#            volume += length**(3.0)*float(self.param_list[idx]['number'])
-#        length = volume**(1.0/3.0)
-##        print length
-#
-#        for idx,mol in enumerate(self.mols):
-#            self.param_list[idx]['inside box']='0.0 0.0 0.0 {} {} {}'.format(length,length,length)
-##        raise NotImplementedError('Auto box size is not implemented yet!')
-
-
     def run(self):
         """
         Runs packmol
         :return: a Molecule object
         """
 
+        # open temp files
         scratch = tempfile.gettempdir()
         with ScratchDir(scratch,copy_to_current_on_exit=True) as d:
-        #with ScratchDir(scratch) as d:
+
+            # get box size: ignore user input for now.
+            get_auto_boxsize(self.mols,self.param_list)
+
             # convert mols to pdb files
             for idx, mol in enumerate(self.mols):
                 a = BabelMolAdaptor(mol)
                 pm = pb.Molecule(a.openbabel_mol)
                 pm.write("pdb", filename=os.path.join(d, '{}.pdb'.format(idx)), overwrite=True)
 
-            # TODO: also check if user specified outside box, etc.
-            # Do not use auto mode if user specified any type of box
-
-            # ignore user input for now, always calculate box size
-            #self._get_auto_boxsize()
-
+            # write packmol input file
             with open(os.path.join(d, 'pack.inp'), 'w') as inp:
-                # create packmol control file
                 inp.write('tolerance 2.0\n')
                 inp.write('filetype pdb\n')
                 inp.write('output {}\n'.format(os.path.join(d, "box.pdb")))
@@ -89,14 +63,11 @@ class PackmolRunner(object):
                     inp.write('\n')
                     inp.write('structure {}.pdb\n'.format(os.path.join(d, str(idx))))
 
-                    #ignore box size from user input for now
-                    boxlength = get_auto_boxsize(mol,self.param_list[idx]['number'])
-                    #print boxlength
-                    self.param_list[idx]['inside box']='0.0 0.0 0.0 {} {} {}'.format(boxlength,boxlength,boxlength)
                     for k, v in self.param_list[idx].iteritems():
                         inp.write('  {} {}\n'.format(k, self._format_packmol_str(v)))
                     inp.write('end structure\n')
 
+            # run packmol
             proc = Popen(['packmol'], stdin=open(os.path.join(d, 'pack.inp'), 'r'),stdout=PIPE)
             (stdout, stderr) = proc.communicate()
 #            print stdout
@@ -106,25 +77,27 @@ class PackmolRunner(object):
             a = BabelMolAdaptor.from_file(os.path.join(d, "box.pdb"), "pdb")
             return a.pymatgen_mol
 
-def get_auto_boxsize(mol,number):
+def get_auto_boxsize(mols,param_list):
     """
-    TODO: Put docs here!!
-    :param mol:
-    :raise NotImplementedError:
+    Calculate box length
+    :param mols, param_list
+    :return box length in param_list
     """
 
-    #print number
     volume=0.0
-    lx,ly,lz = np.max(mol.cart_coords,0)-np.min(mol.cart_coords,0)
-    #print lx,ly,lz
-    lx += 2.0  # assume tolerance = 2.0
-    ly += 2.0
-    lz += 2.0
-    length=max(lx,ly,lz)
-    volume += length**(3.0)*float(number)
+    for idx,mol in enumerate(mols):
+        lx,ly,lz = np.max(mol.cart_coords,0)-np.min(mol.cart_coords,0)
+        #print lx,ly,lz
+        lx += 2.0  # assume tolerance = 2.0
+        ly += 2.0
+        lz += 2.0
+        length=max(lx,ly,lz)
+        volume += length**(3.0)*float(param_list[idx]['number'])
     length = volume**(1.0/3.0)
     #print length
-    return length
+
+    for idx,mol in enumerate(mols):
+        param_list[idx]['inside box']='0.0 0.0 0.0 {} {} {}'.format(length,length,length)
 
 
 if __name__ == '__main__':

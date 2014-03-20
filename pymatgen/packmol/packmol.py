@@ -94,11 +94,11 @@ def get_auto_boxsize(molecule, number, tolerance=2):
 
     volume = 0
     lx, ly, lz = np.max(molecule.cart_coords, 0)-np.min(molecule.cart_coords, 0)
-    length = max(lx+tolerance, ly+tolerance, lz+tolerance)
+    length = max(lx, ly, lz) + tolerance
     volume += length**3*number
     length = volume**(1/3)
 
-    return [length, length, length]
+    return [length] * 3
 
 
 if __name__ == '__main__':

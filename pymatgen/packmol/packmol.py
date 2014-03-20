@@ -48,7 +48,7 @@ class PackmolRunner(object):
             for idx, m in enumerate(self.mols):
                 use_auto_box = True
                 for key in self.param_list[idx]:
-                    if 'box' in key:
+                    if key.endswith(' box'):
                         use_auto_box = False
 
                 if use_auto_box:

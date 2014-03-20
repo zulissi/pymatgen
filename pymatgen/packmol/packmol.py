@@ -89,7 +89,7 @@ def get_auto_boxsize(molecule, number, tolerance=2):
     :param molecule - a Molecule
     :param number - number of molecules to pack (?)
     :param tolerance - tolerance for length
-    :return box length in param_list
+    :return box lengths as 3-element array
     """
 
     volume = 0

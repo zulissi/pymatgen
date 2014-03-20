@@ -47,6 +47,7 @@ class PackmolRunner(object):
 
             # get box size: ignore user input for now.
             get_auto_boxsize(self.mols,self.param_list)
+            #print self.param_list[1]['inside box'][3]
 
             # convert mols to pdb files
             for idx, mol in enumerate(self.mols):
@@ -97,7 +98,8 @@ def get_auto_boxsize(mols,param_list):
     #print length
 
     for idx,mol in enumerate(mols):
-        param_list[idx]['inside box']='0.0 0.0 0.0 {} {} {}'.format(length,length,length)
+#        param_list[idx]['inside box']=['0.0 0.0 0.0 {} {} {}'.format(length,length,length)]
+        param_list[idx]['inside box']=[0.0,0.0,0.0,length,length,length]
 
 
 if __name__ == '__main__':

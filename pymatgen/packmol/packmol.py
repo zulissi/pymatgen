@@ -52,7 +52,7 @@ class PackmolRunner(object):
                         use_auto_box = False
 
                 if use_auto_box:
-                    self.param_list[idx]['inside box'] = get_auto_boxsize(m, self.param_list[idx]['number'])
+                    self.param_list[idx]['inside box'] = [0, 0, 0] + get_auto_boxsize(m, self.param_list[idx]['number'])
 
             # convert mols to pdb files
             for idx, m in enumerate(self.mols):
@@ -98,7 +98,7 @@ def get_auto_boxsize(molecule, number, tolerance=2):
     volume += length**3*number
     length = volume**(1/3)
 
-    return [0, 0, 0, length, length, length]
+    return [length, length, length]
 
 
 if __name__ == '__main__':

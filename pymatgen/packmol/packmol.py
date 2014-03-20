@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import division
 import tempfile
 from monty.tempfile import ScratchDir
 from pymatgen import Molecule
@@ -43,15 +44,19 @@ class PackmolRunner(object):
 
         # open temp files
         scratch = tempfile.gettempdir()
-        with ScratchDir(scratch,copy_to_current_on_exit=True) as d:
+        with ScratchDir(scratch, copy_to_current_on_exit=True) as d:
+            for idx, m in enumerate(self.mols):
+                use_auto_box = True
+                for key in self.param_list[idx]:
+                    if 'box' in key:
+                        use_auto_box = False
 
-            # get box size: ignore user input for now.
-            get_auto_boxsize(self.mols,self.param_list)
-            #print self.param_list[1]['inside box'][3]
+                if use_auto_box:
+                    self.param_list[idx]['inside box'] = get_auto_boxsize(m, self.param_list[idx]['number'])
 
             # convert mols to pdb files
-            for idx, mol in enumerate(self.mols):
-                a = BabelMolAdaptor(mol)
+            for idx, m in enumerate(self.mols):
+                a = BabelMolAdaptor(m)
                 pm = pb.Molecule(a.openbabel_mol)
                 pm.write("pdb", filename=os.path.join(d, '{}.pdb'.format(idx)), overwrite=True)
 
@@ -60,7 +65,7 @@ class PackmolRunner(object):
                 inp.write('tolerance 2.0\n')
                 inp.write('filetype pdb\n')
                 inp.write('output {}\n'.format(os.path.join(d, "box.pdb")))
-                for idx, mol in enumerate(self.mols):
+                for idx, m in enumerate(self.mols):
                     inp.write('\n')
                     inp.write('structure {}.pdb\n'.format(os.path.join(d, str(idx))))
 
@@ -78,28 +83,22 @@ class PackmolRunner(object):
             a = BabelMolAdaptor.from_file(os.path.join(d, "box.pdb"), "pdb")
             return a.pymatgen_mol
 
-def get_auto_boxsize(mols,param_list):
+def get_auto_boxsize(molecule, number, tolerance=2):
     """
     Calculate box length
-    :param mols, param_list
+    :param molecule - a Molecule
+    :param number - number of molecules to pack (?)
+    :param tolerance - tolerance for length
     :return box length in param_list
     """
 
-    volume=0.0
-    for idx,mol in enumerate(mols):
-        lx,ly,lz = np.max(mol.cart_coords,0)-np.min(mol.cart_coords,0)
-        #print lx,ly,lz
-        lx += 2.0  # assume tolerance = 2.0
-        ly += 2.0
-        lz += 2.0
-        length=max(lx,ly,lz)
-        volume += length**(3.0)*float(param_list[idx]['number'])
-    length = volume**(1.0/3.0)
-    #print length
+    volume = 0
+    lx, ly, lz = np.max(molecule.cart_coords, 0)-np.min(molecule.cart_coords, 0)
+    length = max(lx+tolerance, ly+tolerance, lz+tolerance)
+    volume += length**3*number
+    length = volume**(1/3)
 
-    for idx,mol in enumerate(mols):
-#        param_list[idx]['inside box']=['0.0 0.0 0.0 {} {} {}'.format(length,length,length)]
-        param_list[idx]['inside box']=[0.0,0.0,0.0,length,length,length]
+    return [0, 0, 0, length, length, length]
 
 
 if __name__ == '__main__':
@@ -108,10 +107,8 @@ if __name__ == '__main__':
            [1.026719, 0.000000, -0.363000],
            [-0.513360, -0.889165, -0.363000],
            [-0.513360, 0.889165, -0.363000]]
-    mol = Molecule(["C", "H", "H", "H", "H"], coords) 
+    mol = Molecule(["C", "H", "H", "H", "H"], coords)
 #    pmr = PackmolRunner([mol, mol], [{"number":4,"inside box":[0.,0.,0.,40.,40.,40.]}, {"number":5, "inside box":[0.,0.,0.,40.,40.,40.]}])
     pmr = PackmolRunner([mol, mol], [{"number":4,"inside box":[0.,0.,0.,40.,40.,40.]}, {"number":5}])
     s = pmr.run()
 #    print s
-
-

@@ -10,6 +10,8 @@ from subprocess import Popen, PIPE
 import numpy as np
 
 
+PACKMOL_DEBUG = False
+
 class PackmolRunner(object):
     """
     Create MD simulation box using packmol.
@@ -44,7 +46,7 @@ class PackmolRunner(object):
 
         # open temp files
         scratch = tempfile.gettempdir()
-        with ScratchDir(scratch, copy_to_current_on_exit=True) as d:
+        with ScratchDir(scratch, copy_to_current_on_exit=PACKMOL_DEBUG) as d:
             for idx, m in enumerate(self.mols):
                 use_auto_box = True
                 for key in self.param_list[idx]:

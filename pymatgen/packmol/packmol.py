@@ -47,6 +47,15 @@ class PackmolRunner(object):
         # open temp files
         scratch = tempfile.gettempdir()
         with ScratchDir(scratch, copy_to_current_on_exit=PACKMOL_DEBUG) as d:
+        #with ScratchDir(scratch, copy_to_current_on_exit=True) as d:
+
+            # calculate box size for mixture
+            volume = 0.0
+            for idx, m in enumerate(self.mols):
+                lx,ly,lz = get_auto_boxsize(m,self.param_list[idx]['number'])
+                volume = volume + lx*ly*lz
+            boxlength = volume**(1/3)
+
             for idx, m in enumerate(self.mols):
                 use_auto_box = True
                 for key in self.param_list[idx]:
@@ -54,7 +63,9 @@ class PackmolRunner(object):
                         use_auto_box = False
 
                 if use_auto_box:
-                    self.param_list[idx]['inside box'] = [0, 0, 0] + get_auto_boxsize(m, self.param_list[idx]['number'])
+                    #self.param_list[idx]['inside box'] = [0, 0, 0] + get_auto_boxsize(m, self.param_list[idx]['number'])
+                    # use box size for mixture to make sure box is large enough
+                    self.param_list[idx]['inside box'] = [0,0,0,boxlength,boxlength,boxlength]
 
             # convert mols to pdb files
             for idx, m in enumerate(self.mols):
@@ -106,7 +117,8 @@ if __name__ == '__main__':
            [-0.513360, -0.889165, -0.363000],
            [-0.513360, 0.889165, -0.363000]]
     mol = Molecule(["C", "H", "H", "H", "H"], coords)
-#    pmr = PackmolRunner([mol, mol], [{"number":4,"inside box":[0.,0.,0.,40.,40.,40.]}, {"number":5, "inside box":[0.,0.,0.,40.,40.,40.]}])
+    #pmr = PackmolRunner([mol, mol], [{"number":4,"inside box":[0.,0.,0.,40.,40.,40.]}, {"number":5, "inside box":[0.,0.,0.,40.,40.,40.]}])
     pmr = PackmolRunner([mol, mol], [{"number":4,"inside box":[0.,0.,0.,40.,40.,40.]}, {"number":5}])
+    #pmr = PackmolRunner([mol, mol], [{"number":4},{"number":5}])
     s = pmr.run()
 #    print s

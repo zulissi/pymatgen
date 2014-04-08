@@ -51,32 +51,19 @@ from monty.tempfile import ScratchDir
 logger = logging.getLogger(__name__)
 
 
-@requires(which('multienum.x') and which('makestr.x'),
-          "EnumlibAdaptor requires the executables 'multienum.x' and "
-          "'makestr.x' to be in the path. Please download the library at"
+# Favor the use of the newer "enum.x" by Gus Hart instead of the older
+# "multienum.x"
+enum_cmd = which('enum.x') or which('multienum.x')
+
+
+@requires(enum_cmd and which('makestr.x'),
+          "EnumlibAdaptor requires the executables 'enum.x' or 'multienum.x' "
+          "and 'makestr.x' to be in the path. Please download the library at"
           "http://enum.sourceforge.net/ and follow the instructions in "
           "the README to compile these two executables accordingly.")
 class EnumlibAdaptor(object):
     """
     An adaptor for enumlib.
-
-    Args:
-        structure: An input structure.
-        min_cell_size (int): The minimum cell size wanted. Defaults to 1.
-        max_cell_size (int): The maximum cell size wanted. Defaults to 1.
-        symm_prec (float): Symmetry precision. Defaults to 0.1.
-        enum_precision_parameter (float): Finite precision parameter for
-            enumlib. Default of 0.001 is usually ok, but you might need to
-            tweak it for certain cells.
-        refine_structure (bool): If you are starting from a structure that
-            has been relaxed via some electronic structure code,
-            it is usually much better to start with symmetry determination
-            and then obtain a refined structure. The refined structure have
-            cell parameters and atomic positions shifted to the expected
-            symmetry positions, which makes it much less sensitive precision
-            issues in enumlib. If you are already starting from an
-            experimental cif, refinement should have already been done and
-            it is not necessary. Defaults to False.
 
     .. attribute:: structures
 
@@ -87,6 +74,27 @@ class EnumlibAdaptor(object):
     def __init__(self, structure, min_cell_size=1, max_cell_size=1,
                  symm_prec=0.1, enum_precision_parameter=0.001,
                  refine_structure=False):
+        """
+        Initializes the adapter with a structure and some parameters.
+
+        Args:
+            structure: An input structure.
+            min_cell_size (int): The minimum cell size wanted. Defaults to 1.
+            max_cell_size (int): The maximum cell size wanted. Defaults to 1.
+            symm_prec (float): Symmetry precision. Defaults to 0.1.
+            enum_precision_parameter (float): Finite precision parameter for
+                enumlib. Default of 0.001 is usually ok, but you might need to
+                tweak it for certain cells.
+            refine_structure (bool): If you are starting from a structure that
+                has been relaxed via some electronic structure code,
+                it is usually much better to start with symmetry determination
+                and then obtain a refined structure. The refined structure have
+                cell parameters and atomic positions shifted to the expected
+                symmetry positions, which makes it much less sensitive precision
+                issues in enumlib. If you are already starting from an
+                experimental cif, refinement should have already been done and
+                it is not necessary. Defaults to False.
+        """
         if refine_structure:
             finder = SymmetryFinder(structure, symm_prec)
             self.structure = finder.get_refined_structure()
@@ -254,7 +262,7 @@ class EnumlibAdaptor(object):
             f.write("\n".join(output))
 
     def _run_multienum(self):
-        p = subprocess.Popen(["multienum.x"],
+        p = subprocess.Popen([enum_cmd],
                              stdout=subprocess.PIPE,
                              stdin=subprocess.PIPE, close_fds=True)
         output = p.communicate()[0]

@@ -2,9 +2,10 @@
 
 import re
 import numpy as np
+from pymatgen.serializers.json_coders import MSONable
 
 
-class LammpsLog:
+class LammpsLog(MSONable):
     """
     Parser for LAMMPS log file (parse function).
     Saves the output properties (log file) in the form of a dictionary (LOG) with the key being
@@ -90,14 +91,24 @@ class LammpsLog:
         """
         print the list of properties
         """
-        print log.LOG.keys()
+        #print log.LOG.keys()
 
+    @property
+    def to_dict(self):
+        return {{"@module": self.__class__.__module__,
+                "@class": self.__class__.__name__} + self.LOG}
+
+
+    @classmethod
+    def from_dict(cls, d):
+        return LammpsLog(
+        )
 
 if __name__ == '__main__':
     filename = 'log.test'
     log = LammpsLog(filename)
     log.parselog()
-    print log.LOG.keys()
+    #print log.LOG.keys()
     log.list_properties()
     #print np.mean(log.LOG['step'])
     #print log.ave['step']

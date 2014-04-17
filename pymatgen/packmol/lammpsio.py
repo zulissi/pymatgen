@@ -101,14 +101,15 @@ class LammpsLog(MSONable):
 
     @classmethod
     def from_dict(cls, d):
-        return LammpsLog(
-        )
+        return LammpsLog(**d)
+
 
 if __name__ == '__main__':
     filename = 'log.test'
     log = LammpsLog(filename)
     log.parselog()
     #print log.LOG.keys()
+    #print log.LOG
     log.list_properties()
     #print np.mean(log.LOG['step'])
     #print log.ave['step']

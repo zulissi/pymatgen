@@ -37,26 +37,26 @@ if __name__=='__main__':
     
   
     if 'viscosity' in l.properties:
-        a1=l.LOG['pxy']
-        a2=l.LOG['pxz']
-        a3=l.LOG['pyz']
-        a4=l.LOG['pxx']-l.LOG['pyy']
-        a5=l.LOG['pyy']-l.LOG['pzz']
-        a6=l.LOG['pxx']-l.LOG['pzz']
+        a1=l.log['pxy']
+        a2=l.log['pxz']
+        a3=l.log['pyz']
+        a4=l.log['pxx']-l.log['pyy']
+        a5=l.log['pyy']-l.log['pzz']
+        a6=l.log['pxx']-l.log['pzz']
         array_array=[a1,a2,a3,a4,a5,a6]
         pv=p.map(autocorrelate,array_array)
         pcorr = (pv[0]+pv[1]+pv[2])/6+(pv[3]+pv[4]+pv[5])/24
         
         
-        visco = (scipy.integrate.cumtrapz(pcorr,l.LOG['step'][:len(pcorr)]))*l.timestep*10**-15*1000*101325.**2*l.LOG['vol'][-1]*10**-30/(1.38*10**-23*l.temp)  
-        plt.plot(np.array(l.LOG['step'][:len(pcorr)-1])*l.timestep,visco)
+        visco = (scipy.integrate.cumtrapz(pcorr,l.log['step'][:len(pcorr)]))*l.timestep*10**-15*1000*101325.**2*l.log['vol'][-1]*10**-30/(1.38*10**-23*l.temp)
+        plt.plot(np.array(l.log['step'][:len(pcorr)-1])*l.timestep,visco)
         plt.xlabel('Time (femtoseconds)')
         plt.ylabel('Viscosity (cp)')
         plt.savefig('viscosity_parallel.png')
     
         output=open('viscosity_parallel.txt','w')
         output.write('#Time (fs), Average Pressure Correlation (atm^2), Viscosity (cp)\n')
-        for line in zip(np.array(l.LOG['step'][:len(pcorr)-1])*l.timestep-l.cutoff,pcorr,visco):
+        for line in zip(np.array(l.log['step'][:len(pcorr)-1])*l.timestep-l.cutoff,pcorr,visco):
           output.write(' '.join(str(x) for x in line)+'\n')
         output.close()
         print 'Viscosity Calculation Comlete!'

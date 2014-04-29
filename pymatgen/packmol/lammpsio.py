@@ -2,9 +2,10 @@
 
 import re
 import numpy as np
+from pymatgen.serializers.json_coders import MSONable
 
 
-class LammpsLog:
+class LammpsLog(MSONable):
     """
     Parser for LAMMPS log file (parse function).
     Saves the output properties (log file) in the form of a dictionary (LOG) with the key being
@@ -20,6 +21,7 @@ class LammpsLog:
         
         self.filename=filename
         self.LOG={} # Dictionary LOG has all the output property data as numpy 1D arrays with the property name as the key
+        self.ave={}
         self.header=0
         self.footer_blank_line=0   # blank lines in footer
 #    @staticmethod
@@ -74,18 +76,43 @@ class LammpsLog:
 
         
         rawdata=np.genfromtxt(fname=self.filename, dtype=float, skip_header=int(self.header), skip_footer=int(self.total_lines-(self.header + self.md_step/self.log_save_freq + 1) - self.footer_blank_line))
-        print rawdata
+        #print rawdata
         
         for column, property in enumerate (data_format):
-            self.LOG[property]= rawdata[:,column]        
-        
+            self.LOG[property]= rawdata[:,column]
+
+        # calculate the average
+        for key in self.LOG.keys():
+            #print key
+            #print self.LOG[key]
+            self.ave[str(key)] = np.mean(self.LOG[key])
+
+    def list_properties(self):
+        """
+        print the list of properties
+        """
+        #print log.LOG.keys()
+
+    @property
+    def to_dict(self):
+        return {{"@module": self.__class__.__module__,
+                "@class": self.__class__.__name__} + self.LOG}
+
+
+    @classmethod
+    def from_dict(cls, d):
+        return LammpsLog(**d)
 
 
 if __name__ == '__main__':
     filename = 'log.test'
     log = LammpsLog(filename)
     log.parselog()
+    #print log.LOG.keys()
     #print log.LOG
+    log.list_properties()
+    #print np.mean(log.LOG['step'])
+    #print log.ave['step']
                     
         
         

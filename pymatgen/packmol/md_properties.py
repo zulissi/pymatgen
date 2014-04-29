@@ -11,6 +11,8 @@ import numpy as np
 import scipy.integrate
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
+from pymatgen.packmol.lammpsio import LammpsLog
+
 
 def autocorrelate (a):
     b=np.concatenate((a,np.zeros(len(a))),axis=1)
@@ -28,8 +30,7 @@ if __name__=='__main__':
     
     logfilename=sys.argv[1]
     properties=sys.argv[2:]
-    l=lammpsio.LammpsLog(logfilename, *properties)
-    l.parselog()
+    l=LammpsLog.from_file(logfilename)
     wline=l.wline
     print 'Done reading the log file. Starting Calculations...'
     NCORES=8
@@ -37,26 +38,26 @@ if __name__=='__main__':
     
   
     if 'viscosity' in l.properties:
-        a1=l.log['pxy']
-        a2=l.log['pxz']
-        a3=l.log['pyz']
-        a4=l.log['pxx']-l.log['pyy']
-        a5=l.log['pyy']-l.log['pzz']
-        a6=l.log['pxx']-l.log['pzz']
+        a1=l.llog['pxy']
+        a2=l.llog['pxz']
+        a3=l.llog['pyz']
+        a4=l.llog['pxx']-l.llog['pyy']
+        a5=l.llog['pyy']-l.llog['pzz']
+        a6=l.llog['pxx']-l.llog['pzz']
         array_array=[a1,a2,a3,a4,a5,a6]
         pv=p.map(autocorrelate,array_array)
         pcorr = (pv[0]+pv[1]+pv[2])/6+(pv[3]+pv[4]+pv[5])/24
         
         
-        visco = (scipy.integrate.cumtrapz(pcorr,l.log['step'][:len(pcorr)]))*l.timestep*10**-15*1000*101325.**2*l.log['vol'][-1]*10**-30/(1.38*10**-23*l.temp)
-        plt.plot(np.array(l.log['step'][:len(pcorr)-1])*l.timestep,visco)
+        visco = (scipy.integrate.cumtrapz(pcorr,l.llog['step'][:len(pcorr)]))*l.timestep*10**-15*1000*101325.**2*l.llog['vol'][-1]*10**-30/(1.38*10**-23*l.temp)
+        plt.plot(np.array(l.llog['step'][:len(pcorr)-1])*l.timestep,visco)
         plt.xlabel('Time (femtoseconds)')
         plt.ylabel('Viscosity (cp)')
         plt.savefig('viscosity_parallel.png')
     
         output=open('viscosity_parallel.txt','w')
         output.write('#Time (fs), Average Pressure Correlation (atm^2), Viscosity (cp)\n')
-        for line in zip(np.array(l.log['step'][:len(pcorr)-1])*l.timestep-l.cutoff,pcorr,visco):
+        for line in zip(np.array(l.llog['step'][:len(pcorr)-1])*l.timestep-l.cutoff,pcorr,visco):
           output.write(' '.join(str(x) for x in line)+'\n')
         output.close()
         print 'Viscosity Calculation Comlete!'

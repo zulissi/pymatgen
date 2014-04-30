@@ -118,7 +118,8 @@ if __name__ == '__main__':
            [-0.513360, 0.889165, -0.363000]]
     mol = Molecule(["C", "H", "H", "H", "H"], coords)
     #pmr = PackmolRunner([mol, mol], [{"number":4,"inside box":[0.,0.,0.,40.,40.,40.]}, {"number":5, "inside box":[0.,0.,0.,40.,40.,40.]}])
-    pmr = PackmolRunner([mol, mol], [{"number":4,"inside box":[0.,0.,0.,40.,40.,40.]}, {"number":5}])
+    #pmr = PackmolRunner([mol, mol], [{"number":4,"inside box":[0.,0.,0.,40.,40.,40.]}, {"number":5}])
+    pmr = PackmolRunner([mol, mol, mol], [{"number":4,"inside box":[0.,0.,0.,40.,40.,40.]}, {"number":5},{"number":6}])
     #pmr = PackmolRunner([mol, mol], [{"number":4},{"number":5}])
     s = pmr.run()
-#    print s
+    print s

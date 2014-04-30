@@ -111,7 +111,7 @@ if __name__ == '__main__':
     filename = 'log.test'
     log = LammpsLog.from_file(filename)
     #print log.LOG.keys()
-    #print log.LOG
+    #print log.llog
     log.list_properties()
     #print np.mean(log.LOG['step'])
     #print log.ave['step']

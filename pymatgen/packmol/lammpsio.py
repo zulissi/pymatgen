@@ -21,17 +21,24 @@ class LammpsLog(MSONable):
     For example, LOG['temp'] will return the temperature data array in the log file.
     """
 
-    def __init__(self, llog, ave):
+    def __init__(self, llog, avgs=None):
         """
         Args:
             llog:
                 Dictionary of lamps log
-            ave:
-                Dictionary of averages
+            avgs:
+                Dictionary of averages, will be generated automatically if unspecified
         """
 
         self.llog = llog  # Dictionary LOG has all the output property data as numpy 1D arrays with the property name as the key
-        self.ave = ave  # Dictionary of averages (AJ asks: What is this???)
+
+        if avgs:
+            self.avgs = avgs  # Dictionary of averages for storage / query
+        else:
+            self.avgs = {}
+            # calculate the average
+            for key in self.llog.keys():
+                self.avgs[str(key)] = np.mean(self.llog[key])
 
     @classmethod
     def from_file(cls, filename):
@@ -42,7 +49,6 @@ class LammpsLog(MSONable):
         header = 0
         footer_blank_line = 0
         llog = {}
-        ave = {}
 
         with open(filename, 'r') as logfile:
             total_lines = len(logfile.readlines())
@@ -71,7 +77,7 @@ class LammpsLog(MSONable):
 
                 header += 1
 
-            # TODO: review this code. AJ thinks footer_blank_line will not work??
+            # note: we are starting from the "break" above
             for line in logfile:
                 if line == '\n':
                     footer_blank_line += 1
@@ -83,11 +89,7 @@ class LammpsLog(MSONable):
             for column, property in enumerate(data_format):
                 llog[property] = rawdata[:, column]
 
-            # calculate the average
-            for key in llog.keys():
-                ave[str(key)] = np.mean(llog[key])
-
-            return LammpsLog(llog, ave)
+            return LammpsLog(llog)
 
     def list_properties(self):
         """
@@ -100,11 +102,11 @@ class LammpsLog(MSONable):
         return {"@module": self.__class__.__module__,
                 "@class": self.__class__.__name__,
                 "llog": self.llog,
-                "ave": self.ave}
+                "avgs": self.avgs}
 
     @classmethod
     def from_dict(cls, d):
-        return LammpsLog(d['llog'], d['ave'])
+        return LammpsLog(d['llog'], d['avgs'])
 
 
 if __name__ == '__main__':

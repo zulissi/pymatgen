@@ -77,7 +77,7 @@ class LammpsLog(MSONable):
 
                 header += 1
 
-            # TODO: review this code. AJ thinks footer_blank_line will not work??
+            # note: we are starting from the "break" above
             for line in logfile:
                 if line == '\n':
                     footer_blank_line += 1

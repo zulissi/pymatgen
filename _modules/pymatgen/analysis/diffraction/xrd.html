@@ -72,7 +72,7 @@
 <span class="n">__date__</span> <span class="o">=</span> <span class="s">&quot;5/22/14&quot;</span>
 
 
-<span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">sin</span><span class="p">,</span> <span class="n">cos</span><span class="p">,</span> <span class="n">asin</span><span class="p">,</span> <span class="n">pi</span>
+<span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">sin</span><span class="p">,</span> <span class="n">cos</span><span class="p">,</span> <span class="n">asin</span><span class="p">,</span> <span class="n">pi</span><span class="p">,</span> <span class="n">degrees</span>
 <span class="kn">import</span> <span class="nn">os</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
@@ -106,7 +106,7 @@
 <span class="p">}</span>
 
 <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span>
-                       <span class="s">&quot;atomic_scattering_factors.json&quot;</span><span class="p">))</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                       <span class="s">&quot;atomic_scattering_params.json&quot;</span><span class="p">))</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
     <span class="n">ATOMIC_SCATTERING_PARAMS</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
 
 
@@ -165,22 +165,39 @@
     <span class="c">#Tuple of available radiation keywords.</span>
     <span class="n">AVAILABLE_RADIATION</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">WAVELENGTHS</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">radiation</span><span class="o">=</span><span class="s">&quot;CuKa&quot;</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="c">#Tolerance in which to treat two peaks as having the same two theta.</span>
+    <span class="n">TWO_THETA_TOL</span> <span class="o">=</span> <span class="mf">1e-5</span>
+
+    <span class="c"># Tolerance in which to treat a peak as effectively 0 if the scaled</span>
+    <span class="c"># intensity is less than this number. Since the max intensity is 100,</span>
+    <span class="c"># this means the peak must be less than 1e-5 of the peak intensity to be</span>
+    <span class="c"># considered as zero. This deals with numerical issues where systematic</span>
+    <span class="c"># absences do not cancel exactly to zero.</span>
+    <span class="n">SCALED_INTENSITY_TOL</span> <span class="o">=</span> <span class="mf">1e-3</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wavelength</span><span class="o">=</span><span class="s">&quot;CuKa&quot;</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initializes the XRD calculator with a given radiation.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            radiation: The type of radiation. Choose from any of those</span>
-<span class="sd">                available in the AVAILABLE_RADIATION class variable. Defaults</span>
-<span class="sd">                to CuKa, i.e, Cu K_alpha radiation.</span>
+<span class="sd">            wavelength (str/float): The wavelength can be specified as either a</span>
+<span class="sd">                float or a string. If it is a string, it must be one of the</span>
+<span class="sd">                supported definitions in the AVAILABLE_RADIATION class</span>
+<span class="sd">                variable, which provides useful commonly used wavelengths.</span>
+<span class="sd">                If it is a float, it is interpreted as a wavelength in</span>
+<span class="sd">                angstroms.</span>
+<span class="sd">                Defaults to &quot;CuKa&quot;, i.e, Cu K_alpha radiation.</span>
 <span class="sd">            symprec:</span>
 <span class="sd">                Symmetry precision for structure refinement. If set to 0,</span>
 <span class="sd">                no refinement is done. Otherwise, refinement is performed</span>
 <span class="sd">                using spglib with provided precision.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">radiation</span> <span class="o">=</span> <span class="n">radiation</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span> <span class="o">=</span> <span class="n">WAVELENGTHS</span><span class="p">[</span><span class="n">radiation</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">wavelength</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span> <span class="o">=</span> <span class="n">wavelength</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">radiation</span> <span class="o">=</span> <span class="n">wavelength</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span> <span class="o">=</span> <span class="n">WAVELENGTHS</span><span class="p">[</span><span class="n">wavelength</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">symprec</span> <span class="o">=</span> <span class="n">symprec</span>
 
 <div class="viewcode-block" id="XRDCalculator.get_xrd_data"><a class="viewcode-back" href="../../../../pymatgen.analysis.diffraction.html#pymatgen.analysis.diffraction.xrd.XRDCalculator.get_xrd_data">[docs]</a>    <span class="k">def</span> <span class="nf">get_xrd_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">):</span>
@@ -191,7 +208,11 @@
 <span class="sd">            structure: Input structure</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            {XRD data} in the form of [[two_theta, scaled_intensity, [h, k, l]]]</span>
+<span class="sd">            (XRD pattern) in the form of</span>
+<span class="sd">            [[two_theta, scaled_intensity, [h, k, l]], ...]</span>
+<span class="sd">            Two_theta is in degrees. Scaled intensity has a maximum value of</span>
+<span class="sd">            100 for the highest peak. [h, k, l] refers the Miller indices for</span>
+<span class="sd">            the diffracted lattice plane.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">symprec</span><span class="p">:</span>
             <span class="n">finder</span> <span class="o">=</span> <span class="n">SymmetryFinder</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">symprec</span><span class="p">)</span>
@@ -236,15 +257,16 @@
                 <span class="c"># Bragg condition</span>
                 <span class="n">theta</span> <span class="o">=</span> <span class="n">asin</span><span class="p">(</span><span class="n">wavelength</span> <span class="o">*</span> <span class="n">g_hkl</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
 
-                <span class="c"># s = sin(theta) / wavelength = |ghkl| / 2 (d = 1/|ghkl|)</span>
+                <span class="c"># s = sin(theta) / wavelength = 1 / 2d = |ghkl| / 2 (d =</span>
+                <span class="c"># 1/|ghkl|)</span>
                 <span class="n">s</span> <span class="o">=</span> <span class="n">g_hkl</span> <span class="o">/</span> <span class="mi">2</span>
 
-                <span class="c">#Store s squared since we are using it a few times.</span>
+                <span class="c">#Store s^2 since we are using it a few times.</span>
                 <span class="n">s2</span> <span class="o">=</span> <span class="n">s</span> <span class="o">**</span> <span class="mi">2</span>
 
                 <span class="c"># Vectorized computation of g.r for all fractional coords and</span>
                 <span class="c"># hkl.</span>
-                <span class="n">grs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">fcoords</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">([</span><span class="n">hkl</span><span class="p">]))</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">g_dot_r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">fcoords</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">([</span><span class="n">hkl</span><span class="p">]))</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
                 <span class="c"># Highly vectorized computation of atomic scattering factors.</span>
                 <span class="c"># Equivalent non-vectorized code is::</span>
@@ -260,7 +282,7 @@
                 <span class="c"># Structure factor = sum of atomic scattering factors (with</span>
                 <span class="c"># position factor exp(2j * pi * g.r and occupancies).</span>
                 <span class="c"># Vectorized computation.</span>
-                <span class="n">f_hkl</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">fs</span> <span class="o">*</span> <span class="n">occus</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">2j</span> <span class="o">*</span> <span class="n">pi</span> <span class="o">*</span> <span class="n">grs</span><span class="p">))</span>
+                <span class="n">f_hkl</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">fs</span> <span class="o">*</span> <span class="n">occus</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">2j</span> <span class="o">*</span> <span class="n">pi</span> <span class="o">*</span> <span class="n">g_dot_r</span><span class="p">))</span>
 
                 <span class="c"># Intensity for hkl is modulus square of structure factor.</span>
                 <span class="n">i_hkl</span> <span class="o">=</span> <span class="p">(</span><span class="n">f_hkl</span> <span class="o">*</span> <span class="n">f_hkl</span><span class="o">.</span><span class="n">conjugate</span><span class="p">())</span><span class="o">.</span><span class="n">real</span>
@@ -269,11 +291,11 @@
                 <span class="n">lorentz_factor</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">cos</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">theta</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> \
                     <span class="p">(</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">))</span>
 
-                <span class="n">two_theta</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">theta</span> <span class="o">/</span> <span class="n">pi</span> <span class="o">*</span> <span class="mi">180</span>
+                <span class="n">two_theta</span> <span class="o">=</span> <span class="n">degrees</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">theta</span><span class="p">)</span>
 
                 <span class="c">#Deal with floating point precision issues.</span>
                 <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">subtract</span><span class="p">(</span><span class="n">two_thetas</span><span class="p">,</span> <span class="n">two_theta</span><span class="p">))</span> <span class="o">&lt;</span>
-                               <span class="mf">1e-5</span><span class="p">)</span>
+                               <span class="n">XRDCalculator</span><span class="o">.</span><span class="n">TWO_THETA_TOL</span><span class="p">)</span>
                 <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                     <span class="n">intensities</span><span class="p">[</span><span class="n">two_thetas</span><span class="p">[</span><span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">]]][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="n">i_hkl</span> <span class="o">*</span> <span class="n">lorentz_factor</span>
                 <span class="k">else</span><span class="p">:</span>
@@ -287,7 +309,7 @@
         <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">intensities</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
             <span class="n">v</span> <span class="o">=</span> <span class="n">intensities</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
             <span class="n">scaled_intensity</span> <span class="o">=</span> <span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">max_intensity</span> <span class="o">*</span> <span class="mi">100</span>
-            <span class="k">if</span> <span class="n">scaled_intensity</span> <span class="o">&gt;</span> <span class="mf">1e-3</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">scaled_intensity</span> <span class="o">&gt;</span> <span class="n">XRDCalculator</span><span class="o">.</span><span class="n">SCALED_INTENSITY_TOL</span><span class="p">:</span>
                 <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">k</span><span class="p">,</span> <span class="n">scaled_intensity</span><span class="p">,</span> <span class="n">v</span><span class="p">[</span><span class="mi">1</span><span class="p">]])</span>
         <span class="k">return</span> <span class="n">data</span>
 </div>
@@ -317,6 +339,10 @@
                 <span class="k">if</span> <span class="n">annotate_peaks</span><span class="p">:</span>
                     <span class="n">plt</span><span class="o">.</span><span class="n">annotate</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">hkl</span><span class="p">),</span> <span class="n">xy</span><span class="o">=</span><span class="p">[</span><span class="n">two_theta</span><span class="p">,</span> <span class="n">i</span><span class="p">],</span>
                                  <span class="n">xytext</span><span class="o">=</span><span class="p">[</span><span class="n">two_theta</span><span class="p">,</span> <span class="n">i</span><span class="p">],</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s">r&quot;2\theta (degrees)&quot;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s">&quot;Intensities (scaled)&quot;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+
         <span class="k">return</span> <span class="n">plt</span>
 </div>
 <div class="viewcode-block" id="XRDCalculator.show_xrd_plot"><a class="viewcode-back" href="../../../../pymatgen.analysis.diffraction.html#pymatgen.analysis.diffraction.xrd.XRDCalculator.show_xrd_plot">[docs]</a>    <span class="k">def</span> <span class="nf">show_xrd_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">two_theta_range</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">90</span><span class="p">),</span>

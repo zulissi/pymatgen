@@ -80,7 +80,6 @@
 
 <span class="kn">from</span> <span class="nn">pymatgen.symmetry.finder</span> <span class="kn">import</span> <span class="n">SymmetryFinder</span>
 
-
 <span class="c">#XRD wavelengths in angstroms</span>
 <span class="n">WAVELENGTHS</span> <span class="o">=</span> <span class="p">{</span>
     <span class="s">&quot;CuKa&quot;</span><span class="p">:</span> <span class="mf">1.54184</span><span class="p">,</span>
@@ -200,19 +199,24 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span> <span class="o">=</span> <span class="n">WAVELENGTHS</span><span class="p">[</span><span class="n">wavelength</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">symprec</span> <span class="o">=</span> <span class="n">symprec</span>
 
-<div class="viewcode-block" id="XRDCalculator.get_xrd_data"><a class="viewcode-back" href="../../../../pymatgen.analysis.diffraction.html#pymatgen.analysis.diffraction.xrd.XRDCalculator.get_xrd_data">[docs]</a>    <span class="k">def</span> <span class="nf">get_xrd_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">):</span>
+<div class="viewcode-block" id="XRDCalculator.get_xrd_data"><a class="viewcode-back" href="../../../../pymatgen.analysis.diffraction.html#pymatgen.analysis.diffraction.xrd.XRDCalculator.get_xrd_data">[docs]</a>    <span class="k">def</span> <span class="nf">get_xrd_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">scaled</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Calculates the XRD data for a structure.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            structure: Input structure</span>
+<span class="sd">            structure (Structure): Input structure</span>
+<span class="sd">            scaled (bool): Whether to return scaled intensities. The maximum</span>
+<span class="sd">                peak is set to a value of 100. Defaults to True. Use False if</span>
+<span class="sd">                you need the absolute values to combine XRD plots.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            (XRD pattern) in the form of</span>
-<span class="sd">            [[two_theta, scaled_intensity, [h, k, l]], ...]</span>
-<span class="sd">            Two_theta is in degrees. Scaled intensity has a maximum value of</span>
-<span class="sd">            100 for the highest peak. [h, k, l] refers the Miller indices for</span>
-<span class="sd">            the diffracted lattice plane.</span>
+<span class="sd">            [[two_theta, intensity, {(h, k, l): mult}], ...]</span>
+<span class="sd">            Two_theta is in degrees. Intensity is in arbitrary units and if</span>
+<span class="sd">            scaled (the default), has a maximum value of 100 for the highest</span>
+<span class="sd">            peak. {(h, k, l): mult} is a dict of Miller indices for all</span>
+<span class="sd">            diffracted lattice planes contributing to that intensity and</span>
+<span class="sd">            their multiplicities.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">symprec</span><span class="p">:</span>
             <span class="n">finder</span> <span class="o">=</span> <span class="n">SymmetryFinder</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">symprec</span><span class="p">)</span>
@@ -220,15 +224,13 @@
 
         <span class="n">wavelength</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span>
         <span class="n">latt</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">lattice</span>
+        <span class="n">is_hex</span> <span class="o">=</span> <span class="n">latt</span><span class="o">.</span><span class="n">is_hexagonal</span><span class="p">()</span>
 
         <span class="c"># Obtain crystallographic reciprocal lattice and points within</span>
         <span class="c"># limiting sphere (within 2/wavelength)</span>
         <span class="n">recip_latt</span> <span class="o">=</span> <span class="n">latt</span><span class="o">.</span><span class="n">reciprocal_lattice_crystallographic</span>
         <span class="n">recip_pts</span> <span class="o">=</span> <span class="n">recip_latt</span><span class="o">.</span><span class="n">get_points_in_sphere</span><span class="p">(</span>
             <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">wavelength</span><span class="p">)</span>
-
-        <span class="n">intensities</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="n">two_thetas</span> <span class="o">=</span> <span class="p">[]</span>
 
         <span class="c"># Create a flattened array of zs, coeffs, fcoords and occus. This is</span>
         <span class="c"># used to perform vectorized computation of atomic scattering factors</span>
@@ -239,6 +241,7 @@
         <span class="n">coeffs</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">fcoords</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">occus</span> <span class="o">=</span> <span class="p">[]</span>
+
         <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">structure</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">sp</span><span class="p">,</span> <span class="n">occu</span> <span class="ow">in</span> <span class="n">site</span><span class="o">.</span><span class="n">species_and_occu</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                 <span class="n">zs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">Z</span><span class="p">)</span>
@@ -251,9 +254,13 @@
         <span class="n">fcoords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fcoords</span><span class="p">)</span>
         <span class="n">occus</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">occus</span><span class="p">)</span>
 
+        <span class="n">peaks</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">two_thetas</span> <span class="o">=</span> <span class="p">[]</span>
+
         <span class="k">for</span> <span class="n">hkl</span><span class="p">,</span> <span class="n">g_hkl</span><span class="p">,</span> <span class="n">ind</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span>
-                <span class="n">recip_pts</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">i</span><span class="p">:</span> <span class="p">(</span><span class="n">i</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="o">-</span><span class="n">i</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">],</span> <span class="o">-</span><span class="n">i</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="o">-</span><span class="n">i</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])):</span>
+                <span class="n">recip_pts</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">i</span><span class="p">:</span> <span class="p">(</span><span class="n">i</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="o">-</span><span class="n">i</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="n">i</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="o">-</span><span class="n">i</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">])):</span>
             <span class="k">if</span> <span class="n">g_hkl</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+
                 <span class="c"># Bragg condition</span>
                 <span class="n">theta</span> <span class="o">=</span> <span class="n">asin</span><span class="p">(</span><span class="n">wavelength</span> <span class="o">*</span> <span class="n">g_hkl</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
 
@@ -293,24 +300,28 @@
 
                 <span class="n">two_theta</span> <span class="o">=</span> <span class="n">degrees</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">theta</span><span class="p">)</span>
 
+                <span class="k">if</span> <span class="n">is_hex</span><span class="p">:</span>
+                    <span class="c">#Use Miller-Bravais indices for hexagonal lattices.</span>
+                    <span class="n">hkl</span> <span class="o">=</span> <span class="p">(</span><span class="n">hkl</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">hkl</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="o">-</span> <span class="n">hkl</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">hkl</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">hkl</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
                 <span class="c">#Deal with floating point precision issues.</span>
                 <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">subtract</span><span class="p">(</span><span class="n">two_thetas</span><span class="p">,</span> <span class="n">two_theta</span><span class="p">))</span> <span class="o">&lt;</span>
                                <span class="n">XRDCalculator</span><span class="o">.</span><span class="n">TWO_THETA_TOL</span><span class="p">)</span>
                 <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                    <span class="n">intensities</span><span class="p">[</span><span class="n">two_thetas</span><span class="p">[</span><span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">]]][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="n">i_hkl</span> <span class="o">*</span> <span class="n">lorentz_factor</span>
+                    <span class="n">peaks</span><span class="p">[</span><span class="n">two_thetas</span><span class="p">[</span><span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">]]][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="n">i_hkl</span> <span class="o">*</span> <span class="n">lorentz_factor</span>
+                    <span class="n">peaks</span><span class="p">[</span><span class="n">two_thetas</span><span class="p">[</span><span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">]]][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">hkl</span><span class="p">))</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="n">intensities</span><span class="p">[</span><span class="n">two_theta</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">i_hkl</span> <span class="o">*</span> <span class="n">lorentz_factor</span><span class="p">,</span>
-                                              <span class="nb">tuple</span><span class="p">(</span><span class="n">hkl</span><span class="p">)]</span>
+                    <span class="n">peaks</span><span class="p">[</span><span class="n">two_theta</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">i_hkl</span> <span class="o">*</span> <span class="n">lorentz_factor</span><span class="p">,</span> <span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">hkl</span><span class="p">)]]</span>
                     <span class="n">two_thetas</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">two_theta</span><span class="p">)</span>
 
         <span class="c"># Scale intensities so that the max intensity is 100.</span>
-        <span class="n">max_intensity</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">intensities</span><span class="o">.</span><span class="n">values</span><span class="p">()])</span>
+        <span class="n">max_intensity</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">peaks</span><span class="o">.</span><span class="n">values</span><span class="p">()])</span>
         <span class="n">data</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">intensities</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
-            <span class="n">v</span> <span class="o">=</span> <span class="n">intensities</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
-            <span class="n">scaled_intensity</span> <span class="o">=</span> <span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">max_intensity</span> <span class="o">*</span> <span class="mi">100</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">peaks</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">peaks</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+            <span class="n">scaled_intensity</span> <span class="o">=</span> <span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">max_intensity</span> <span class="o">*</span> <span class="mi">100</span> <span class="k">if</span> <span class="n">scaled</span> <span class="k">else</span> <span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">fam</span> <span class="o">=</span> <span class="n">get_unique_families</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
             <span class="k">if</span> <span class="n">scaled_intensity</span> <span class="o">&gt;</span> <span class="n">XRDCalculator</span><span class="o">.</span><span class="n">SCALED_INTENSITY_TOL</span><span class="p">:</span>
-                <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">k</span><span class="p">,</span> <span class="n">scaled_intensity</span><span class="p">,</span> <span class="n">v</span><span class="p">[</span><span class="mi">1</span><span class="p">]])</span>
+                <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">k</span><span class="p">,</span> <span class="n">scaled_intensity</span><span class="p">,</span> <span class="n">fam</span><span class="p">])</span>
         <span class="k">return</span> <span class="n">data</span>
 </div>
 <div class="viewcode-block" id="XRDCalculator.get_xrd_plot"><a class="viewcode-back" href="../../../../pymatgen.analysis.diffraction.html#pymatgen.analysis.diffraction.xrd.XRDCalculator.get_xrd_plot">[docs]</a>    <span class="k">def</span> <span class="nf">get_xrd_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">two_theta_range</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">90</span><span class="p">),</span>
@@ -332,12 +343,13 @@
         <span class="n">plt</span> <span class="o">=</span> <span class="n">get_publication_quality_plot</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
         <span class="n">two_theta_range</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s">&quot;inf&quot;</span><span class="p">)]</span> <span class="k">if</span> <span class="n">two_theta_range</span> <span class="ow">is</span> <span class="bp">None</span> \
             <span class="k">else</span> <span class="n">two_theta_range</span>
-        <span class="k">for</span> <span class="n">two_theta</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">hkl</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_xrd_data</span><span class="p">(</span><span class="n">structure</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">two_theta</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">hkls</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_xrd_data</span><span class="p">(</span><span class="n">structure</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">two_theta_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">two_theta</span> <span class="o">&lt;=</span> <span class="n">two_theta_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="n">label</span> <span class="o">=</span> <span class="s">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">hkl</span><span class="p">)</span> <span class="k">for</span> <span class="n">hkl</span> <span class="ow">in</span> <span class="n">hkls</span><span class="o">.</span><span class="n">keys</span><span class="p">()])</span>
                 <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="n">two_theta</span><span class="p">,</span> <span class="n">two_theta</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">i</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="s">&#39;k&#39;</span><span class="p">,</span>
-                         <span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">hkl</span><span class="p">))</span>
+                         <span class="n">linewidth</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">annotate_peaks</span><span class="p">:</span>
-                    <span class="n">plt</span><span class="o">.</span><span class="n">annotate</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">hkl</span><span class="p">),</span> <span class="n">xy</span><span class="o">=</span><span class="p">[</span><span class="n">two_theta</span><span class="p">,</span> <span class="n">i</span><span class="p">],</span>
+                    <span class="n">plt</span><span class="o">.</span><span class="n">annotate</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">xy</span><span class="o">=</span><span class="p">[</span><span class="n">two_theta</span><span class="p">,</span> <span class="n">i</span><span class="p">],</span>
                                  <span class="n">xytext</span><span class="o">=</span><span class="p">[</span><span class="n">two_theta</span><span class="p">,</span> <span class="n">i</span><span class="p">],</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
         <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s">r&quot;2\theta (degrees)&quot;</span><span class="p">)</span>
         <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s">&quot;Intensities (scaled)&quot;</span><span class="p">)</span>
@@ -358,7 +370,38 @@
 <span class="sd">                information.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">get_xrd_plot</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">two_theta_range</span><span class="o">=</span><span class="n">two_theta_range</span><span class="p">,</span>
-                          <span class="n">annotate_peaks</span><span class="o">=</span><span class="n">annotate_peaks</span><span class="p">)</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div></div>
+                          <span class="n">annotate_peaks</span><span class="o">=</span><span class="n">annotate_peaks</span><span class="p">)</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+</div></div>
+<div class="viewcode-block" id="get_unique_families"><a class="viewcode-back" href="../../../../pymatgen.analysis.diffraction.html#pymatgen.analysis.diffraction.xrd.get_unique_families">[docs]</a><span class="k">def</span> <span class="nf">get_unique_families</span><span class="p">(</span><span class="n">hkls</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns unique families of Miller indices. Families must be permutations</span>
+<span class="sd">    of each other.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        hkls ([h, k, l]): List of Miller indices.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        {hkl: multiplicity}: A dict with unique hkl and multiplicity.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c">#TODO: Definitely can be sped up.</span>
+    <span class="k">def</span> <span class="nf">is_perm</span><span class="p">(</span><span class="n">hkl1</span><span class="p">,</span> <span class="n">hkl2</span><span class="p">):</span>
+        <span class="n">h1</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">abs</span><span class="p">,</span> <span class="n">hkl1</span><span class="p">)</span>
+        <span class="n">h2</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">abs</span><span class="p">,</span> <span class="n">hkl2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">all</span><span class="p">([</span><span class="n">i</span> <span class="o">==</span> <span class="n">j</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">h1</span><span class="p">),</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">h2</span><span class="p">))])</span>
+
+    <span class="n">unique</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">hkl1</span> <span class="ow">in</span> <span class="n">hkls</span><span class="p">:</span>
+        <span class="n">found</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">for</span> <span class="n">hkl2</span> <span class="ow">in</span> <span class="n">unique</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">is_perm</span><span class="p">(</span><span class="n">hkl1</span><span class="p">,</span> <span class="n">hkl2</span><span class="p">):</span>
+                <span class="n">found</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="n">unique</span><span class="p">[</span><span class="n">hkl2</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">break</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">found</span><span class="p">:</span>
+            <span class="n">unique</span><span class="p">[</span><span class="n">hkl1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="k">return</span> <span class="n">unique</span></div>
 </pre></div>
 
           </div>

@@ -56,6 +56,12 @@ class LammpsLog(MSONable):
 
             for line in logfile:
 
+                # timestep
+                time = re.search('timestep\s+([0-9]+)', line)
+                if time:
+                    timestep = float(time.group(1))
+                    llog['timestep']=timestep
+
                 # total steps of MD
                 steps = re.search('run\s+([0-9]+)', line)
                 if steps:

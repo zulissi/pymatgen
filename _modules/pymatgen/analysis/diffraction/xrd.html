@@ -181,7 +181,7 @@
     <span class="c"># absences do not cancel exactly to zero.</span>
     <span class="n">SCALED_INTENSITY_TOL</span> <span class="o">=</span> <span class="mf">1e-3</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wavelength</span><span class="o">=</span><span class="s">&quot;CuKa&quot;</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">wavelength</span><span class="o">=</span><span class="s">&quot;CuKa&quot;</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">debye_waller_factors</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initializes the XRD calculator with a given radiation.</span>
 
@@ -195,6 +195,9 @@
 <span class="sd">            symprec (float): Symmetry precision for structure refinement. If</span>
 <span class="sd">                set to 0, no refinement is done. Otherwise, refinement is</span>
 <span class="sd">                performed using spglib with provided precision.</span>
+<span class="sd">            debye_waller_factors ({element symbol: float}): Allows the</span>
+<span class="sd">                specification of Debye-Waller factors. Note that these</span>
+<span class="sd">                factors are temperature dependent.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">wavelength</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span> <span class="o">=</span> <span class="n">wavelength</span>
@@ -202,6 +205,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">radiation</span> <span class="o">=</span> <span class="n">wavelength</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">wavelength</span> <span class="o">=</span> <span class="n">WAVELENGTHS</span><span class="p">[</span><span class="n">wavelength</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">symprec</span> <span class="o">=</span> <span class="n">symprec</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debye_waller_factors</span> <span class="o">=</span> <span class="n">debye_waller_factors</span> <span class="ow">or</span> <span class="p">{}</span>
 
 <div class="viewcode-block" id="XRDCalculator.get_xrd_data"><a class="viewcode-back" href="../../../../pymatgen.analysis.diffraction.html#pymatgen.analysis.diffraction.xrd.XRDCalculator.get_xrd_data">[docs]</a>    <span class="k">def</span> <span class="nf">get_xrd_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">scaled</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">two_theta_range</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">90</span><span class="p">)):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -234,15 +238,12 @@
         <span class="n">latt</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">lattice</span>
         <span class="n">is_hex</span> <span class="o">=</span> <span class="n">latt</span><span class="o">.</span><span class="n">is_hexagonal</span><span class="p">()</span>
 
-        <span class="n">min_r</span><span class="p">,</span> <span class="n">max_r</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">wavelength</span>
-        <span class="k">if</span> <span class="n">two_theta_range</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-            <span class="c"># Obtained from Bragg condition. Note that reciprocal lattice</span>
-            <span class="c"># vector length is 1 / d_hkl.</span>
-            <span class="n">min_r</span><span class="p">,</span> <span class="n">max_r</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">radians</span><span class="p">(</span><span class="n">t</span> <span class="o">/</span> <span class="mi">2</span><span class="p">))</span> <span class="o">/</span> <span class="n">wavelength</span>
-                            <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">two_theta_range</span><span class="p">]</span>
+        <span class="c"># Obtained from Bragg condition. Note that reciprocal lattice</span>
+        <span class="c"># vector length is 1 / d_hkl.</span>
+        <span class="n">min_r</span><span class="p">,</span> <span class="n">max_r</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">wavelength</span><span class="p">)</span> <span class="k">if</span> <span class="n">two_theta_range</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> \
+            <span class="p">[</span><span class="mi">2</span> <span class="o">*</span> <span class="n">sin</span><span class="p">(</span><span class="n">radians</span><span class="p">(</span><span class="n">t</span> <span class="o">/</span> <span class="mi">2</span><span class="p">))</span> <span class="o">/</span> <span class="n">wavelength</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">two_theta_range</span><span class="p">]</span>
 
-        <span class="c"># Obtain crystallographic reciprocal lattice and points within</span>
-        <span class="c"># limiting sphere (within 2/wavelength)</span>
+        <span class="c"># Obtain crystallographic reciprocal lattice points within range</span>
         <span class="n">recip_latt</span> <span class="o">=</span> <span class="n">latt</span><span class="o">.</span><span class="n">reciprocal_lattice_crystallographic</span>
         <span class="n">recip_pts</span> <span class="o">=</span> <span class="n">recip_latt</span><span class="o">.</span><span class="n">get_points_in_sphere</span><span class="p">(</span>
             <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">max_r</span><span class="p">)</span>
@@ -252,28 +253,33 @@
         <span class="c"># Create a flattened array of zs, coeffs, fcoords and occus. This is</span>
         <span class="c"># used to perform vectorized computation of atomic scattering factors</span>
         <span class="c"># later. Note that these are not necessarily the same size as the</span>
-        <span class="c"># structure as each partially occupied species occupies its own</span>
+        <span class="c"># structure as each partially occupied specie occupies its own</span>
         <span class="c"># position in the flattened array.</span>
         <span class="n">zs</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">coeffs</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">fcoords</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">occus</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">dwfactors</span> <span class="o">=</span> <span class="p">[]</span>
 
         <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">structure</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">sp</span><span class="p">,</span> <span class="n">occu</span> <span class="ow">in</span> <span class="n">site</span><span class="o">.</span><span class="n">species_and_occu</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                 <span class="n">zs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">Z</span><span class="p">)</span>
-                <span class="n">c</span> <span class="o">=</span> <span class="n">ATOMIC_SCATTERING_PARAMS</span><span class="p">[</span><span class="n">sp</span><span class="o">.</span><span class="n">symbol</span><span class="p">]</span>
-                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
-                    <span class="n">c</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">c</span> <span class="o">=</span> <span class="n">ATOMIC_SCATTERING_PARAMS</span><span class="p">[</span><span class="n">sp</span><span class="o">.</span><span class="n">symbol</span><span class="p">]</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Unable to calculate XRD pattern as &quot;</span>
+                                     <span class="s">&quot;there is no scattering coefficients for&quot;</span>
+                                     <span class="s">&quot; </span><span class="si">%s</span><span class="s">.&quot;</span> <span class="o">%</span> <span class="n">sp</span><span class="o">.</span><span class="n">symbol</span><span class="p">)</span>
                 <span class="n">coeffs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+                <span class="n">dwfactors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">debye_waller_factors</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">symbol</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
                 <span class="n">fcoords</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">)</span>
                 <span class="n">occus</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">occu</span><span class="p">)</span>
-
 
         <span class="n">zs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">zs</span><span class="p">)</span>
         <span class="n">coeffs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">coeffs</span><span class="p">)</span>
         <span class="n">fcoords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fcoords</span><span class="p">)</span>
         <span class="n">occus</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">occus</span><span class="p">)</span>
+        <span class="n">dwfactors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dwfactors</span><span class="p">)</span>
         <span class="n">peaks</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">two_thetas</span> <span class="o">=</span> <span class="p">[]</span>
 
@@ -308,17 +314,20 @@
                 <span class="n">fs</span> <span class="o">=</span> <span class="n">zs</span> <span class="o">-</span> <span class="mf">41.78214</span> <span class="o">*</span> <span class="n">s2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
                     <span class="n">coeffs</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">coeffs</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">s2</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
+                <span class="n">dw_correction</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">dwfactors</span> <span class="o">*</span> <span class="n">s2</span><span class="p">)</span>
+
                 <span class="c"># Structure factor = sum of atomic scattering factors (with</span>
                 <span class="c"># position factor exp(2j * pi * g.r and occupancies).</span>
                 <span class="c"># Vectorized computation.</span>
-                <span class="n">f_hkl</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">fs</span> <span class="o">*</span> <span class="n">occus</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">2j</span> <span class="o">*</span> <span class="n">pi</span> <span class="o">*</span> <span class="n">g_dot_r</span><span class="p">))</span>
-
-                <span class="c"># Intensity for hkl is modulus square of structure factor.</span>
-                <span class="n">i_hkl</span> <span class="o">=</span> <span class="p">(</span><span class="n">f_hkl</span> <span class="o">*</span> <span class="n">f_hkl</span><span class="o">.</span><span class="n">conjugate</span><span class="p">())</span><span class="o">.</span><span class="n">real</span>
+                <span class="n">f_hkl</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">fs</span> <span class="o">*</span> <span class="n">occus</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">2j</span> <span class="o">*</span> <span class="n">pi</span> <span class="o">*</span> <span class="n">g_dot_r</span><span class="p">)</span>
+                               <span class="o">*</span> <span class="n">dw_correction</span><span class="p">)</span>
 
                 <span class="c">#Lorentz polarization correction for hkl</span>
                 <span class="n">lorentz_factor</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">cos</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">theta</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> \
                     <span class="p">(</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">))</span>
+
+                <span class="c"># Intensity for hkl is modulus square of structure factor.</span>
+                <span class="n">i_hkl</span> <span class="o">=</span> <span class="p">(</span><span class="n">f_hkl</span> <span class="o">*</span> <span class="n">f_hkl</span><span class="o">.</span><span class="n">conjugate</span><span class="p">())</span><span class="o">.</span><span class="n">real</span>
 
                 <span class="n">two_theta</span> <span class="o">=</span> <span class="n">degrees</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">theta</span><span class="p">)</span>
 

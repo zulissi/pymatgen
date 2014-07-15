@@ -148,12 +148,17 @@
 <span class="sd">    object.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        transformations: List of transformations to apply to a structure.</span>
-<span class="sd">            One transformation is applied to each output structure.</span>
+<span class="sd">        transformations ([transformations]): List of transformations to apply</span>
+<span class="sd">            to a structure. One transformation is applied to each output</span>
+<span class="sd">            structure.</span>
+<span class="sd">        nstructures_per_trans (int): If the transformations are one-to-many and,</span>
+<span class="sd">            nstructures_per_trans structures from each transformation are</span>
+<span class="sd">            added to the full list. Defaults to 1, i.e., only best structure.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transformations</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transformations</span><span class="p">,</span> <span class="n">nstructures_per_trans</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_transformations</span> <span class="o">=</span> <span class="n">transformations</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nstructures_per_trans</span> <span class="o">=</span> <span class="n">nstructures_per_trans</span>
 
 <div class="viewcode-block" id="SuperTransformation.apply_transformation"><a class="viewcode-back" href="../../../pymatgen.transformations.html#pymatgen.transformations.advanced_transformations.SuperTransformation.apply_transformation">[docs]</a>    <span class="k">def</span> <span class="nf">apply_transformation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">return_ranked_list</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">return_ranked_list</span><span class="p">:</span>
@@ -161,9 +166,16 @@
                              <span class="s">&quot; output. Must use return_ranked_list&quot;</span><span class="p">)</span>
         <span class="n">structures</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transformations</span><span class="p">:</span>
-            <span class="n">structures</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                <span class="p">{</span><span class="s">&quot;transformation&quot;</span><span class="p">:</span> <span class="n">t</span><span class="p">,</span>
-                 <span class="s">&quot;structure&quot;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">structure</span><span class="p">)})</span>
+            <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">is_one_to_many</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">t</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span>
+                        <span class="n">structure</span><span class="p">,</span>
+                        <span class="n">return_ranked_list</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nstructures_per_trans</span><span class="p">):</span>
+                    <span class="n">d</span><span class="p">[</span><span class="s">&quot;transformation&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">t</span>
+                    <span class="n">structures</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">structures</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">{</span><span class="s">&quot;transformation&quot;</span><span class="p">:</span> <span class="n">t</span><span class="p">,</span>
+                     <span class="s">&quot;structure&quot;</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">structure</span><span class="p">)})</span>
         <span class="k">return</span> <span class="n">structures</span>
 </div>
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -184,7 +196,9 @@
     <span class="nd">@property</span>
 <div class="viewcode-block" id="SuperTransformation.to_dict"><a class="viewcode-back" href="../../../pymatgen.transformations.html#pymatgen.transformations.advanced_transformations.SuperTransformation.to_dict">[docs]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">{</span><span class="s">&quot;name&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="s">&quot;version&quot;</span><span class="p">:</span> <span class="n">__version__</span><span class="p">,</span>
-                <span class="s">&quot;init_args&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s">&quot;transformations&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transformations</span><span class="p">},</span>
+                <span class="s">&quot;init_args&quot;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s">&quot;transformations&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transformations</span><span class="p">,</span>
+                    <span class="s">&quot;nstructures_per_trans&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">nstructures_per_trans</span><span class="p">},</span>
                 <span class="s">&quot;@module&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span><span class="p">,</span>
                 <span class="s">&quot;@class&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">}</span>
 

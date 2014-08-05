@@ -1,0 +1,631 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.analysis.defects.dilute_solution_model &mdash; pymatgen 2.9.14 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '2.9.14',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+    <link rel="top" title="pymatgen 2.9.14 documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" />
+ 
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-33990148-1']);
+  _gaq.push(['_trackPageview']);
+</script>
+
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../../index.html">pymatgen 2.9.14 documentation</a> &raquo;</li>
+          <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for pymatgen.analysis.defects.dilute_solution_model</h1><div class="highlight"><pre>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Evaluate the defect concentration based on composition, temperature,</span>
+<span class="sd">and defect energies using &quot;Dilute Solution Model&quot;</span>
+<span class="sd">Reference: Phys Rev B, 63, 094103, 2001,</span>
+<span class="sd">&quot;Density of constitutional and thermal point defects in L12 Al3Sc&quot;,</span>
+<span class="sd">C. Woodward, M. Asta, G. Kresse and J. Hafner.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s">&#39;Bharat Medasani&#39;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;0.2&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s">&quot;Bharat Medasani&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s">&quot;mbkumar@gmail.com&quot;</span>
+<span class="n">__status__</span> <span class="o">=</span> <span class="s">&quot;Alpha&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span> <span class="s">&quot;6/4/14&quot;</span>
+
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">scipy</span>
+
+<span class="kn">from</span> <span class="nn">monty.dev</span> <span class="kn">import</span> <span class="n">requires</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.defects</span> <span class="kn">import</span> <span class="n">Vacancy</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="kn">import</span> <span class="n">Composition</span>
+<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">PMGJSONEncoder</span><span class="p">,</span> <span class="n">PMGJSONDecoder</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">sympy</span> <span class="kn">import</span> <span class="n">Symbol</span><span class="p">,</span> <span class="n">nsolve</span><span class="p">,</span> <span class="n">Integer</span><span class="p">,</span> <span class="n">Rational</span><span class="p">,</span> <span class="n">Matrix</span><span class="p">,</span> <span class="n">exp</span><span class="p">,</span> <span class="n">solve</span><span class="p">,</span> <span class="n">Eq</span>
+    <span class="n">sympy_found</span> <span class="o">=</span> <span class="bp">True</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">sympy_found</span> <span class="o">=</span> <span class="bp">False</span>
+
+<span class="c"># physical consts</span>
+<span class="n">k_B</span><span class="o">=</span><span class="mf">8.6173324e-5</span>                <span class="c"># eV/K</span>
+
+<div class="viewcode-block" id="gcd"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.html#pymatgen.analysis.defects.dilute_solution_model.gcd">[docs]</a><span class="k">def</span> <span class="nf">gcd</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return greatest common divisor using Euclid&#39;s Algorithm.&quot;&quot;&quot;</span>
+    <span class="k">while</span> <span class="n">b</span><span class="p">:</span>
+        <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">b</span><span class="p">,</span> <span class="n">a</span> <span class="o">%</span> <span class="n">b</span>
+    <span class="k">return</span> <span class="n">a</span>
+</div>
+<div class="viewcode-block" id="lcm"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.html#pymatgen.analysis.defects.dilute_solution_model.lcm">[docs]</a><span class="k">def</span> <span class="nf">lcm</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return lowest common multiple.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">a</span> <span class="o">*</span> <span class="n">b</span> <span class="o">//</span> <span class="n">gcd</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="lcmm"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.html#pymatgen.analysis.defects.dilute_solution_model.lcmm">[docs]</a><span class="k">def</span> <span class="nf">lcmm</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return lcm of args.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">reduce</span><span class="p">(</span><span class="n">lcm</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="gcdd"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.html#pymatgen.analysis.defects.dilute_solution_model.gcdd">[docs]</a><span class="k">def</span> <span class="nf">gcdd</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Return gcd of args.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">reduce</span><span class="p">(</span><span class="n">gcd</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+
+<span class="c"># Check the inputs</span></div>
+<div class="viewcode-block" id="check_input"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.html#pymatgen.analysis.defects.dilute_solution_model.check_input">[docs]</a><span class="k">def</span> <span class="nf">check_input</span><span class="p">(</span><span class="n">def_list</span><span class="p">):</span>
+    <span class="n">flag</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="k">for</span> <span class="n">defect</span> <span class="ow">in</span> <span class="n">def_list</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">defect</span><span class="p">:</span>
+            <span class="n">flag</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="k">break</span>
+    <span class="k">return</span> <span class="n">flag</span>
+
+<span class="c"># TODO: Cleanup the initialization</span>
+</div>
+<span class="nd">@requires</span><span class="p">(</span><span class="n">sympy_found</span><span class="p">,</span>
+            <span class="s">&quot;comute_defect_density requires Sympy module. Please install it.&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="dilute_solution_model"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.html#pymatgen.analysis.defects.dilute_solution_model.dilute_solution_model">[docs]</a><span class="k">def</span> <span class="nf">dilute_solution_model</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">e0</span><span class="p">,</span> <span class="n">vac_defs</span><span class="p">,</span> <span class="n">antisite_defs</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> 
+        <span class="n">trial_chem_pot</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="n">generate</span><span class="o">=</span><span class="s">&#39;plot&#39;</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute the defect densities for a structure based on the input parameters</span>
+<span class="sd">    using dilute solution model.</span>
+<span class="sd">    Args:</span>
+<span class="sd">        structure:</span>
+<span class="sd">            pymatgen.core.structure.Structure object representing the</span>
+<span class="sd">            primitive or unitcell of the crystal.</span>
+<span class="sd">        e0:</span>
+<span class="sd">            The total energy of the undefected system.</span>
+<span class="sd">            This is E0 from VASP calculation.</span>
+<span class="sd">        vac_defs:</span>
+<span class="sd">            List of vacancy defect parameters in the dictionary format.</span>
+<span class="sd">            The keys of the dict associated with each vacancy defect are</span>
+<span class="sd">            1) site_index, 2) site_specie, 3) site_multiplicity, and</span>
+<span class="sd">            4) energy. 1-3 can be obtained from</span>
+<span class="sd">            pymatgen.analysis.defects.point_defects.Vacancy class.</span>
+<span class="sd">            Site index is expected to start with 1 (fortran index).</span>
+<span class="sd">        antisite_defs:</span>
+<span class="sd">            List of antisite defect parameters in the dictionary format.</span>
+<span class="sd">            The keys of the dict associated with each antisite defect are</span>
+<span class="sd">            1) site_index, 2) site_specie, 3) site_multiplicity,</span>
+<span class="sd">            4) substitution_specie, and 5) energy. 1-3 can be obtained</span>
+<span class="sd">            from pymatgen.analysis.defects.point_defects.Vacancy class.</span>
+<span class="sd">        T:</span>
+<span class="sd">            Temperature in Kelvin</span>
+<span class="sd">        trial_chem_pot:</span>
+<span class="sd">            Trial chemical potentials to speedup the plot generation</span>
+<span class="sd">            Format is {el1:mu1,...}</span>
+<span class="sd">        generate (string): Options are plot or energy</span>
+<span class="sd">            Chemical potentials are also returned with energy option.</span>
+<span class="sd">            If energy option is not chosen, plot is generated.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">check_input</span><span class="p">(</span><span class="n">vac_defs</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;Vacancy energy is not defined&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">check_input</span><span class="p">(</span><span class="n">antisite_defs</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;Antisite energy is not defined&#39;</span><span class="p">)</span>
+
+    <span class="n">formation_energies</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">formation_energies</span><span class="p">[</span><span class="s">&#39;vacancies&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">vac_defs</span><span class="p">)</span>
+    <span class="n">formation_energies</span><span class="p">[</span><span class="s">&#39;antisites&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">antisite_defs</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">vac</span> <span class="ow">in</span> <span class="n">formation_energies</span><span class="p">[</span><span class="s">&#39;vacancies&#39;</span><span class="p">]:</span>
+        <span class="k">del</span> <span class="n">vac</span><span class="p">[</span><span class="s">&#39;energy&#39;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">asite</span> <span class="ow">in</span> <span class="n">formation_energies</span><span class="p">[</span><span class="s">&#39;antisites&#39;</span><span class="p">]:</span>
+        <span class="k">del</span> <span class="n">asite</span><span class="p">[</span><span class="s">&#39;energy&#39;</span><span class="p">]</span>
+    <span class="c"># Setup the system</span>
+    <span class="n">site_species</span> <span class="o">=</span> <span class="p">[</span><span class="n">vac_def</span><span class="p">[</span><span class="s">&#39;site_specie&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">vac_def</span> <span class="ow">in</span> <span class="n">vac_defs</span><span class="p">]</span>
+    <span class="n">multiplicity</span> <span class="o">=</span> <span class="p">[</span><span class="n">vac_def</span><span class="p">[</span><span class="s">&#39;site_multiplicity&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">vac_def</span> <span class="ow">in</span> <span class="n">vac_defs</span><span class="p">]</span>
+    <span class="c">#print multiplicity</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">site_species</span><span class="p">))</span>      <span class="c"># distinct species</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">vac_defs</span><span class="p">)</span>           <span class="c"># inequivalent sites</span>
+
+    <span class="c"># Reduce the system and associated parameters such that only distinctive</span>
+    <span class="c"># atoms are retained</span>
+    <span class="n">comm_div</span> <span class="o">=</span> <span class="n">gcdd</span><span class="p">(</span><span class="o">*</span><span class="nb">tuple</span><span class="p">(</span><span class="n">multiplicity</span><span class="p">))</span>
+    <span class="n">multiplicity</span> <span class="o">=</span> <span class="p">[</span><span class="n">val</span><span class="o">/</span><span class="n">comm_div</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">multiplicity</span><span class="p">]</span>
+    <span class="n">e0</span> <span class="o">=</span> <span class="n">e0</span><span class="o">/</span><span class="n">comm_div</span>
+    <span class="n">T</span> <span class="o">=</span> <span class="n">Integer</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+
+    <span class="n">c0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">multiplicity</span><span class="p">)</span>
+    <span class="c">#print &#39;c0&#39;, c0</span>
+    <span class="n">mu</span> <span class="o">=</span> <span class="p">[</span><span class="n">Symbol</span><span class="p">(</span><span class="s">&#39;mu&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m</span><span class="p">)]</span>
+
+    <span class="c"># Generate maps for hashing</span>
+    <span class="c"># Generate specie-&gt;mu map and use it for site-&gt;mu map</span>
+    <span class="n">specie_order</span> <span class="o">=</span> <span class="p">[]</span>       <span class="c"># Contains hash for site-&gt;mu map    Eg: [Al, Ni]</span>
+    <span class="n">site_specie_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>             <span class="c"># Eg: {Ni, Al}</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+        <span class="n">site_specie</span>  <span class="o">=</span> <span class="n">site_species</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">site_specie</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">site_specie_set</span><span class="p">:</span>
+            <span class="n">site_specie_set</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">site_specie</span><span class="p">)</span>
+            <span class="n">specie_order</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">site_specie</span><span class="p">)</span>
+    <span class="n">site_mu_map</span> <span class="o">=</span> <span class="p">[]</span>     <span class="c"># Eg: [mu0,mu0,mu0,mu1] where mu0-&gt;Al, and mu1-&gt;Ni</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+        <span class="n">site_specie</span>  <span class="o">=</span> <span class="n">site_species</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">j</span> <span class="o">=</span> <span class="n">specie_order</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">site_specie</span><span class="p">)</span>
+        <span class="n">site_mu_map</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">j</span><span class="p">)</span>
+    <span class="n">specie_site_index_map</span> <span class="o">=</span> <span class="p">[]</span>      <span class="c"># Eg: [(0,3),(3,4)] for Al &amp; Ni</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m</span><span class="p">):</span>
+        <span class="n">low_ind</span> <span class="o">=</span> <span class="n">site_species</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">specie_order</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">m</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">hgh_ind</span> <span class="o">=</span> <span class="n">site_species</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">specie_order</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">hgh_ind</span> <span class="o">=</span> <span class="n">n</span>
+        <span class="n">specie_site_index_map</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">low_ind</span><span class="p">,</span><span class="n">hgh_ind</span><span class="p">))</span>
+
+    <span class="c">#print &#39;specie_site_index_map&#39;, specie_site_index_map</span>
+    <span class="c">#for el in specie_site_index_map:</span>
+    <span class="c">#    print range(*el)</span>
+    <span class="c">#print site_species</span>
+    <span class="c">#print &#39;site_mu_map&#39;, site_mu_map</span>
+    <span class="c">#print specie_order</span>
+
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    dC: delta concentration matrix:</span>
+<span class="sd">    dC[i,j,k]: Concentration change of atom i, due to presence of atom</span>
+<span class="sd">    j on lattice site k</span>
+<span class="sd">    Special case is [i,i,i] which is considered as vacancy</span>
+<span class="sd">    Few cases: dC[i,i,i] = -1 due to being vacancy special case</span>
+<span class="sd">                dC[k,k,i] = +1 due to increment in k at i lattice if i</span>
+<span class="sd">                               lattice type is of different element</span>
+<span class="sd">                dC[i,k,i] = -1 due to decrement of ith type atom due to</span>
+<span class="sd">                presence of kth type atom on ith sublattice and kth type</span>
+<span class="sd">                atom specie is different from ith sublattice atom specie</span>
+<span class="sd">                dC[i,k,k] = 0 due to no effect on ith type atom</span>
+<span class="sd">                dC[i,j,k] = 0 if i!=j!=k</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">dC</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span><span class="n">n</span><span class="p">,</span><span class="n">n</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">j</span><span class="p">:</span><span class="c"># and site_species[j] != site_species[k]:</span>
+                    <span class="n">dC</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">,</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">k</span><span class="p">:</span>
+                    <span class="c">#if j == k or site_species[j] != site_species[k]:</span>
+                        <span class="n">dC</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">,</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+    <span class="c">#print dC</span>
+    <span class="c"># dE matrix: Flip energies (or raw defect energies)</span>
+    <span class="n">els</span> <span class="o">=</span> <span class="p">[</span><span class="n">vac_def</span><span class="p">[</span><span class="s">&#39;site_specie&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">vac_def</span> <span class="ow">in</span> <span class="n">vac_defs</span><span class="p">]</span>
+    <span class="n">dE</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+        <span class="n">dE</span><span class="o">.</span><span class="n">append</span><span class="p">([])</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+            <span class="n">dE</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">j</span><span class="p">:</span>
+                <span class="n">dE</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">vac_defs</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s">&#39;energy&#39;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">sub_specie</span> <span class="o">=</span> <span class="n">vac_defs</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s">&#39;site_specie&#39;</span><span class="p">]</span>
+                <span class="n">site_specie</span> <span class="o">=</span> <span class="n">vac_defs</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="s">&#39;site_specie&#39;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">site_specie</span> <span class="o">==</span> <span class="n">sub_specie</span><span class="p">:</span>
+                    <span class="n">dE</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">as_def</span> <span class="ow">in</span> <span class="n">antisite_defs</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">as_def</span><span class="p">[</span><span class="s">&#39;site_index&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">j</span><span class="o">+</span><span class="mi">1</span> <span class="ow">and</span> \
+                                <span class="n">sub_specie</span> <span class="o">==</span> <span class="n">as_def</span><span class="p">[</span><span class="s">&#39;substitution_specie&#39;</span><span class="p">]:</span>
+                            <span class="n">dE</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">as_def</span><span class="p">[</span><span class="s">&#39;energy&#39;</span><span class="p">]</span>
+                            <span class="k">break</span>
+    <span class="n">dE</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dE</span><span class="p">)</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">dE</span> <span class="o">==</span> <span class="bp">None</span><span class="p">,</span> <span class="n">dE</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="c">#print dE</span>
+
+    <span class="c"># Initialization for concentrations</span>
+    <span class="c"># c(i,p) == presence of ith type atom on pth type site</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">Matrix</span><span class="p">(</span><span class="n">n</span><span class="p">,</span><span class="n">n</span><span class="p">,[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">n</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+            <span class="n">c</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">p</span><span class="p">]</span> <span class="o">=</span> <span class="n">Integer</span><span class="p">(</span><span class="n">c0</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">p</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">epi</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+                <span class="n">sum_mu</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="n">mu</span><span class="p">[</span><span class="n">site_mu_map</span><span class="p">[</span><span class="n">j</span><span class="p">]]</span><span class="o">*</span><span class="n">Integer</span><span class="p">(</span>
+                        <span class="n">dC</span><span class="p">[</span><span class="n">j</span><span class="p">,</span><span class="n">epi</span><span class="p">,</span><span class="n">p</span><span class="p">])</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)])</span>
+                <span class="n">c</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">p</span><span class="p">]</span> <span class="o">+=</span> <span class="n">Integer</span><span class="p">(</span><span class="n">multiplicity</span><span class="p">[</span><span class="n">p</span><span class="p">]</span><span class="o">*</span><span class="n">dC</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">epi</span><span class="p">,</span><span class="n">p</span><span class="p">])</span> <span class="o">*</span> \
+                        <span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">dE</span><span class="p">[</span><span class="n">epi</span><span class="p">,</span><span class="n">p</span><span class="p">]</span><span class="o">-</span><span class="n">sum_mu</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">k_B</span><span class="o">*</span><span class="n">T</span><span class="p">))</span>
+
+    <span class="c">#specie_concen = [sum(mult[ind[0]:ind[1]]) for ind in specie_site_index_map]</span>
+    <span class="c">#total_c = [sum(c[ind[0]:ind[1]]) for ind in specie_site_index_map]</span>
+    <span class="n">total_c</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">ind</span> <span class="ow">in</span> <span class="n">specie_site_index_map</span><span class="p">:</span>
+        <span class="n">total_c</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">sum</span><span class="p">([</span><span class="nb">sum</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="n">i</span><span class="p">,:])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="o">*</span><span class="n">ind</span><span class="p">)]))</span>
+    <span class="c">#total_c = [sum(c[i,:]) for i in range(n)]</span>
+    <span class="n">c_ratio</span> <span class="o">=</span> <span class="p">[</span><span class="n">total_c</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">total_c</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m</span><span class="p">)]</span>
+    <span class="c">#print &#39;c_ratio&#39;</span>
+    <span class="c">#for i in range(len(c_ratio)):</span>
+        <span class="c">#print c_ratio[i]</span>
+
+    <span class="c"># Expression for Omega, the Grand Potential</span>
+    <span class="n">omega</span> <span class="o">=</span> <span class="n">e0</span> <span class="o">-</span> <span class="nb">sum</span><span class="p">([</span><span class="n">mu</span><span class="p">[</span><span class="n">site_mu_map</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span><span class="o">*</span><span class="nb">sum</span><span class="p">(</span><span class="n">c0</span><span class="p">[</span><span class="n">i</span><span class="p">,:])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)])</span>
+    <span class="k">for</span> <span class="n">p_r</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">epi</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+            <span class="n">sum_mu</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="n">mu</span><span class="p">[</span><span class="n">site_mu_map</span><span class="p">[</span><span class="n">j</span><span class="p">]]</span><span class="o">*</span><span class="n">Integer</span><span class="p">(</span>
+                    <span class="n">dC</span><span class="p">[</span><span class="n">j</span><span class="p">,</span><span class="n">epi</span><span class="p">,</span><span class="n">p_r</span><span class="p">])</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)])</span>
+            <span class="n">omega</span> <span class="o">-=</span> <span class="n">k_B</span><span class="o">*</span><span class="n">T</span><span class="o">*</span><span class="n">multiplicity</span><span class="p">[</span><span class="n">p_r</span><span class="p">]</span><span class="o">*</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">dE</span><span class="p">[</span><span class="n">epi</span><span class="p">,</span><span class="n">p_r</span><span class="p">]</span><span class="o">-</span><span class="n">sum_mu</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">k_B</span><span class="o">*</span><span class="n">T</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">compute_mus</span><span class="p">():</span>
+
+        <span class="k">def</span> <span class="nf">reduce_mu</span><span class="p">():</span>
+            <span class="n">omega</span> <span class="o">=</span> <span class="p">[</span><span class="n">e0</span> <span class="o">-</span> <span class="nb">sum</span><span class="p">([</span><span class="n">mu</span><span class="p">[</span><span class="n">site_mu_map</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span><span class="o">*</span><span class="nb">sum</span><span class="p">(</span><span class="n">c0</span><span class="p">[</span><span class="n">i</span><span class="p">,:])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)])]</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">solve</span><span class="p">(</span><span class="n">omega</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">x</span>
+
+        <span class="c"># Compute trial mu</span>
+        <span class="n">mu_red</span> <span class="o">=</span> <span class="n">reduce_mu</span><span class="p">()</span>
+        <span class="c">#print mu_red</span>
+
+        <span class="n">mult</span> <span class="o">=</span> <span class="n">multiplicity</span>
+        <span class="c">#for ind in specie_site_index_map:</span>
+        <span class="c">#    print ind[0], ind[1]</span>
+        <span class="n">specie_concen</span> <span class="o">=</span> <span class="p">[</span><span class="nb">sum</span><span class="p">(</span><span class="n">mult</span><span class="p">[</span><span class="n">ind</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">ind</span><span class="p">[</span><span class="mi">1</span><span class="p">]])</span> <span class="k">for</span> <span class="n">ind</span> <span class="ow">in</span> <span class="n">specie_site_index_map</span><span class="p">]</span>
+        <span class="c">#print &#39;specie_concent&#39;, specie_concen</span>
+        <span class="n">y_vect</span> <span class="o">=</span> <span class="p">[</span><span class="n">specie_concen</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">specie_concen</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m</span><span class="p">)]</span>
+        <span class="c">#print &#39;y_vect&#39;, y_vect</span>
+        <span class="n">vector_func</span> <span class="o">=</span> <span class="p">[</span><span class="n">y_vect</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="n">c_ratio</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m</span><span class="o">-</span><span class="mi">1</span><span class="p">)]</span>
+        <span class="n">vector_func</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">omega</span><span class="p">)</span>
+        <span class="c">#print vector_func</span>
+        <span class="c">#vector_func.append(mu_equalities)</span>
+        <span class="c">#print &#39;y0&#39;, y0</span>
+        <span class="n">min_diff</span> <span class="o">=</span> <span class="mf">1e10</span>
+        <span class="n">mu_vals</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">c_val</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">m1_min</span> <span class="o">=</span> <span class="o">-</span><span class="mf">20.0</span>
+        <span class="k">if</span> <span class="n">e0</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">m1_max</span> <span class="o">=</span> <span class="mi">10</span>            <span class="c"># Search space needs to be modified</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">m1_max</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">m1</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">m1_min</span><span class="p">,</span><span class="n">m1_max</span><span class="p">,</span><span class="mf">0.1</span><span class="p">):</span>
+            <span class="n">m0</span> <span class="o">=</span> <span class="n">mu_red</span><span class="p">[</span><span class="n">mu</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">subs</span><span class="p">(</span><span class="n">mu</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span><span class="n">m1</span><span class="p">)</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">x</span> <span class="o">=</span> <span class="n">nsolve</span><span class="p">(</span><span class="n">vector_func</span><span class="p">,</span><span class="n">mu</span><span class="p">,[</span><span class="n">m0</span><span class="p">,</span><span class="n">m1</span><span class="p">],</span><span class="n">module</span><span class="o">=</span><span class="s">&quot;numpy&quot;</span><span class="p">)</span>
+                <span class="c"># Line needs to be modified to include all mus when n &gt; 2</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">c_val</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">subs</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span><span class="n">x</span><span class="p">)))</span>
+            <span class="c">#print c_val</span>
+            <span class="c">#if all(x &gt;= 0 for x in c_val):</span>
+            <span class="n">specie_concen</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">ind</span> <span class="ow">in</span> <span class="n">specie_site_index_map</span><span class="p">:</span>
+                <span class="n">specie_concen</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">sum</span><span class="p">([</span><span class="nb">sum</span><span class="p">(</span><span class="n">c_val</span><span class="p">[</span><span class="n">i</span><span class="p">,:])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="o">*</span><span class="n">ind</span><span class="p">)]))</span>
+            <span class="n">y_comp</span> <span class="o">=</span> <span class="p">[</span><span class="n">specie_concen</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">specie_concen</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m</span><span class="p">)]</span>
+            <span class="n">diff</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">sum</span><span class="p">([</span><span class="nb">pow</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">y_comp</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="n">y_vect</span><span class="p">[</span><span class="n">i</span><span class="p">]),</span><span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m</span><span class="p">)]))</span>
+            <span class="k">if</span> <span class="n">diff</span> <span class="o">&lt;</span> <span class="n">min_diff</span><span class="p">:</span>
+                <span class="n">min_diff</span> <span class="o">=</span> <span class="n">diff</span>
+                <span class="n">mu_vals</span> <span class="o">=</span> <span class="n">x</span>
+
+        <span class="k">if</span> <span class="n">mu_vals</span><span class="p">:</span>
+            <span class="n">mu_vals</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">mu_val</span><span class="p">)</span> <span class="k">for</span> <span class="n">mu_val</span> <span class="ow">in</span> <span class="n">mu_vals</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">()</span>
+        <span class="k">print</span> <span class="n">mu_vals</span>
+        <span class="k">return</span> <span class="n">mu_vals</span>
+        <span class="c">#print els</span>
+
+    <span class="k">def</span> <span class="nf">compute_def_formation_energies</span><span class="p">():</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">vac_def</span> <span class="ow">in</span> <span class="n">vac_defs</span><span class="p">:</span>
+            <span class="n">site_specie</span> <span class="o">=</span> <span class="n">vac_def</span><span class="p">[</span><span class="s">&#39;site_specie&#39;</span><span class="p">]</span>
+            <span class="n">ind</span> <span class="o">=</span> <span class="n">specie_order</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">site_specie</span><span class="p">)</span>
+            <span class="n">uncor_energy</span> <span class="o">=</span> <span class="n">vac_def</span><span class="p">[</span><span class="s">&#39;energy&#39;</span><span class="p">]</span>
+            <span class="n">formation_energy</span> <span class="o">=</span> <span class="n">uncor_energy</span> <span class="o">+</span> <span class="n">mu_vals</span><span class="p">[</span><span class="n">ind</span><span class="p">]</span>
+            <span class="k">print</span> <span class="n">site_specie</span><span class="p">,</span> <span class="s">&#39;vancancy formation_energy&#39;</span><span class="p">,</span> <span class="n">formation_energy</span>
+            <span class="n">formation_energies</span><span class="p">[</span><span class="s">&#39;vacancies&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="s">&#39;formation_energy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">formation_energy</span>
+            <span class="n">specie_ind</span> <span class="o">=</span> <span class="n">site_mu_map</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="n">specie_site_index_map</span><span class="p">[</span><span class="n">specie_ind</span><span class="p">]</span>
+            <span class="n">specie_ind_del</span> <span class="o">=</span> <span class="n">indices</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">cur_ind</span> <span class="o">=</span> <span class="n">i</span> <span class="o">-</span> <span class="n">indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">specie_ind_del</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                <span class="n">label</span> <span class="o">=</span> <span class="s">&#39;$V_{&#39;</span><span class="o">+</span><span class="n">site_specie</span><span class="o">+</span><span class="s">&#39;}$&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">label</span> <span class="o">=</span> <span class="s">&#39;$V_{&#39;</span><span class="o">+</span><span class="n">site_specie</span><span class="o">+</span><span class="s">&#39;_&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">cur_ind</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;}$&#39;</span>
+            <span class="n">formation_energies</span><span class="p">[</span><span class="s">&#39;vacancies&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="s">&#39;label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">label</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">as_def</span> <span class="ow">in</span> <span class="n">antisite_defs</span><span class="p">:</span>
+            <span class="n">site_specie</span> <span class="o">=</span> <span class="n">as_def</span><span class="p">[</span><span class="s">&#39;site_specie&#39;</span><span class="p">]</span>
+            <span class="n">sub_specie</span> <span class="o">=</span> <span class="n">as_def</span><span class="p">[</span><span class="s">&#39;substitution_specie&#39;</span><span class="p">]</span>
+            <span class="n">ind1</span> <span class="o">=</span> <span class="n">specie_order</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">site_specie</span><span class="p">)</span>
+            <span class="n">ind2</span> <span class="o">=</span> <span class="n">specie_order</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">sub_specie</span><span class="p">)</span>
+            <span class="n">uncor_energy</span> <span class="o">=</span> <span class="n">as_def</span><span class="p">[</span><span class="s">&#39;energy&#39;</span><span class="p">]</span>
+            <span class="n">formation_energy</span> <span class="o">=</span> <span class="n">uncor_energy</span> <span class="o">+</span> <span class="n">mu_vals</span><span class="p">[</span><span class="n">ind1</span><span class="p">]</span> <span class="o">-</span> <span class="n">mu_vals</span><span class="p">[</span><span class="n">ind2</span><span class="p">]</span>
+            <span class="k">print</span> <span class="n">site_specie</span><span class="p">,</span> <span class="n">sub_specie</span><span class="p">,</span> <span class="s">&#39;antisite &#39;</span><span class="p">,</span> <span class="n">formation_energy</span>
+            <span class="n">formation_energies</span><span class="p">[</span><span class="s">&#39;antisites&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="s">&#39;formation_energy&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">formation_energy</span>
+            <span class="n">specie_ind</span> <span class="o">=</span> <span class="n">site_mu_map</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="n">specie_site_index_map</span><span class="p">[</span><span class="n">specie_ind</span><span class="p">]</span>
+            <span class="n">specie_ind_del</span> <span class="o">=</span> <span class="n">indices</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">cur_ind</span> <span class="o">=</span> <span class="n">i</span> <span class="o">-</span> <span class="n">indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">specie_ind_del</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                <span class="n">label</span> <span class="o">=</span> <span class="s">&#39;$&#39;</span><span class="o">+</span><span class="n">sub_specie</span><span class="o">+</span><span class="s">&#39;_{&#39;</span><span class="o">+</span><span class="n">site_specie</span><span class="o">+</span><span class="s">&#39;}$&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">label</span> <span class="o">=</span> <span class="s">&#39;$&#39;</span><span class="o">+</span><span class="n">sub_specie</span><span class="o">+</span><span class="s">&#39;_{&#39;</span><span class="o">+</span><span class="n">site_specie</span><span class="o">+</span><span class="s">&#39;_&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">cur_ind</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;}$&#39;</span>
+            <span class="n">formation_energies</span><span class="p">[</span><span class="s">&#39;antisites&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="s">&#39;label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">label</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">formation_energies</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">trial_chem_pot</span><span class="p">:</span>
+        <span class="n">mu_vals</span> <span class="o">=</span> <span class="n">compute_mus</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">mu_vals</span> <span class="o">=</span> <span class="p">[</span><span class="n">trail_chem_pot</span><span class="p">[</span><span class="n">element</span><span class="p">]</span> <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">specie_ordger</span><span class="p">]</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">mu_vals</span> <span class="o">=</span> <span class="n">compute_mus</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">generate</span> <span class="o">==</span> <span class="s">&#39;energy&#39;</span><span class="p">:</span>
+        <span class="n">formation_energies</span> <span class="o">=</span> <span class="n">compute_def_formation_energies</span><span class="p">()</span>
+        <span class="n">mu_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">specie_order</span><span class="p">,</span><span class="n">mu_vals</span><span class="p">))</span> 
+        <span class="k">return</span> <span class="n">formation_energies</span><span class="p">,</span> <span class="n">mu_dict</span>
+
+
+    <span class="c"># Compute ymax</span>
+    <span class="n">li</span> <span class="o">=</span> <span class="n">specie_site_index_map</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">hi</span> <span class="o">=</span> <span class="n">specie_site_index_map</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">comp1_min</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">multiplicity</span><span class="p">[</span><span class="n">li</span><span class="p">:</span><span class="n">hi</span><span class="p">])</span><span class="o">/</span><span class="nb">sum</span><span class="p">(</span><span class="n">multiplicity</span><span class="p">)</span><span class="o">*</span><span class="mi">100</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span>
+    <span class="n">comp2_max</span> <span class="o">=</span> <span class="mi">100</span><span class="o">-</span><span class="n">comp1_min</span>
+    <span class="n">ymax</span> <span class="o">=</span> <span class="n">comp2_max</span><span class="o">/</span><span class="n">comp1_min</span>
+    <span class="n">comp1_max</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">multiplicity</span><span class="p">[</span><span class="n">li</span><span class="p">:</span><span class="n">hi</span><span class="p">])</span><span class="o">/</span><span class="nb">sum</span><span class="p">(</span><span class="n">multiplicity</span><span class="p">)</span><span class="o">*</span><span class="mi">100</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span>
+    <span class="n">comp2_min</span> <span class="o">=</span> <span class="mi">100</span><span class="o">-</span><span class="n">comp1_max</span>
+    <span class="n">ymin</span> <span class="o">=</span> <span class="n">comp2_min</span><span class="o">/</span><span class="n">comp1_max</span>
+    <span class="c">#print ymin, ymax</span>
+    <span class="n">delta</span> <span class="o">=</span> <span class="p">(</span><span class="n">ymax</span><span class="o">-</span><span class="n">ymin</span><span class="p">)</span><span class="o">/</span><span class="mf">40.0</span>
+
+    <span class="c">#for i in range(len(mu)):</span>
+    <span class="c">#    print mu[i], mu_vals[i]</span>
+
+    <span class="c"># Compile mu&#39;s for all composition ratios in the range </span>
+    <span class="c">#+/- 1% from the stoichiometry</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">ymin</span><span class="p">,</span><span class="n">ymax</span><span class="p">,</span><span class="n">delta</span><span class="p">):</span>
+        <span class="n">result</span><span class="p">[</span><span class="n">y</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">vector_func</span> <span class="o">=</span> <span class="p">[</span><span class="n">y</span><span class="o">-</span><span class="n">c_ratio</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+        <span class="n">vector_func</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">omega</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">nsolve</span><span class="p">(</span><span class="n">vector_func</span><span class="p">,</span><span class="n">mu</span><span class="p">,</span><span class="n">mu_vals</span><span class="p">,</span><span class="n">module</span><span class="o">=</span><span class="s">&quot;numpy&quot;</span><span class="p">)</span>
+        <span class="n">result</span><span class="p">[</span><span class="n">y</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">result</span><span class="p">[</span><span class="n">y</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+
+    <span class="n">res</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c"># Compute the concentrations for all the compositions</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+        <span class="n">mu_val</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+        <span class="n">total_c_val</span> <span class="o">=</span> <span class="p">[</span><span class="n">total_c</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">subs</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span><span class="n">mu_val</span><span class="p">)))</span> \
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">total_c</span><span class="p">))]</span>
+        <span class="n">c_val</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">subs</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">mu</span><span class="p">,</span><span class="n">mu_val</span><span class="p">)))</span>
+        <span class="n">res1</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c"># Concentration of first element/over total concen</span>
+        <span class="n">res1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">total_c_val</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="nb">sum</span><span class="p">(</span><span class="n">total_c_val</span><span class="p">)))</span>    
+        <span class="n">sum_c0</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="n">c0</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)])</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">j</span><span class="p">:</span>              <span class="c"># Vacancy</span>
+                    <span class="n">res1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">((</span><span class="n">c0</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="nb">sum</span><span class="p">(</span><span class="n">c_val</span><span class="p">[:,</span><span class="n">i</span><span class="p">]))</span><span class="o">/</span><span class="n">c0</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">i</span><span class="p">]))</span>     
+                <span class="k">else</span><span class="p">:</span>                   <span class="c"># Antisite</span>
+                    <span class="n">res1</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">c_val</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span><span class="o">/</span><span class="n">c0</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">i</span><span class="p">]))</span>                    
+        <span class="n">res</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">res1</span><span class="p">)</span>
+
+    <span class="n">res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+    <span class="n">dtype</span> <span class="o">=</span> <span class="p">[(</span><span class="s">&#39;x&#39;</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)]</span><span class="o">+</span><span class="p">[(</span><span class="s">&#39;y&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">j</span><span class="p">),</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span> \
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)]</span>
+    <span class="n">res1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">dtype</span><span class="p">),</span><span class="n">order</span><span class="o">=</span><span class="p">[</span><span class="s">&#39;x&#39;</span><span class="p">],</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+
+    <span class="n">plot_data</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="sd">&quot;&quot;&quot;Because all the plots have identical x-points storing it in a </span>
+<span class="sd">    single array&quot;&quot;&quot;</span>
+    <span class="n">plot_data</span><span class="p">[</span><span class="s">&#39;x&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">dat</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">dat</span> <span class="ow">in</span> <span class="n">res1</span><span class="p">]</span>         <span class="c"># x-axis data</span>
+    <span class="c"># Element whose composition is varied. For x-label</span>
+    <span class="n">plot_data</span><span class="p">[</span><span class="s">&#39;x_label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&quot;% &quot;</span><span class="o">+</span><span class="n">els</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>                   
+    <span class="n">plot_data</span><span class="p">[</span><span class="s">&#39;y_label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&quot;Point defect density&quot;</span>
+    <span class="n">conc</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+        <span class="n">conc</span><span class="o">.</span><span class="n">append</span><span class="p">([])</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+            <span class="n">conc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">([])</span>
+    <span class="c">#print conc</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span> <span class="c"># Append vacancies</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+            <span class="n">y1</span> <span class="o">=</span> <span class="p">[</span><span class="n">dat</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">i</span><span class="o">*</span><span class="n">n</span><span class="o">+</span><span class="n">j</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">dat</span> <span class="ow">in</span> <span class="n">res1</span><span class="p">]</span>
+            <span class="n">conc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">y1</span>
+    <span class="c">#print type(conc[i][j])</span>
+
+    <span class="n">y_data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>      <span class="c"># Vacancy plots</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">conc</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">specie</span> <span class="o">=</span> <span class="n">els</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">specie_ind</span> <span class="o">=</span> <span class="n">site_mu_map</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">indices</span> <span class="o">=</span> <span class="n">specie_site_index_map</span><span class="p">[</span><span class="n">specie_ind</span><span class="p">]</span>
+        <span class="n">specie_ind_del</span> <span class="o">=</span> <span class="n">indices</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">cur_ind</span> <span class="o">=</span> <span class="n">i</span> <span class="o">-</span> <span class="n">indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="s">&#39;V&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">els</span><span class="p">:</span>
+            <span class="n">vac_string</span> <span class="o">=</span> <span class="s">&quot;$V_{&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">vac_string</span> <span class="o">=</span> <span class="s">&quot;$Vac_{&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">specie_ind_del</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="n">vac_string</span><span class="o">+</span><span class="n">specie</span><span class="o">+</span><span class="s">&#39;}$&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="n">vac_string</span><span class="o">+</span><span class="n">specie</span><span class="o">+</span><span class="s">&#39;_&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">cur_ind</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;}$&#39;</span>
+        <span class="c"># Plot data and legend info</span>
+        <span class="n">y_data</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s">&#39;data&#39;</span><span class="p">:</span><span class="n">data</span><span class="p">,</span><span class="s">&#39;name&#39;</span><span class="p">:</span><span class="n">label</span><span class="p">})</span>       
+
+        <span class="n">site_specie</span> <span class="o">=</span> <span class="n">els</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m</span><span class="p">):</span>          <span class="c"># Antisite plot dat</span>
+            <span class="n">sub_specie</span> <span class="o">=</span> <span class="n">specie_order</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">sub_specie</span> <span class="o">==</span> <span class="n">site_specie</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">specie_ind_del</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                <span class="n">label</span> <span class="o">=</span> <span class="s">&#39;$&#39;</span><span class="o">+</span><span class="n">sub_specie</span><span class="o">+</span><span class="s">&#39;_{&#39;</span><span class="o">+</span><span class="n">specie</span><span class="o">+</span><span class="s">&#39;}$&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">label</span> <span class="o">=</span> <span class="s">&#39;$&#39;</span><span class="o">+</span><span class="n">sub_specie</span><span class="o">+</span><span class="s">&#39;_{&#39;</span><span class="o">+</span><span class="n">specie</span><span class="o">+</span><span class="s">&#39;_&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">cur_ind</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;}$&#39;</span>
+            <span class="n">inds</span> <span class="o">=</span> <span class="n">specie_site_index_map</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">([</span><span class="n">conc</span><span class="p">[</span><span class="n">ind</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">ind</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="o">*</span><span class="n">inds</span><span class="p">)],</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            <span class="n">y_data</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s">&#39;data&#39;</span><span class="p">:</span><span class="n">data</span><span class="p">,</span><span class="s">&#39;name&#39;</span><span class="p">:</span><span class="n">label</span><span class="p">})</span>
+
+    <span class="n">plot_data</span><span class="p">[</span><span class="s">&#39;y&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">y_data</span>
+
+    <span class="k">return</span> <span class="n">plot_data</span>
+
+</div>
+<div class="viewcode-block" id="compute_defect_density"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.html#pymatgen.analysis.defects.dilute_solution_model.compute_defect_density">[docs]</a><span class="k">def</span> <span class="nf">compute_defect_density</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">e0</span><span class="p">,</span> <span class="n">vac_defs</span><span class="p">,</span> <span class="n">antisite_defs</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="mi">800</span><span class="p">,</span> 
+        <span class="n">trial_chem_pot</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">plot_style</span><span class="o">=</span><span class="s">&quot;HighCharts&quot;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wrapper for the dilute_solution_model where the computed plot data is </span>
+<span class="sd">    prepared based on plot_style. Only &quot;HighCharts&quot; is supported at this point</span>
+
+<span class="sd">    :param structure:</span>
+<span class="sd">    :param e0:</span>
+<span class="sd">    :param vac_defs:</span>
+<span class="sd">    :param antisite_defs:</span>
+<span class="sd">    :param T:</span>
+<span class="sd">    :param plot_style:</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">plot_data</span> <span class="o">=</span> <span class="n">dilute_solution_model</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span><span class="n">e0</span><span class="p">,</span><span class="n">vac_defs</span><span class="p">,</span><span class="n">antisite_defs</span><span class="p">,</span><span class="n">T</span><span class="p">,</span>
+            <span class="n">trial_chem_pot</span><span class="o">=</span><span class="n">trial_chem_pot</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">plot_style</span> <span class="o">==</span> <span class="s">&#39;HighCharts&#39;</span><span class="p">:</span>
+        <span class="n">hgh_chrt_data</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">hgh_chrt_data</span><span class="p">[</span><span class="s">&#39;xAxis&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">plot_data</span><span class="p">[</span><span class="s">&#39;x_label&#39;</span><span class="p">]</span>
+        <span class="n">hgh_chrt_data</span><span class="p">[</span><span class="s">&#39;yAxis&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">plot_data</span><span class="p">[</span><span class="s">&#39;y_label&#39;</span><span class="p">]</span>
+
+        <span class="n">series</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">plot_data</span><span class="p">[</span><span class="s">&#39;x&#39;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">y_data</span> <span class="ow">in</span> <span class="n">plot_data</span><span class="p">[</span><span class="s">&#39;y&#39;</span><span class="p">]:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">y_data</span><span class="p">[</span><span class="s">&#39;data&#39;</span><span class="p">]</span>
+            <span class="n">xy</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">)</span>
+            <span class="n">xy</span> <span class="o">=</span> <span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">el</span><span class="p">)</span> <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="n">xy</span><span class="p">]</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">y_data</span><span class="p">[</span><span class="s">&#39;name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">&#39;$&#39;</span><span class="p">)</span>
+            <span class="n">flds</span><span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;_&#39;</span><span class="p">)</span>
+            <span class="n">def_string</span> <span class="o">=</span> <span class="n">flds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">site_string</span> <span class="o">=</span> <span class="n">flds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">&#39;{}&#39;</span><span class="p">)</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">def_string</span><span class="o">+</span><span class="s">&quot;&lt;sub&gt;&quot;</span><span class="o">+</span><span class="n">site_string</span><span class="o">+</span><span class="s">&quot;&lt;/sub&gt;&quot;</span>
+            <span class="c">#series.append({&#39;data&#39;:xy, &#39;name&#39;:y_data[&#39;name&#39;]})</span>
+            <span class="n">series</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s">&#39;data&#39;</span><span class="p">:</span><span class="n">xy</span><span class="p">,</span> <span class="s">&#39;name&#39;</span><span class="p">:</span><span class="n">name</span><span class="p">})</span>
+        <span class="n">hgh_chrt_data</span><span class="p">[</span><span class="s">&#39;series&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">series</span>
+        <span class="k">return</span> <span class="n">hgh_chrt_data</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../../index.html">pymatgen 2.9.14 documentation</a> &raquo;</li>
+          <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+
+    <div class="footer">
+        &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Geoffroy Hautier, William Davidson Richard, Stephen Dacek, Sai Jayaraman, Michael Kocher, Dan Gunter, Shreyas Cholia, Vincent L Chevrier, Rickard Armiento.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+<script type="text/javascript">
+  (function() {
+    var ga = document.createElement('script');
+    ga.src = ('https:' == document.location.protocol ?
+              'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    ga.setAttribute('async', 'true');
+    document.documentElement.firstChild.appendChild(ga);
+  })();
+</script>
+</div>
+
+  </body>
+</html>

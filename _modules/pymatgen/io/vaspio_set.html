@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.vaspio_set &mdash; pymatgen 2.9.13 documentation</title>
+    <title>pymatgen.io.vaspio_set &mdash; pymatgen 2.9.14 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '2.9.13',
+        VERSION:     '2.9.14',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.9.13 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 2.9.14 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.9.13 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 2.9.14 documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -78,7 +78,7 @@
 
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">abc</span>
-<span class="kn">import</span> <span class="nn">json</span>
+
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">traceback</span>
 <span class="kn">import</span> <span class="nn">shutil</span>
@@ -86,13 +86,15 @@
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 
+<span class="kn">from</span> <span class="nn">monty.serialization</span> <span class="kn">import</span> <span class="n">loadfn</span>
+
 <span class="kn">from</span> <span class="nn">pymatgen.io.cifio</span> <span class="kn">import</span> <span class="n">CifWriter</span>
 <span class="kn">from</span> <span class="nn">pymatgen.io.vaspio.vasp_input</span> <span class="kn">import</span> <span class="n">Incar</span><span class="p">,</span> <span class="n">Poscar</span><span class="p">,</span> <span class="n">Potcar</span><span class="p">,</span> <span class="n">Kpoints</span>
 <span class="kn">from</span> <span class="nn">pymatgen.io.vaspio.vasp_output</span> <span class="kn">import</span> <span class="n">Vasprun</span><span class="p">,</span> <span class="n">Outcar</span>
 <span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">MSONable</span>
 <span class="kn">from</span> <span class="nn">pymatgen.symmetry.finder</span> <span class="kn">import</span> <span class="n">SymmetryFinder</span>
 <span class="kn">from</span> <span class="nn">pymatgen.symmetry.bandstructure</span> <span class="kn">import</span> <span class="n">HighSymmKpath</span>
-<span class="kn">from</span> <span class="nn">pymatgen</span> <span class="kn">import</span> <span class="n">write_structure</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.smartio</span> <span class="kn">import</span> <span class="n">write_structure</span>
 
 
 <span class="n">MODULE_DIR</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">__file__</span><span class="p">))</span>
@@ -214,7 +216,7 @@
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Concrete implementation of VaspInputSet that is initialized from a dict</span>
 <span class="sd">    settings. This allows arbitrary settings to be input. In general,</span>
-<span class="sd">    this is rarely used directly unless there is a source of settings in JSON</span>
+<span class="sd">    this is rarely used directly unless there is a source of settings in yaml</span>
 <span class="sd">    format (e.g., from a REST interface). It is typically used by other</span>
 <span class="sd">    VaspInputSets for initialization.</span>
 
@@ -352,6 +354,15 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">Potcar</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_potcar_symbols</span><span class="p">(</span><span class="n">structure</span><span class="p">))</span>
 </div>
+<div class="viewcode-block" id="DictVaspInputSet.get_nelect"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.vaspio_set.DictVaspInputSet.get_nelect">[docs]</a>    <span class="k">def</span> <span class="nf">get_nelect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Gets the default number of electrons for a given structure.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">ps</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_potcar</span><span class="p">(</span><span class="n">structure</span><span class="p">):</span>
+            <span class="n">n</span> <span class="o">+=</span> <span class="n">structure</span><span class="o">.</span><span class="n">composition</span><span class="p">[</span><span class="n">ps</span><span class="o">.</span><span class="n">element</span><span class="p">]</span> <span class="o">*</span> <span class="n">ps</span><span class="o">.</span><span class="n">ZVAL</span>
+        <span class="k">return</span> <span class="n">n</span>
+</div>
 <div class="viewcode-block" id="DictVaspInputSet.get_potcar_symbols"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.vaspio_set.DictVaspInputSet.get_potcar_symbols">[docs]</a>    <span class="k">def</span> <span class="nf">get_potcar_symbols</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sort_structure</span><span class="p">:</span>
             <span class="n">structure</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">get_sorted_structure</span><span class="p">()</span>
@@ -421,25 +432,23 @@
                    <span class="n">potcar_functional</span><span class="o">=</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;potcar_functional&quot;</span><span class="p">,</span> <span class="bp">None</span><span class="p">))</span>
 </div>
     <span class="nd">@staticmethod</span>
-<div class="viewcode-block" id="DictVaspInputSet.from_json_file"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.vaspio_set.DictVaspInputSet.from_json_file">[docs]</a>    <span class="k">def</span> <span class="nf">from_json_file</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">json_file</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<div class="viewcode-block" id="DictVaspInputSet.from_file"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.vaspio_set.DictVaspInputSet.from_file">[docs]</a>    <span class="k">def</span> <span class="nf">from_file</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Creates a DictVaspInputSet from a json file.</span>
+<span class="sd">        Creates a DictVaspInputSet from a yaml/json file.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            name (str): A name for the input set.</span>
-<span class="sd">            json_file (str): Path to a json file containing the settings.</span>
+<span class="sd">            filename (str): Path to a yaml/json file containing the settings.</span>
 <span class="sd">            \*\*kwargs: Same kwargs as in the constructor.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            DictVaspInputSet</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">json_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">DictVaspInputSet</span><span class="p">(</span>
-                <span class="n">name</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">DictVaspInputSet</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">loadfn</span><span class="p">(</span><span class="n">filename</span><span class="p">),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
 </div></div>
-<span class="n">MITVaspInputSet</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">from_json_file</span><span class="p">,</span> <span class="s">&quot;MIT&quot;</span><span class="p">,</span>
-                          <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MITVaspInputSet.json&quot;</span><span class="p">))</span>
+<span class="n">MITVaspInputSet</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">from_file</span><span class="p">,</span> <span class="s">&quot;MIT&quot;</span><span class="p">,</span>
+                          <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MITVaspInputSet.yaml&quot;</span><span class="p">))</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">Standard implementation of VaspInputSet utilizing parameters in the MIT</span>
 <span class="sd">High-throughput project.</span>
@@ -452,24 +461,20 @@
 <span class="sd">    K. A. Persson, G. Ceder. A high-throughput infrastructure for density</span>
 <span class="sd">    functional theory calculations. Computational Materials Science,</span>
 <span class="sd">    2011, 50(8), 2295-2310. doi:10.1016/j.commatsci.2011.02.023</span>
-
-<span class="sd">for more information. Supports the same kwargs as :class:`JSONVaspInputSet`.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="n">MITGGAVaspInputSet</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">from_json_file</span><span class="p">,</span> <span class="s">&quot;MIT GGA&quot;</span><span class="p">,</span>
-                             <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MITVaspInputSet.json&quot;</span><span class="p">),</span>
+<span class="n">MITGGAVaspInputSet</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">from_file</span><span class="p">,</span> <span class="s">&quot;MIT GGA&quot;</span><span class="p">,</span>
+                             <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MITVaspInputSet.yaml&quot;</span><span class="p">),</span>
                              <span class="n">hubbard_off</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">GGA (no U) version of MITVaspInputSet.</span>
-<span class="sd">Supports the same kwargs as :class:`JSONVaspInputSet`.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="n">MITHSEVaspInputSet</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span>
-    <span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">from_json_file</span><span class="p">,</span> <span class="s">&quot;MIT HSE&quot;</span><span class="p">,</span>
-    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MITHSEVaspInputSet.json&quot;</span><span class="p">))</span>
+    <span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">from_file</span><span class="p">,</span> <span class="s">&quot;MIT HSE&quot;</span><span class="p">,</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MITHSEVaspInputSet.yaml&quot;</span><span class="p">))</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">Typical implementation of input set for a HSE run using MIT parameters.</span>
-<span class="sd">Supports the same kwargs as :class:`JSONVaspInputSet`.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 
@@ -491,10 +496,10 @@
         <span class="k">if</span> <span class="n">user_incar_settings</span><span class="p">:</span>
             <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">user_incar_settings</span><span class="p">)</span>
 
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MITVaspInputSet.json&quot;</span><span class="p">))</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&quot;MIT NEB&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">),</span>
-                                      <span class="n">user_incar_settings</span><span class="o">=</span><span class="n">defaults</span><span class="p">,</span>
-                                      <span class="n">ediff_per_atom</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="s">&quot;MIT NEB&quot;</span><span class="p">,</span>
+            <span class="n">loadfn</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MITVaspInputSet.yaml&quot;</span><span class="p">)),</span>
+            <span class="n">user_incar_settings</span><span class="o">=</span><span class="n">defaults</span><span class="p">,</span> <span class="n">ediff_per_atom</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">nimages</span> <span class="o">=</span> <span class="n">nimages</span>
 
     <span class="k">def</span> <span class="nf">_process_structures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structures</span><span class="p">):</span>
@@ -600,11 +605,11 @@
         <span class="c">#override default settings with user supplied settings</span>
         <span class="k">if</span> <span class="n">user_incar_settings</span><span class="p">:</span>
             <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">user_incar_settings</span><span class="p">)</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MITVaspInputSet.json&quot;</span><span class="p">))</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
-                <span class="bp">self</span><span class="p">,</span> <span class="s">&quot;MIT MD&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">),</span>
-                <span class="n">hubbard_off</span><span class="o">=</span><span class="n">hubbard_off</span><span class="p">,</span> <span class="n">sort_structure</span><span class="o">=</span><span class="n">sort_structure</span><span class="p">,</span>
-                <span class="n">user_incar_settings</span><span class="o">=</span><span class="n">defaults</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="s">&quot;MIT MD&quot;</span><span class="p">,</span>
+            <span class="n">loadfn</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MITVaspInputSet.yaml&quot;</span><span class="p">)),</span>
+            <span class="n">hubbard_off</span><span class="o">=</span><span class="n">hubbard_off</span><span class="p">,</span> <span class="n">sort_structure</span><span class="o">=</span><span class="n">sort_structure</span><span class="p">,</span>
+            <span class="n">user_incar_settings</span><span class="o">=</span><span class="n">defaults</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">start_temp</span> <span class="o">=</span> <span class="n">start_temp</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">end_temp</span> <span class="o">=</span> <span class="n">end_temp</span>
@@ -616,7 +621,7 @@
         <span class="c">#use VASP default ENCUT</span>
         <span class="k">if</span> <span class="s">&#39;ENCUT&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">user_incar_settings</span><span class="p">:</span>
             <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">incar_settings</span><span class="p">[</span><span class="s">&#39;ENCUT&#39;</span><span class="p">]</span>
-        
+
         <span class="k">if</span> <span class="ow">not</span> <span class="n">spin_polarized</span><span class="p">:</span>
             <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">incar_settings</span><span class="p">[</span><span class="s">&#39;MAGMOM&#39;</span><span class="p">]</span>
 
@@ -647,27 +652,26 @@
                    <span class="n">sort_structure</span><span class="o">=</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;sort_structure&quot;</span><span class="p">,</span> <span class="bp">True</span><span class="p">))</span>
 
 </div></div>
-<span class="n">MPVaspInputSet</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">from_json_file</span><span class="p">,</span> <span class="s">&quot;MP&quot;</span><span class="p">,</span>
-                         <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MPVaspInputSet.json&quot;</span><span class="p">))</span>
+<span class="n">MPVaspInputSet</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">from_file</span><span class="p">,</span> <span class="s">&quot;MP&quot;</span><span class="p">,</span>
+                         <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MPVaspInputSet.yaml&quot;</span><span class="p">))</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">Implementation of VaspInputSet utilizing parameters in the public</span>
 <span class="sd">Materials Project. Typically, the pseudopotentials chosen contain more</span>
 <span class="sd">electrons than the MIT parameters, and the k-point grid is ~50% more dense.</span>
 <span class="sd">The LDAUU parameters are also different due to the different psps used,</span>
-<span class="sd">which result in different fitted values. Supports the same kwargs as</span>
-<span class="sd">:class:`JSONVaspInputSet`.</span>
+<span class="sd">which result in different fitted values.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="n">MPGGAVaspInputSet</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">from_json_file</span><span class="p">,</span> <span class="s">&quot;MP GGA&quot;</span><span class="p">,</span>
-                            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MPVaspInputSet.json&quot;</span><span class="p">),</span>
+<span class="n">MPGGAVaspInputSet</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">from_file</span><span class="p">,</span> <span class="s">&quot;MP GGA&quot;</span><span class="p">,</span>
+                            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MPVaspInputSet.yaml&quot;</span><span class="p">),</span>
                             <span class="n">hubbard_off</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">Same as the MPVaspInput set, but the +U is enforced to be turned off.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 
-<span class="n">MPHSEVaspInputSet</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">from_json_file</span><span class="p">,</span> <span class="s">&quot;MP HSE&quot;</span><span class="p">,</span>
-                            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MPHSEVaspInputSet.json&quot;</span><span class="p">))</span>
+<span class="n">MPHSEVaspInputSet</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">from_file</span><span class="p">,</span> <span class="s">&quot;MP HSE&quot;</span><span class="p">,</span>
+                            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MPHSEVaspInputSet.yaml&quot;</span><span class="p">))</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">Same as the MPVaspInput set, but with HSE parameters.</span>
 <span class="sd">&quot;&quot;&quot;</span>
@@ -706,9 +710,10 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kpoints_density</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span> <span class="n">sym_prec</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MPVaspInputSet.json&quot;</span><span class="p">))</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
-                <span class="bp">self</span><span class="p">,</span> <span class="s">&quot;MP Static&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="s">&quot;MP Static&quot;</span><span class="p">,</span>
+            <span class="n">loadfn</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MPVaspInputSet.yaml&quot;</span><span class="p">)),</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">incar_settings</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
             <span class="p">{</span><span class="s">&quot;IBRION&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="s">&quot;ISMEAR&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">5</span><span class="p">,</span> <span class="s">&quot;LAECHG&quot;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span> <span class="s">&quot;LCHARG&quot;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span>
              <span class="s">&quot;LORBIT&quot;</span><span class="p">:</span> <span class="mi">11</span><span class="p">,</span> <span class="s">&quot;LVHAR&quot;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span> <span class="s">&quot;LWAVE&quot;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span> <span class="s">&quot;NSW&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
@@ -871,9 +876,9 @@
         <span class="c"># Perform checking on INCAR parameters</span>
         <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">previous_incar</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;NSW&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span>
                 <span class="n">previous_incar</span><span class="p">[</span><span class="s">&quot;IBRION&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
-                <span class="n">previous_incar</span><span class="p">[</span><span class="s">&quot;LCHARG&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="bp">True</span><span class="p">,</span>
+                <span class="n">previous_incar</span><span class="p">[</span><span class="s">&quot;LCHARG&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="bp">True</span><span class="p">,</span>
                <span class="nb">any</span><span class="p">([</span><span class="nb">sum</span><span class="p">(</span><span class="n">previous_incar</span><span class="p">[</span><span class="s">&quot;LDAUU&quot;</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">,</span>
-                    <span class="n">previous_incar</span><span class="p">[</span><span class="s">&quot;LMAXMIX&quot;</span><span class="p">]</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">])</span>
+                    <span class="n">previous_incar</span><span class="p">[</span><span class="s">&quot;LMAXMIX&quot;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">])</span>
                <span class="k">if</span> <span class="n">previous_incar</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;LDAU&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="bp">False</span><span class="p">]):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Incompatible INCAR parameters!&quot;</span><span class="p">)</span>
 
@@ -908,9 +913,9 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_incar_settings</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">ionic</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MPVaspInputSet.json&quot;</span><span class="p">))</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
-                <span class="bp">self</span><span class="p">,</span> <span class="s">&quot;MaterialsProject Static Dielectric DFPT&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">))</span>
+        <span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="s">&quot;MaterialsProject Static Dielectric DFPT&quot;</span><span class="p">,</span>
+            <span class="n">loadfn</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MPVaspInputSet.yaml&quot;</span><span class="p">)))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">user_incar_settings</span> <span class="o">=</span> <span class="n">user_incar_settings</span> <span class="k">if</span> \
             <span class="n">user_incar_settings</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="k">else</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">incar_settings</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user_incar_settings</span><span class="p">)</span>
@@ -947,15 +952,14 @@
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_incar_settings</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">added_kpoints</span><span class="o">=</span><span class="p">[],</span> <span class="n">mode</span><span class="o">=</span><span class="s">&quot;Line&quot;</span><span class="p">,</span>
                  <span class="n">kpoints_density</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MPHSEVaspInputSet.json&quot;</span><span class="p">))</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
-                <span class="bp">self</span><span class="p">,</span> <span class="s">&quot;MaterialsProject HSE Band Structure&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">))</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">user_incar_settings</span> <span class="o">=</span> <span class="n">user_incar_settings</span> <span class="k">if</span> \
-                <span class="n">user_incar_settings</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="k">else</span> <span class="p">{}</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">incar_settings</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
-                <span class="p">{</span><span class="s">&quot;NSW&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;ISMEAR&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;SIGMA&quot;</span><span class="p">:</span> <span class="mf">0.05</span><span class="p">,</span> <span class="s">&quot;ISYM&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
-                 <span class="s">&quot;LCHARG&quot;</span><span class="p">:</span> <span class="bp">False</span><span class="p">})</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">incar_settings</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user_incar_settings</span><span class="p">)</span>
+        <span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="s">&quot;MaterialsProject HSE Band Structure&quot;</span><span class="p">,</span>
+            <span class="n">loadfn</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MPHSEVaspInputSet.yaml&quot;</span><span class="p">)))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user_incar_settings</span> <span class="o">=</span> <span class="n">user_incar_settings</span> <span class="k">if</span> \
+            <span class="n">user_incar_settings</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="k">else</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">incar_settings</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="p">{</span><span class="s">&quot;NSW&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;ISMEAR&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;SIGMA&quot;</span><span class="p">:</span> <span class="mf">0.05</span><span class="p">,</span> <span class="s">&quot;ISYM&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;LCHARG&quot;</span><span class="p">:</span> <span class="bp">False</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">incar_settings</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user_incar_settings</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">added_kpoints</span> <span class="o">=</span> <span class="n">added_kpoints</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">kpoints_density</span> <span class="o">=</span> <span class="n">kpoints_density</span>
@@ -1048,11 +1052,11 @@
         <span class="k">if</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;Line&quot;</span><span class="p">,</span> <span class="s">&quot;Uniform&quot;</span><span class="p">]:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Supported modes for NonSCF runs are &#39;Line&#39; and &quot;</span>
                              <span class="s">&quot;&#39;Uniform&#39;!&quot;</span><span class="p">)</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MPVaspInputSet.json&quot;</span><span class="p">))</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
-                <span class="bp">self</span><span class="p">,</span> <span class="s">&quot;MaterialsProject Static&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">),</span>
-                <span class="n">constrain_total_magmom</span><span class="o">=</span><span class="n">constrain_total_magmom</span><span class="p">,</span>
-                <span class="n">sort_structure</span><span class="o">=</span><span class="n">sort_structure</span><span class="p">)</span>
+        <span class="n">DictVaspInputSet</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="s">&quot;MaterialsProject Static&quot;</span><span class="p">,</span>
+            <span class="n">loadfn</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s">&quot;MPVaspInputSet.yaml&quot;</span><span class="p">)),</span>
+            <span class="n">constrain_total_magmom</span><span class="o">=</span><span class="n">constrain_total_magmom</span><span class="p">,</span>
+            <span class="n">sort_structure</span><span class="o">=</span><span class="n">sort_structure</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">user_incar_settings</span> <span class="o">=</span> <span class="n">user_incar_settings</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">incar_settings</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
             <span class="p">{</span><span class="s">&quot;IBRION&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="s">&quot;ISMEAR&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;SIGMA&quot;</span><span class="p">:</span> <span class="mf">0.001</span><span class="p">,</span> <span class="s">&quot;LCHARG&quot;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
@@ -1252,9 +1256,11 @@
                  <span class="n">kpoints_density</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">sym_prec</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">nedos</span><span class="o">=</span><span class="mi">2001</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sym_prec</span> <span class="o">=</span> <span class="n">sym_prec</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">nedos</span> <span class="o">=</span> <span class="n">nedos</span>
-        <span class="n">MPNonSCFVaspInputSet</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user_incar_settings</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&quot;Uniform&quot;</span><span class="p">,</span>
-                                      <span class="n">constrain_total_magmom</span><span class="o">=</span><span class="n">constrain_total_magmom</span><span class="p">,</span> <span class="n">sort_structure</span><span class="o">=</span><span class="n">sort_structure</span><span class="p">,</span>
-                                      <span class="n">kpoints_density</span><span class="o">=</span><span class="n">kpoints_density</span><span class="p">,</span> <span class="n">sym_prec</span><span class="o">=</span><span class="n">sym_prec</span><span class="p">)</span>
+        <span class="n">MPNonSCFVaspInputSet</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">user_incar_settings</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&quot;Uniform&quot;</span><span class="p">,</span>
+            <span class="n">constrain_total_magmom</span><span class="o">=</span><span class="n">constrain_total_magmom</span><span class="p">,</span>
+            <span class="n">sort_structure</span><span class="o">=</span><span class="n">sort_structure</span><span class="p">,</span>
+            <span class="n">kpoints_density</span><span class="o">=</span><span class="n">kpoints_density</span><span class="p">,</span> <span class="n">sym_prec</span><span class="o">=</span><span class="n">sym_prec</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">incar_settings</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&quot;NEDOS&quot;</span><span class="p">:</span> <span class="n">nedos</span><span class="p">})</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">incar_settings</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&quot;LOPTICS&quot;</span><span class="p">:</span> <span class="bp">True</span><span class="p">})</span>
 
@@ -1280,9 +1286,10 @@
 <span class="sd">            make_dir_if_not_present (bool): Set to True if you want the</span>
 <span class="sd">                directory (and the whole path) to be created if it is not</span>
 <span class="sd">                present.</span>
-<span class="sd">            nbands_factor (float): Factor by which the number of bands is to be multiplied.</span>
-<span class="sd">            Typical calculations of dielectric functions need a total number</span>
-<span class="sd">            of bands of 5 to 10 times the number of valence bands</span>
+<span class="sd">            nbands_factor (float): Factor by which the number of bands is to be</span>
+<span class="sd">                multiplied. Typical calculations of dielectric functions need a</span>
+<span class="sd">                total number of bands of 5 to 10 times the number of valence</span>
+<span class="sd">                bands.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">user_incar_settings</span> <span class="o">=</span> <span class="n">user_incar_settings</span> <span class="ow">or</span> <span class="p">{}</span>
 
@@ -1300,9 +1307,8 @@
                                                        <span class="n">initial_structure</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
         <span class="n">nscf_incar_settings</span> <span class="o">=</span> <span class="n">MPNonSCFVaspInputSet</span><span class="o">.</span><span class="n">get_incar_settings</span><span class="p">(</span><span class="n">vasp_run</span><span class="p">,</span>
                                                                       <span class="n">outcar</span><span class="p">)</span>
-        <span class="n">spin_band_settings</span> <span class="o">=</span> <span class="n">MPOpticsNonSCFVaspInputSet</span><span class="o">.</span><span class="n">get_ispin_nbands</span><span class="p">(</span><span class="n">vasp_run</span><span class="p">,</span>
-                                                                         <span class="n">outcar</span><span class="p">,</span>
-                                                                         <span class="n">nbands_factor</span><span class="o">=</span><span class="n">nbands_factor</span><span class="p">)</span>
+        <span class="n">spin_band_settings</span> <span class="o">=</span> <span class="n">MPOpticsNonSCFVaspInputSet</span><span class="o">.</span><span class="n">get_ispin_nbands</span><span class="p">(</span>
+            <span class="n">vasp_run</span><span class="p">,</span> <span class="n">outcar</span><span class="p">,</span> <span class="n">nbands_factor</span><span class="o">=</span><span class="n">nbands_factor</span><span class="p">)</span>
         <span class="n">mpnscfvip</span> <span class="o">=</span> <span class="n">MPNonSCFVaspInputSet</span><span class="p">(</span><span class="n">nscf_incar_settings</span><span class="p">,</span> <span class="s">&quot;Uniform&quot;</span><span class="p">)</span>
         <span class="n">mpnscfvip</span><span class="o">.</span><span class="n">incar_settings</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">spin_band_settings</span><span class="p">)</span>
         <span class="n">mpnscfvip</span><span class="o">.</span><span class="n">write_input</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">,</span> <span class="n">make_dir_if_not_present</span><span class="p">)</span>
@@ -1318,8 +1324,8 @@
         <span class="c">#Overwrite necessary INCAR parameters from previous runs</span>
         <span class="n">previous_incar</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&quot;IBRION&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="s">&quot;ISMEAR&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;SIGMA&quot;</span><span class="p">:</span> <span class="mf">0.001</span><span class="p">,</span>
                                <span class="s">&quot;LCHARG&quot;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span> <span class="s">&quot;LORBIT&quot;</span><span class="p">:</span> <span class="mi">11</span><span class="p">,</span> <span class="s">&quot;LWAVE&quot;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
-                               <span class="s">&quot;NSW&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;ISYM&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;ICHARG&quot;</span><span class="p">:</span> <span class="mi">11</span><span class="p">,</span> <span class="s">&quot;LOPTICS&quot;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span>
-                               <span class="s">&quot;NEDOS&quot;</span><span class="p">:</span> <span class="n">nedos</span><span class="p">})</span>
+                               <span class="s">&quot;NSW&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;ISYM&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;ICHARG&quot;</span><span class="p">:</span> <span class="mi">11</span><span class="p">,</span>
+                               <span class="s">&quot;LOPTICS&quot;</span><span class="p">:</span> <span class="bp">True</span><span class="p">,</span> <span class="s">&quot;NEDOS&quot;</span><span class="p">:</span> <span class="n">nedos</span><span class="p">})</span>
         <span class="n">previous_incar</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">nscf_incar_settings</span><span class="p">)</span>
         <span class="n">previous_incar</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">user_incar_settings</span><span class="p">)</span>
         <span class="n">previous_incar</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&quot;MAGMOM&quot;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
@@ -1435,7 +1441,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.9.13 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 2.9.14 documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

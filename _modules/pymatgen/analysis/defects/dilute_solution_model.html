@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.analysis.defects.dilute_solution_model &mdash; pymatgen 2.9.14 documentation</title>
+    <title>pymatgen.analysis.defects.dilute_solution_model &mdash; pymatgen 2.10.0 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '2.9.14',
+        VERSION:     '2.10.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.9.14 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 2.10.0 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 2.9.14 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 2.10.0 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -73,18 +73,13 @@
 <span class="n">__status__</span> <span class="o">=</span> <span class="s">&quot;Alpha&quot;</span>
 <span class="n">__date__</span> <span class="o">=</span> <span class="s">&quot;6/4/14&quot;</span>
 
-<span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">math</span>
-<span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">copy</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
-<span class="kn">import</span> <span class="nn">scipy</span>
 
 <span class="kn">from</span> <span class="nn">monty.dev</span> <span class="kn">import</span> <span class="n">requires</span>
+<span class="kn">from</span> <span class="nn">monty.fractions</span> <span class="kn">import</span> <span class="n">gcd</span>
 
-<span class="kn">from</span> <span class="nn">pymatgen.analysis.defects</span> <span class="kn">import</span> <span class="n">Vacancy</span>
-<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="kn">import</span> <span class="n">Composition</span>
-<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">PMGJSONEncoder</span><span class="p">,</span> <span class="n">PMGJSONDecoder</span>
 
 <span class="k">try</span><span class="p">:</span>
     <span class="kn">from</span> <span class="nn">sympy</span> <span class="kn">import</span> <span class="n">Symbol</span><span class="p">,</span> <span class="n">nsolve</span><span class="p">,</span> <span class="n">Integer</span><span class="p">,</span> <span class="n">Rational</span><span class="p">,</span> <span class="n">Matrix</span><span class="p">,</span> <span class="n">exp</span><span class="p">,</span> <span class="n">solve</span><span class="p">,</span> <span class="n">Eq</span>
@@ -95,25 +90,7 @@
 <span class="c"># physical consts</span>
 <span class="n">k_B</span><span class="o">=</span><span class="mf">8.6173324e-5</span>                <span class="c"># eV/K</span>
 
-<div class="viewcode-block" id="gcd"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.html#pymatgen.analysis.defects.dilute_solution_model.gcd">[docs]</a><span class="k">def</span> <span class="nf">gcd</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Return greatest common divisor using Euclid&#39;s Algorithm.&quot;&quot;&quot;</span>
-    <span class="k">while</span> <span class="n">b</span><span class="p">:</span>
-        <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">b</span><span class="p">,</span> <span class="n">a</span> <span class="o">%</span> <span class="n">b</span>
-    <span class="k">return</span> <span class="n">a</span>
-</div>
-<div class="viewcode-block" id="lcm"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.html#pymatgen.analysis.defects.dilute_solution_model.lcm">[docs]</a><span class="k">def</span> <span class="nf">lcm</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Return lowest common multiple.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">a</span> <span class="o">*</span> <span class="n">b</span> <span class="o">//</span> <span class="n">gcd</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
-</div>
-<div class="viewcode-block" id="lcmm"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.html#pymatgen.analysis.defects.dilute_solution_model.lcmm">[docs]</a><span class="k">def</span> <span class="nf">lcmm</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Return lcm of args.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="nb">reduce</span><span class="p">(</span><span class="n">lcm</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
-</div>
-<div class="viewcode-block" id="gcdd"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.html#pymatgen.analysis.defects.dilute_solution_model.gcdd">[docs]</a><span class="k">def</span> <span class="nf">gcdd</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot; Return gcd of args.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="nb">reduce</span><span class="p">(</span><span class="n">gcd</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
-
-<span class="c"># Check the inputs</span></div>
+<span class="c"># Check the inputs</span>
 <div class="viewcode-block" id="check_input"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.html#pymatgen.analysis.defects.dilute_solution_model.check_input">[docs]</a><span class="k">def</span> <span class="nf">check_input</span><span class="p">(</span><span class="n">def_list</span><span class="p">):</span>
     <span class="n">flag</span> <span class="o">=</span> <span class="bp">True</span>
     <span class="k">for</span> <span class="n">defect</span> <span class="ow">in</span> <span class="n">def_list</span><span class="p">:</span>
@@ -183,7 +160,7 @@
 
     <span class="c"># Reduce the system and associated parameters such that only distinctive</span>
     <span class="c"># atoms are retained</span>
-    <span class="n">comm_div</span> <span class="o">=</span> <span class="n">gcdd</span><span class="p">(</span><span class="o">*</span><span class="nb">tuple</span><span class="p">(</span><span class="n">multiplicity</span><span class="p">))</span>
+    <span class="n">comm_div</span> <span class="o">=</span> <span class="n">gcd</span><span class="p">(</span><span class="o">*</span><span class="nb">tuple</span><span class="p">(</span><span class="n">multiplicity</span><span class="p">))</span>
     <span class="n">multiplicity</span> <span class="o">=</span> <span class="p">[</span><span class="n">val</span><span class="o">/</span><span class="n">comm_div</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">multiplicity</span><span class="p">]</span>
     <span class="n">e0</span> <span class="o">=</span> <span class="n">e0</span><span class="o">/</span><span class="n">comm_div</span>
     <span class="n">T</span> <span class="o">=</span> <span class="n">Integer</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
@@ -482,8 +459,8 @@
 <span class="sd">    single array&quot;&quot;&quot;</span>
     <span class="n">plot_data</span><span class="p">[</span><span class="s">&#39;x&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">dat</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">dat</span> <span class="ow">in</span> <span class="n">res1</span><span class="p">]</span>         <span class="c"># x-axis data</span>
     <span class="c"># Element whose composition is varied. For x-label</span>
-    <span class="n">plot_data</span><span class="p">[</span><span class="s">&#39;x_label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&quot;% &quot;</span><span class="o">+</span><span class="n">els</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>                   
-    <span class="n">plot_data</span><span class="p">[</span><span class="s">&#39;y_label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&quot;Point defect density&quot;</span>
+    <span class="n">plot_data</span><span class="p">[</span><span class="s">&#39;x_label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">els</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span> <span class="s">&quot; mole fraction&quot;</span> 
+    <span class="n">plot_data</span><span class="p">[</span><span class="s">&#39;y_label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&quot;Point defect concentration&quot;</span>
     <span class="n">conc</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
         <span class="n">conc</span><span class="o">.</span><span class="n">append</span><span class="p">([])</span>
@@ -604,7 +581,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 2.9.14 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 2.10.0 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

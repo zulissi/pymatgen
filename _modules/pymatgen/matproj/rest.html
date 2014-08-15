@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.matproj.rest &mdash; pymatgen 2.9.14 documentation</title>
+    <title>pymatgen.matproj.rest &mdash; pymatgen 2.10.0 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '2.9.14',
+        VERSION:     '2.10.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.9.14 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 2.10.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.9.14 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 2.10.0 documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -56,11 +56,9 @@
           <div class="body">
             
   <h1>Source code for pymatgen.matproj.rest</h1><div class="highlight"><pre>
-<span class="c">#!/usr/bin/env python</span>
-
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">This module provides classes to interface with the Materials Project REST</span>
-<span class="sd">API to enable the creation of data structures and pymatgen objects using</span>
+<span class="sd">API v2 to enable the creation of data structures and pymatgen objects using</span>
 <span class="sd">Materials Project data.</span>
 
 <span class="sd">To make use of the Materials API, you need to be a registered user of the</span>
@@ -82,6 +80,8 @@
 <span class="kn">import</span> <span class="nn">requests</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">from</span> <span class="nn">monty.dev</span> <span class="kn">import</span> <span class="n">deprecated</span>
 
 <span class="kn">from</span> <span class="nn">pymatgen</span> <span class="kn">import</span> <span class="n">Composition</span><span class="p">,</span> <span class="n">PMGJSONDecoder</span>
 <span class="kn">from</span> <span class="nn">pymatgen.entries.computed_entries</span> <span class="kn">import</span> <span class="n">ComputedStructureEntry</span>
@@ -149,7 +149,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">api_key</span> <span class="o">=</span> <span class="n">api_key</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">api_key</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;MAPI_KEY&quot;</span><span class="p">,</span> <span class="s">&quot;&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">preamble</span> <span class="o">=</span> <span class="s">&quot;https://{}/rest/v1&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">host</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">preamble</span> <span class="o">=</span> <span class="s">&quot;https://{}/rest/v2&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">host</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">session</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;x-api-key&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_key</span><span class="p">}</span>
 
@@ -165,6 +165,34 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 </div>
+    <span class="k">def</span> <span class="nf">_make_request</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sub_url</span><span class="p">,</span> <span class="n">payload</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s">&quot;GET&quot;</span><span class="p">):</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preamble</span> <span class="o">+</span> <span class="n">sub_url</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s">&quot;POST&quot;</span><span class="p">:</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">payload</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">payload</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">200</span><span class="p">,</span> <span class="mi">400</span><span class="p">]:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">PMGJSONDecoder</span><span class="p">)</span>
+                <span class="k">except</span><span class="p">:</span>
+                    <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">data</span><span class="p">[</span><span class="s">&quot;valid_response&quot;</span><span class="p">]:</span>
+                    <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;warning&quot;</span><span class="p">):</span>
+                        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;warning&quot;</span><span class="p">])</span>
+                    <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="s">&quot;response&quot;</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">MPRestError</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;error&quot;</span><span class="p">])</span>
+
+            <span class="k">raise</span> <span class="n">MPRestError</span><span class="p">(</span><span class="s">&quot;REST query returned with error status code {}&quot;</span>
+                              <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">))</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;{}. Content: {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">ex</span><span class="p">),</span> <span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>\
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="s">&quot;content&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">ex</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">MPRestError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
 <div class="viewcode-block" id="MPRester.get_materials_id_from_task_id"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRester.get_materials_id_from_task_id">[docs]</a>    <span class="k">def</span> <span class="nf">get_materials_id_from_task_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">task_id</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns a new MP materials id from a task id (which can be</span>
@@ -172,9 +200,11 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            task_id (str): A task id.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            materials_id (str)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mpquery</span><span class="p">({</span><span class="s">&quot;task_ids&quot;</span><span class="p">:</span> <span class="n">task_id</span><span class="p">},</span> <span class="p">[</span><span class="s">&quot;task_id&quot;</span><span class="p">])</span>
-        <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s">&quot;task_id&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_request</span><span class="p">(</span><span class="s">&quot;/materials/mid_from_tid/</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">task_id</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="MPRester.get_data"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRester.get_data">[docs]</a>    <span class="k">def</span> <span class="nf">get_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chemsys_formula_id</span><span class="p">,</span> <span class="n">data_type</span><span class="o">=</span><span class="s">&quot;vasp&quot;</span><span class="p">,</span> <span class="n">prop</span><span class="o">=</span><span class="s">&quot;&quot;</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -195,32 +225,10 @@
 <span class="sd">                MPRester.supported_task_properties. Leave as empty string for a</span>
 <span class="sd">                general list of useful properties.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sub_url</span> <span class="o">=</span> <span class="s">&quot;/materials/</span><span class="si">%s</span><span class="s">/</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">chemsys_formula_id</span><span class="p">,</span> <span class="n">data_type</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">prop</span><span class="p">:</span>
-            <span class="n">url</span> <span class="o">=</span> <span class="s">&quot;{}/materials/{}/{}/{}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">preamble</span><span class="p">,</span> <span class="n">chemsys_formula_id</span><span class="p">,</span> <span class="n">data_type</span><span class="p">,</span> <span class="n">prop</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">url</span> <span class="o">=</span> <span class="s">&quot;{}/materials/{}/{}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">preamble</span><span class="p">,</span> <span class="n">chemsys_formula_id</span><span class="p">,</span> <span class="n">data_type</span><span class="p">)</span>
-
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">None</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">200</span><span class="p">,</span> <span class="mi">400</span><span class="p">]:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">PMGJSONDecoder</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">data</span><span class="p">[</span><span class="s">&quot;valid_response&quot;</span><span class="p">]:</span>
-                    <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;warning&quot;</span><span class="p">):</span>
-                        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;warning&quot;</span><span class="p">])</span>
-                    <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="s">&quot;response&quot;</span><span class="p">]</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="n">MPRestError</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;error&quot;</span><span class="p">])</span>
-
-            <span class="k">raise</span> <span class="n">MPRestError</span><span class="p">(</span><span class="s">&quot;REST query returned with error status code {}&quot;</span>
-                              <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">))</span>
-
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
-            <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;{}. Content: {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">ex</span><span class="p">),</span> <span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>\
-                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="s">&quot;content&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">ex</span><span class="p">)</span>
-            <span class="k">raise</span> <span class="n">MPRestError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">sub_url</span> <span class="o">+=</span> <span class="s">&quot;/&quot;</span> <span class="o">+</span> <span class="n">prop</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_request</span><span class="p">(</span><span class="n">sub_url</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="MPRester.get_task_data"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRester.get_task_data">[docs]</a>    <span class="k">def</span> <span class="nf">get_task_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chemsys_formula_id</span><span class="p">,</span> <span class="n">prop</span><span class="o">=</span><span class="s">&quot;&quot;</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -241,32 +249,10 @@
 <span class="sd">                MPRester.supported_properties. Leave as empty string for a</span>
 <span class="sd">                general list of useful properties.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sub_url</span> <span class="o">=</span> <span class="s">&quot;/tasks/</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">chemsys_formula_id</span>
         <span class="k">if</span> <span class="n">prop</span><span class="p">:</span>
-            <span class="n">url</span> <span class="o">=</span> <span class="s">&quot;{}/tasks/{}/{}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">preamble</span><span class="p">,</span> <span class="n">chemsys_formula_id</span><span class="p">,</span> <span class="n">prop</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">url</span> <span class="o">=</span> <span class="s">&quot;{}/tasks/{}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">preamble</span><span class="p">,</span> <span class="n">chemsys_formula_id</span><span class="p">)</span>
-
-        <span class="n">response</span> <span class="o">=</span> <span class="bp">None</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">200</span><span class="p">,</span> <span class="mi">400</span><span class="p">]:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">PMGJSONDecoder</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">data</span><span class="p">[</span><span class="s">&quot;valid_response&quot;</span><span class="p">]:</span>
-                    <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;warning&quot;</span><span class="p">):</span>
-                        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;warning&quot;</span><span class="p">])</span>
-                    <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="s">&quot;response&quot;</span><span class="p">]</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="n">MPRestError</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;error&quot;</span><span class="p">])</span>
-
-            <span class="k">raise</span> <span class="n">MPRestError</span><span class="p">(</span><span class="s">&quot;REST query returned with error status code {}&quot;</span>
-                              <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">))</span>
-
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
-            <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;{}. Content: {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">ex</span><span class="p">),</span> <span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span>
-                <span class="n">response</span><span class="p">,</span> <span class="s">&quot;content&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">ex</span><span class="p">)</span>
-            <span class="k">raise</span> <span class="n">MPRestError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="n">sub_url</span> <span class="o">+=</span> <span class="s">&quot;/&quot;</span> <span class="o">+</span> <span class="n">prop</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_request</span><span class="p">(</span><span class="n">sub_url</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="MPRester.get_structures"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRester.get_structures">[docs]</a>    <span class="k">def</span> <span class="nf">get_structures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chemsys_formula_id</span><span class="p">,</span> <span class="n">final</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -323,7 +309,6 @@
                         <span class="n">s</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">energy</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">correction</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">parameters</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">data</span><span class="p">,</span>
                         <span class="n">e</span><span class="o">.</span><span class="n">entry_id</span><span class="p">)</span>
             <span class="n">entries</span> <span class="o">=</span> <span class="n">MaterialsProjectCompatibility</span><span class="p">()</span><span class="o">.</span><span class="n">process_entries</span><span class="p">(</span><span class="n">entries</span><span class="p">)</span>
-
         <span class="k">else</span><span class="p">:</span>
             <span class="n">entries</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_data</span><span class="p">(</span><span class="n">chemsys_formula_id</span><span class="p">,</span> <span class="n">prop</span><span class="o">=</span><span class="s">&quot;task_ids&quot;</span><span class="p">):</span>
@@ -487,6 +472,42 @@
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">MPRestError</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">ex</span><span class="p">))</span>
 </div>
+<div class="viewcode-block" id="MPRester.query"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRester.query">[docs]</a>    <span class="k">def</span> <span class="nf">query</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">criteria</span><span class="p">,</span> <span class="n">properties</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Performs an advanced query, which is a Mongo-like syntax for directly</span>
+<span class="sd">        querying the Materials Project database via the query rest interface.</span>
+<span class="sd">        Please refer to the Materials Project REST wiki</span>
+<span class="sd">        https://materialsproject.org/wiki/index.php/The_Materials_API#query</span>
+<span class="sd">        on the query language and supported criteria and properties.</span>
+<span class="sd">        Essentially, any supported properties within MPRester should be</span>
+<span class="sd">        supported in query.</span>
+
+<span class="sd">        Query allows an advanced developer to perform queries which are</span>
+<span class="sd">        otherwise too cumbersome to perform using the standard convenience</span>
+<span class="sd">        methods.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            criteria (dict): Criteria of the query as a mongo-style dict.</span>
+<span class="sd">                For example, {&quot;elements&quot;:{&quot;$in&quot;:[&quot;Li&quot;, &quot;Na&quot;, &quot;K&quot;], &quot;$all&quot;: [</span>
+<span class="sd">                &quot;O&quot;]}, &quot;nelements&quot;:2} selects all Li, Na and K oxides.</span>
+<span class="sd">                {&quot;band_gap&quot;: {&quot;$gt&quot;: 1}} selects all materials with band gaps</span>
+<span class="sd">                greater than 1 eV.</span>
+<span class="sd">            properties (list): Properties to request for as a list. For</span>
+<span class="sd">                example, [&quot;formula&quot;, &quot;formation_energy_per_atom&quot;] returns</span>
+<span class="sd">                the formula and formation energy per atom.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of results. E.g.,</span>
+<span class="sd">            [{u&#39;formula&#39;: {u&#39;O&#39;: 1, u&#39;Li&#39;: 2.0}},</span>
+<span class="sd">            {u&#39;formula&#39;: {u&#39;Na&#39;: 2.0, u&#39;O&#39;: 2.0}},</span>
+<span class="sd">            {u&#39;formula&#39;: {u&#39;K&#39;: 1, u&#39;O&#39;: 3.0}},</span>
+<span class="sd">            ...]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;criteria&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">criteria</span><span class="p">),</span>
+                   <span class="s">&quot;properties&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">properties</span><span class="p">)}</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_request</span><span class="p">(</span><span class="s">&quot;/query&quot;</span><span class="p">,</span> <span class="n">payload</span><span class="o">=</span><span class="n">payload</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s">&quot;POST&quot;</span><span class="p">)</span>
+</div>
+    <span class="nd">@deprecated</span><span class="p">(</span><span class="n">replacement</span><span class="o">=</span><span class="n">query</span><span class="p">)</span>
 <div class="viewcode-block" id="MPRester.mpquery"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRester.mpquery">[docs]</a>    <span class="k">def</span> <span class="nf">mpquery</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">criteria</span><span class="p">,</span> <span class="n">properties</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Performs an advanced mpquery, which is a Mongo-like syntax for directly</span>
@@ -518,26 +539,7 @@
 <span class="sd">            {u&#39;formula&#39;: {u&#39;K&#39;: 1, u&#39;O&#39;: 3.0}},</span>
 <span class="sd">            ...]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;criteria&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">criteria</span><span class="p">),</span>
-                       <span class="s">&quot;properties&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">properties</span><span class="p">)}</span>
-            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
-                <span class="s">&quot;{}/mpquery&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">preamble</span><span class="p">),</span> <span class="n">data</span><span class="o">=</span><span class="n">payload</span><span class="p">)</span>
-
-            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">200</span><span class="p">,</span> <span class="mi">400</span><span class="p">]:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">PMGJSONDecoder</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">data</span><span class="p">[</span><span class="s">&quot;valid_response&quot;</span><span class="p">]:</span>
-                    <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;warning&quot;</span><span class="p">):</span>
-                        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;warning&quot;</span><span class="p">])</span>
-                    <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="s">&quot;response&quot;</span><span class="p">][</span><span class="s">&quot;results&quot;</span><span class="p">]</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="n">MPRestError</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;error&quot;</span><span class="p">])</span>
-
-            <span class="k">raise</span> <span class="n">MPRestError</span><span class="p">(</span><span class="s">&quot;REST query returned with error status code {}&quot;</span>
-                              <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">))</span>
-
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="n">MPRestError</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">ex</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">criteria</span><span class="p">,</span> <span class="n">properties</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="MPRester.submit_structures"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRester.submit_structures">[docs]</a>    <span class="k">def</span> <span class="nf">submit_structures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structures</span><span class="p">,</span> <span class="n">authors</span><span class="p">,</span> <span class="n">projects</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
                           <span class="n">references</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">remarks</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
@@ -561,13 +563,13 @@
 <span class="sd">                or a single String with commas separating authors</span>
 <span class="sd">            projects ([str]): List of Strings [&#39;Project A&#39;, &#39;Project B&#39;].</span>
 <span class="sd">                This applies to all structures.</span>
-<span class="sd">            references (str): A String in BibTeX format. Again, this applies to all</span>
-<span class="sd">                structures.</span>
+<span class="sd">            references (str): A String in BibTeX format. Again, this applies to</span>
+<span class="sd">                all structures.</span>
 <span class="sd">            remarks ([str]): List of Strings [&#39;Remark A&#39;, &#39;Remark B&#39;]</span>
 <span class="sd">            data ([dict]): A list of free form dict. Namespaced at the root</span>
 <span class="sd">                level with an underscore, e.g. {&quot;_materialsproject&quot;:&lt;custom</span>
-<span class="sd">                data&gt;}. The length of data should be the same as the list of structures</span>
-<span class="sd">                if not None.</span>
+<span class="sd">                data&gt;}. The length of data should be the same as the list of</span>
+<span class="sd">                structures if not None.</span>
 <span class="sd">            histories: List of list of dicts - [[{&#39;name&#39;:&#39;&#39;, &#39;url&#39;:&#39;&#39;,</span>
 <span class="sd">                &#39;description&#39;:{}}], ...] The length of histories should be the</span>
 <span class="sd">                same as the list of structures if not None.</span>
@@ -720,13 +722,14 @@
 <span class="sd">                list of authors should apply to all runs.</span>
 <span class="sd">            projects ([str]): List of Strings [&#39;Project A&#39;, &#39;Project B&#39;].</span>
 <span class="sd">                This applies to all structures.</span>
-<span class="sd">            references (str): A String in BibTeX format. Again, this applies to all</span>
-<span class="sd">                structures.</span>
+<span class="sd">            references (str): A String in BibTeX format. Again, this applies to</span>
+<span class="sd">                all structures.</span>
 <span class="sd">            remarks ([str]): List of Strings [&#39;Remark A&#39;, &#39;Remark B&#39;]</span>
 <span class="sd">            master_data (dict): A free form dict. Namespaced at the root</span>
 <span class="sd">                level with an underscore, e.g. {&quot;_materialsproject&quot;:&lt;custom</span>
-<span class="sd">                data&gt;}. This data is added to all structures detected in the directory,</span>
-<span class="sd">                in addition to other vasp data on a per structure basis.</span>
+<span class="sd">                data&gt;}. This data is added to all structures detected in the</span>
+<span class="sd">                directory, in addition to other vasp data on a per structure</span>
+<span class="sd">                basis.</span>
 <span class="sd">            master_history: A master history to be added to all entries.</span>
 <span class="sd">            created_at (datetime): A datetime object</span>
 <span class="sd">            ncpus (int): Number of cpus to use in using BorgQueen to</span>
@@ -785,6 +788,22 @@
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">MPRestError</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">ex</span><span class="p">))</span>
 
+</div>
+<div class="viewcode-block" id="MPRester.get_reaction"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRester.get_reaction">[docs]</a>    <span class="k">def</span> <span class="nf">get_reaction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reactants</span><span class="p">,</span> <span class="n">products</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Gets a reaction from the Materials Project.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            reactants ([str]): List of formulas</span>
+<span class="sd">            products ([str]): List of formulas</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            rxn</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_request</span><span class="p">(</span><span class="s">&quot;/reaction&quot;</span><span class="p">,</span>
+                                  <span class="n">payload</span><span class="o">=</span><span class="p">{</span><span class="s">&quot;reactants[]&quot;</span><span class="p">:</span> <span class="n">reactants</span><span class="p">,</span>
+                                           <span class="s">&quot;products[]&quot;</span><span class="p">:</span> <span class="n">products</span><span class="p">})</span>
+
 </div></div>
 <div class="viewcode-block" id="MPRestError"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRestError">[docs]</a><span class="k">class</span> <span class="nc">MPRestError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -825,7 +844,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.9.14 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 2.10.0 documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

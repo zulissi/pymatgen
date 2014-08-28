@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.matproj.rest &mdash; pymatgen 2.10.2 documentation</title>
+    <title>pymatgen.matproj.rest &mdash; pymatgen 2.10.3 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '2.10.2',
+        VERSION:     '2.10.3',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.10.2 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 2.10.3 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.10.2 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 2.10.3 documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -80,10 +80,14 @@
 <span class="kn">import</span> <span class="nn">requests</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
 
 <span class="kn">from</span> <span class="nn">monty.dev</span> <span class="kn">import</span> <span class="n">deprecated</span>
 
-<span class="kn">from</span> <span class="nn">pymatgen</span> <span class="kn">import</span> <span class="n">Composition</span><span class="p">,</span> <span class="n">PMGJSONDecoder</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="kn">import</span> <span class="n">ALL_ELEMENT_SYMBOLS</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.composition</span> <span class="kn">import</span> <span class="n">Composition</span>
+<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">PMGJSONDecoder</span>
 <span class="kn">from</span> <span class="nn">pymatgen.entries.computed_entries</span> <span class="kn">import</span> <span class="n">ComputedStructureEntry</span>
 <span class="kn">from</span> <span class="nn">pymatgen.entries.compatibility</span> <span class="kn">import</span> <span class="n">MaterialsProjectCompatibility</span>
 <span class="kn">from</span> <span class="nn">pymatgen.entries.exp_entries</span> <span class="kn">import</span> <span class="n">ExpEntry</span>
@@ -92,6 +96,7 @@
 <span class="kn">from</span> <span class="nn">pymatgen.apps.borg.queen</span> <span class="kn">import</span> <span class="n">BorgQueen</span>
 <span class="kn">from</span> <span class="nn">pymatgen.matproj.snl</span> <span class="kn">import</span> <span class="n">StructureNL</span>
 <span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">PMGJSONEncoder</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="kn">import</span> <span class="n">PeriodicTable</span>
 
 
 <div class="viewcode-block" id="MPRester"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRester">[docs]</a><span class="k">class</span> <span class="nc">MPRester</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -487,11 +492,29 @@
 <span class="sd">        methods.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            criteria (dict): Criteria of the query as a mongo-style dict.</span>
-<span class="sd">                For example, {&quot;elements&quot;:{&quot;$in&quot;:[&quot;Li&quot;, &quot;Na&quot;, &quot;K&quot;], &quot;$all&quot;: [</span>
-<span class="sd">                &quot;O&quot;]}, &quot;nelements&quot;:2} selects all Li, Na and K oxides.</span>
-<span class="sd">                {&quot;band_gap&quot;: {&quot;$gt&quot;: 1}} selects all materials with band gaps</span>
-<span class="sd">                greater than 1 eV.</span>
+<span class="sd">            criteria (str/dict): Criteria of the query as a string or</span>
+<span class="sd">                mongo-style dict.</span>
+
+<span class="sd">                If string, it supports a powerful but simple string criteria.</span>
+<span class="sd">                E.g., &quot;Fe2O3&quot; means search for materials with reduced_formula</span>
+<span class="sd">                Fe2O3. Wild cards are also supported. E.g., &quot;\*2O&quot; means get</span>
+<span class="sd">                all materials whose formula can be formed as \*2O, e.g.,</span>
+<span class="sd">                Li2O, K2O, etc.</span>
+
+<span class="sd">                Other syntax examples:</span>
+<span class="sd">                mp-1234: Interpreted as a Materials ID.</span>
+<span class="sd">                Fe2O3 or \*2O3: Interpreted as reduced formulas.</span>
+<span class="sd">                Li-Fe-O or \*-Fe-O: Interpreted as chemical systems.</span>
+
+<span class="sd">                You can mix and match with spaces, which are interpreted as</span>
+<span class="sd">                &quot;OR&quot;. E.g. &quot;mp-1234 FeO&quot; means query for all compounds with</span>
+<span class="sd">                reduced formula FeO or with materials_id mp-1234.</span>
+
+<span class="sd">                Using a full dict syntax, even more powerful queries can be</span>
+<span class="sd">                constructed. For example, {&quot;elements&quot;:{&quot;$in&quot;:[&quot;Li&quot;,</span>
+<span class="sd">                &quot;Na&quot;, &quot;K&quot;], &quot;$all&quot;: [&quot;O&quot;]}, &quot;nelements&quot;:2} selects all Li, Na</span>
+<span class="sd">                and K oxides. {&quot;band_gap&quot;: {&quot;$gt&quot;: 1}} selects all materials</span>
+<span class="sd">                with band gaps greater than 1 eV.</span>
 <span class="sd">            properties (list): Properties to request for as a list. For</span>
 <span class="sd">                example, [&quot;formula&quot;, &quot;formation_energy_per_atom&quot;] returns</span>
 <span class="sd">                the formula and formation energy per atom.</span>
@@ -503,6 +526,8 @@
 <span class="sd">            {u&#39;formula&#39;: {u&#39;K&#39;: 1, u&#39;O&#39;: 3.0}},</span>
 <span class="sd">            ...]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">criteria</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">criteria</span> <span class="o">=</span> <span class="n">MPRester</span><span class="o">.</span><span class="n">parse_criteria</span><span class="p">(</span><span class="n">criteria</span><span class="p">)</span>
         <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;criteria&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">criteria</span><span class="p">),</span>
                    <span class="s">&quot;properties&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">properties</span><span class="p">)}</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_request</span><span class="p">(</span><span class="s">&quot;/query&quot;</span><span class="p">,</span> <span class="n">payload</span><span class="o">=</span><span class="n">payload</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s">&quot;POST&quot;</span><span class="p">)</span>
@@ -787,7 +812,6 @@
                               <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">))</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">MPRestError</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">ex</span><span class="p">))</span>
-
 </div>
 <div class="viewcode-block" id="MPRester.get_reaction"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRester.get_reaction">[docs]</a>    <span class="k">def</span> <span class="nf">get_reaction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reactants</span><span class="p">,</span> <span class="n">products</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -803,6 +827,64 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_request</span><span class="p">(</span><span class="s">&quot;/reaction&quot;</span><span class="p">,</span>
                                   <span class="n">payload</span><span class="o">=</span><span class="p">{</span><span class="s">&quot;reactants[]&quot;</span><span class="p">:</span> <span class="n">reactants</span><span class="p">,</span>
                                            <span class="s">&quot;products[]&quot;</span><span class="p">:</span> <span class="n">products</span><span class="p">})</span>
+</div>
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="MPRester.parse_criteria"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRester.parse_criteria">[docs]</a>    <span class="k">def</span> <span class="nf">parse_criteria</span><span class="p">(</span><span class="n">criteria_string</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parses a powerful and simple string criteria and generates a proper</span>
+<span class="sd">        mongo syntax criteria.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            criteria_string (str): A string representing a search criteria.</span>
+<span class="sd">                Also supports wild cards. E.g.,</span>
+<span class="sd">                something like &quot;\*2O&quot; gets converted to</span>
+<span class="sd">                {&#39;pretty_formula&#39;: {&#39;$in&#39;: [u&#39;B2O&#39;, u&#39;Xe2O&#39;, u&quot;Li2O&quot;, ...]}}</span>
+
+<span class="sd">                Other syntax examples:</span>
+<span class="sd">                    mp-1234: Interpreted as a Materials ID.</span>
+<span class="sd">                    Fe2O3 or \*2O3: Interpreted as reduced formulas.</span>
+<span class="sd">                    Li-Fe-O or \*-Fe-O: Interpreted as chemical systems.</span>
+
+<span class="sd">                You can mix and match with spaces, which are interpreted as</span>
+<span class="sd">                &quot;OR&quot;. E.g., &quot;mp-1234 FeO&quot; means query for all compounds with</span>
+<span class="sd">                reduced formula FeO or with materials_id mp-1234.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A mongo query dict.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">toks</span> <span class="o">=</span> <span class="n">criteria_string</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+
+        <span class="k">def</span> <span class="nf">parse_tok</span><span class="p">(</span><span class="n">t</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s">&quot;\w+-\d+&quot;</span><span class="p">,</span> <span class="n">t</span><span class="p">):</span>
+                <span class="k">return</span> <span class="p">{</span><span class="s">&quot;task_id&quot;</span><span class="p">:</span> <span class="n">t</span><span class="p">}</span>
+            <span class="k">elif</span> <span class="s">&quot;-&quot;</span> <span class="ow">in</span> <span class="n">t</span><span class="p">:</span>
+                <span class="n">elements</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;-&quot;</span><span class="p">)</span>
+                <span class="n">elements</span> <span class="o">=</span> <span class="p">[[</span><span class="n">el</span><span class="p">]</span> <span class="k">if</span> <span class="n">el</span> <span class="o">!=</span> <span class="s">&quot;*&quot;</span> <span class="k">else</span> <span class="n">ALL_ELEMENT_SYMBOLS</span>
+                            <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="n">elements</span><span class="p">]</span>
+                <span class="n">chemsyss</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">cs</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="o">*</span><span class="n">elements</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">cs</span><span class="p">))</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">cs</span><span class="p">):</span>
+                        <span class="n">chemsyss</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;-&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">cs</span><span class="p">))))</span>
+                <span class="k">return</span> <span class="p">{</span><span class="s">&quot;chemsys&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s">&quot;$in&quot;</span><span class="p">:</span> <span class="n">chemsyss</span><span class="p">}}</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">all_formulas</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+                <span class="n">syms</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">&quot;[A-Z][a-z]*&quot;</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+                <span class="n">to_permute</span> <span class="o">=</span> <span class="n">ALL_ELEMENT_SYMBOLS</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="n">syms</span><span class="p">)</span>
+                <span class="n">parts</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;*&quot;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">syms</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">permutations</span><span class="p">(</span><span class="n">to_permute</span><span class="p">,</span>
+                                                   <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                    <span class="n">f</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">parts</span><span class="p">,</span> <span class="n">syms</span><span class="p">):</span>
+                        <span class="n">f</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="n">c</span> <span class="o">=</span> <span class="n">Composition</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">f</span><span class="p">))</span><span class="o">.</span><span class="n">reduced_formula</span>
+                    <span class="n">all_formulas</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+                <span class="k">return</span> <span class="p">{</span><span class="s">&quot;pretty_formula&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s">&quot;$in&quot;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">all_formulas</span><span class="p">)}}</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">toks</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">parse_tok</span><span class="p">(</span><span class="n">toks</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s">&quot;$or&quot;</span><span class="p">:</span> <span class="nb">map</span><span class="p">(</span><span class="n">parse_tok</span><span class="p">,</span> <span class="n">toks</span><span class="p">)}</span>
 
 </div></div>
 <div class="viewcode-block" id="MPRestError"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRestError">[docs]</a><span class="k">class</span> <span class="nc">MPRestError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
@@ -844,7 +926,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.10.2 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 2.10.3 documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

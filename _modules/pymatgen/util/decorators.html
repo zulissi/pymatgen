@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.util.decorators &mdash; pymatgen 2.10.2 documentation</title>
+    <title>pymatgen.util.decorators &mdash; pymatgen 2.10.3 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '2.10.2',
+        VERSION:     '2.10.3',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.10.2 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 2.10.3 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.10.2 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 2.10.3 documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -70,8 +70,16 @@
 
 <span class="kn">import</span> <span class="nn">logging</span>
 
-<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">namedtuple</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span><span class="p">,</span> <span class="n">update_wrapper</span>
 
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">threading</span> <span class="kn">import</span> <span class="n">RLock</span>
+<span class="k">except</span><span class="p">:</span>
+    <span class="k">class</span> <span class="nc">RLock</span><span class="p">:</span>
+        <span class="s">&#39;Dummy reentrant lock for builds without threads&#39;</span>
+        <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="k">pass</span>
+        <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exctype</span><span class="p">,</span> <span class="n">excinst</span><span class="p">,</span> <span class="n">exctb</span><span class="p">):</span> <span class="k">pass</span>
 
 <div class="viewcode-block" id="enable_logging"><a class="viewcode-back" href="../../../pymatgen.util.html#pymatgen.util.decorators.enable_logging">[docs]</a><span class="k">def</span> <span class="nf">enable_logging</span><span class="p">(</span><span class="n">main</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -104,6 +112,202 @@
         <span class="k">return</span> <span class="n">retcode</span>
 
     <span class="k">return</span> <span class="n">wrapper</span>
+
+<span class="c">################################################################################</span>
+<span class="c">### LRU Cache function decorator. Backported from python 3 functools</span>
+<span class="c">################################################################################</span>
+</div>
+<span class="n">_CacheInfo</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s">&quot;CacheInfo&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;hits&quot;</span><span class="p">,</span> <span class="s">&quot;misses&quot;</span><span class="p">,</span> <span class="s">&quot;maxsize&quot;</span><span class="p">,</span> <span class="s">&quot;currsize&quot;</span><span class="p">])</span>
+
+<span class="k">class</span> <span class="nc">_HashedSeq</span><span class="p">(</span><span class="nb">list</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; This class guarantees that hash() will be called no more than once</span>
+<span class="sd">        per element.  This is important because the lru_cache() will hash</span>
+<span class="sd">        the key multiple times on a cache miss.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">__slots__</span> <span class="o">=</span> <span class="s">&#39;hashvalue&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tup</span><span class="p">,</span> <span class="nb">hash</span><span class="o">=</span><span class="nb">hash</span><span class="p">):</span>
+        <span class="bp">self</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">tup</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hashvalue</span> <span class="o">=</span> <span class="nb">hash</span><span class="p">(</span><span class="n">tup</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">hashvalue</span>
+
+
+<span class="k">def</span> <span class="nf">_make_key</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">kwds</span><span class="p">,</span> <span class="n">typed</span><span class="p">,</span>
+             <span class="n">kwd_mark</span> <span class="o">=</span> <span class="p">(</span><span class="nb">object</span><span class="p">(),),</span>
+             <span class="n">fasttypes</span> <span class="o">=</span> <span class="p">{</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">frozenset</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="bp">None</span><span class="p">)},</span>
+             <span class="nb">sorted</span><span class="o">=</span><span class="nb">sorted</span><span class="p">,</span> <span class="nb">tuple</span><span class="o">=</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">type</span><span class="p">,</span> <span class="nb">len</span><span class="o">=</span><span class="nb">len</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Make a cache key from optionally typed positional and keyword arguments</span>
+
+<span class="sd">    The key is constructed in a way that is flat as possible rather than</span>
+<span class="sd">    as a nested structure that would take more memory.</span>
+
+<span class="sd">    If there is only a single argument and its data type is known to cache</span>
+<span class="sd">    its hash value, then that argument is returned without a wrapper.  This</span>
+<span class="sd">    saves space and improves lookup speed.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">key</span> <span class="o">=</span> <span class="n">args</span>
+    <span class="k">if</span> <span class="n">kwds</span><span class="p">:</span>
+        <span class="n">sorted_items</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">kwds</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="n">key</span> <span class="o">+=</span> <span class="n">kwd_mark</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">sorted_items</span><span class="p">:</span>
+            <span class="n">key</span> <span class="o">+=</span> <span class="n">item</span>
+    <span class="k">if</span> <span class="n">typed</span><span class="p">:</span>
+        <span class="n">key</span> <span class="o">+=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">args</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">kwds</span><span class="p">:</span>
+            <span class="n">key</span> <span class="o">+=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">sorted_items</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">type</span><span class="p">(</span><span class="n">key</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="ow">in</span> <span class="n">fasttypes</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">key</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">_HashedSeq</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+<div class="viewcode-block" id="lru_cache"><a class="viewcode-back" href="../../../pymatgen.util.html#pymatgen.util.decorators.lru_cache">[docs]</a><span class="k">def</span> <span class="nf">lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span> <span class="n">typed</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Least-recently-used cache decorator.</span>
+
+<span class="sd">    If *maxsize* is set to None, the LRU features are disabled and the cache</span>
+<span class="sd">    can grow without bound.</span>
+
+<span class="sd">    If *typed* is True, arguments of different types will be cached separately.</span>
+<span class="sd">    For example, f(3.0) and f(3) will be treated as distinct calls with</span>
+<span class="sd">    distinct results.</span>
+
+<span class="sd">    Arguments to the cached function must be hashable.</span>
+
+<span class="sd">    View the cache statistics named tuple (hits, misses, maxsize, currsize)</span>
+<span class="sd">    with f.cache_info().  Clear the cache and statistics with f.cache_clear().</span>
+<span class="sd">    Access the underlying function with f.__wrapped__.</span>
+
+<span class="sd">    See:  http://en.wikipedia.org/wiki/Cache_algorithms#Least_Recently_Used</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c"># Users should only access the lru_cache through its public API:</span>
+    <span class="c">#       cache_info, cache_clear, and f.__wrapped__</span>
+    <span class="c"># The internals of the lru_cache are encapsulated for thread safety and</span>
+    <span class="c"># to allow the implementation to change (including a possible C version).</span>
+
+    <span class="c"># Early detection of an erroneous call to @lru_cache without any arguments</span>
+    <span class="c"># resulting in the inner function being passed to maxsize instead of an</span>
+    <span class="c"># integer or None.</span>
+    <span class="k">if</span> <span class="n">maxsize</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">maxsize</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s">&#39;Expected maxsize to be an integer or None&#39;</span><span class="p">)</span>
+
+    <span class="c"># Constants shared by all lru cache instances:</span>
+    <span class="n">sentinel</span> <span class="o">=</span> <span class="nb">object</span><span class="p">()</span>          <span class="c"># unique object used to signal cache misses</span>
+    <span class="n">make_key</span> <span class="o">=</span> <span class="n">_make_key</span>         <span class="c"># build a key from the function arguments</span>
+    <span class="n">PREV</span><span class="p">,</span> <span class="n">NEXT</span><span class="p">,</span> <span class="n">KEY</span><span class="p">,</span> <span class="n">RESULT</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span>   <span class="c"># names for the link fields</span>
+
+    <span class="k">def</span> <span class="nf">decorating_function</span><span class="p">(</span><span class="n">user_function</span><span class="p">):</span>
+        <span class="n">cache</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">hits</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">misses</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">full</span> <span class="o">=</span> <span class="p">[</span><span class="bp">False</span><span class="p">]</span>
+        <span class="n">cache_get</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">get</span>    <span class="c"># bound method to lookup a key or return None</span>
+        <span class="n">lock</span> <span class="o">=</span> <span class="n">RLock</span><span class="p">()</span>           <span class="c"># because linkedlist updates aren&#39;t threadsafe</span>
+        <span class="n">root</span> <span class="o">=</span> <span class="p">[]</span>                <span class="c"># root of the circular doubly linked list</span>
+        <span class="n">root</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">root</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">]</span>     <span class="c"># initialize by pointing to self</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="p">[</span><span class="n">root</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">maxsize</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+
+            <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">):</span>
+                <span class="c"># No caching -- just a statistics update after a successful call</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">user_function</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">)</span>
+                <span class="n">misses</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">return</span> <span class="n">result</span>
+
+        <span class="k">elif</span> <span class="n">maxsize</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+
+            <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">):</span>
+                <span class="c"># Simple caching without ordering or size limit</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="n">make_key</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">kwds</span><span class="p">,</span> <span class="n">typed</span><span class="p">)</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">cache_get</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">sentinel</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">sentinel</span><span class="p">:</span>
+                    <span class="n">hits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">return</span> <span class="n">result</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">user_function</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">)</span>
+                <span class="n">cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
+                <span class="n">misses</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">return</span> <span class="n">result</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">):</span>
+                <span class="c"># Size limited caching that tracks accesses by recency</span>
+                <span class="n">key</span> <span class="o">=</span> <span class="n">make_key</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">kwds</span><span class="p">,</span> <span class="n">typed</span><span class="p">)</span>
+                <span class="k">with</span> <span class="n">lock</span><span class="p">:</span>
+                    <span class="n">link</span> <span class="o">=</span> <span class="n">cache_get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">link</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                        <span class="c"># Move the link to the front of the circular queue</span>
+                        <span class="n">link_prev</span><span class="p">,</span> <span class="n">link_next</span><span class="p">,</span> <span class="n">_key</span><span class="p">,</span> <span class="n">result</span> <span class="o">=</span> <span class="n">link</span>
+                        <span class="n">link_prev</span><span class="p">[</span><span class="n">NEXT</span><span class="p">]</span> <span class="o">=</span> <span class="n">link_next</span>
+                        <span class="n">link_next</span><span class="p">[</span><span class="n">PREV</span><span class="p">]</span> <span class="o">=</span> <span class="n">link_prev</span>
+                        <span class="n">last</span> <span class="o">=</span> <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">PREV</span><span class="p">]</span>
+                        <span class="n">last</span><span class="p">[</span><span class="n">NEXT</span><span class="p">]</span> <span class="o">=</span> <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">PREV</span><span class="p">]</span> <span class="o">=</span> <span class="n">link</span>
+                        <span class="n">link</span><span class="p">[</span><span class="n">PREV</span><span class="p">]</span> <span class="o">=</span> <span class="n">last</span>
+                        <span class="n">link</span><span class="p">[</span><span class="n">NEXT</span><span class="p">]</span> <span class="o">=</span> <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="n">hits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="k">return</span> <span class="n">result</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">user_function</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">)</span>
+                <span class="k">with</span> <span class="n">lock</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">cache</span><span class="p">:</span>
+                        <span class="c"># Getting here means that this same key was added to the</span>
+                        <span class="c"># cache while the lock was released.  Since the link</span>
+                        <span class="c"># update is already done, we need only return the</span>
+                        <span class="c"># computed result and update the count of misses.</span>
+                        <span class="k">pass</span>
+                    <span class="k">elif</span> <span class="n">full</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                        <span class="c"># Use the old root to store the new key and result.</span>
+                        <span class="n">oldroot</span> <span class="o">=</span> <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="n">oldroot</span><span class="p">[</span><span class="n">KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">key</span>
+                        <span class="n">oldroot</span><span class="p">[</span><span class="n">RESULT</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
+                        <span class="c"># Empty the oldest link and make it the new root.</span>
+                        <span class="c"># Keep a reference to the old key and old result to</span>
+                        <span class="c"># prevent their ref counts from going to zero during the</span>
+                        <span class="c"># update. That will prevent potentially arbitrary object</span>
+                        <span class="c"># clean-up code (i.e. __del__) from running while we&#39;re</span>
+                        <span class="c"># still adjusting the links.</span>
+                        <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">oldroot</span><span class="p">[</span><span class="n">NEXT</span><span class="p">]</span>
+                        <span class="n">oldkey</span> <span class="o">=</span> <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">KEY</span><span class="p">]</span>
+                        <span class="n">oldresult</span> <span class="o">=</span> <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">RESULT</span><span class="p">]</span>
+                        <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">RESULT</span><span class="p">]</span> <span class="o">=</span> <span class="bp">None</span>
+                        <span class="c"># Now update the cache dictionary.</span>
+                        <span class="k">del</span> <span class="n">cache</span><span class="p">[</span><span class="n">oldkey</span><span class="p">]</span>
+                        <span class="c"># Save the potentially reentrant cache[key] assignment</span>
+                        <span class="c"># for last, after the root and links have been put in</span>
+                        <span class="c"># a consistent state.</span>
+                        <span class="n">cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">oldroot</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c"># Put result in a new link at the front of the queue.</span>
+                        <span class="n">last</span> <span class="o">=</span> <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">PREV</span><span class="p">]</span>
+                        <span class="n">link</span> <span class="o">=</span> <span class="p">[</span><span class="n">last</span><span class="p">,</span> <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">key</span><span class="p">,</span> <span class="n">result</span><span class="p">]</span>
+                        <span class="n">last</span><span class="p">[</span><span class="n">NEXT</span><span class="p">]</span> <span class="o">=</span> <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">PREV</span><span class="p">]</span> <span class="o">=</span> <span class="n">cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">link</span>
+                        <span class="n">full</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">cache</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">maxsize</span><span class="p">)</span>
+                    <span class="n">misses</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">return</span> <span class="n">result</span>
+
+        <span class="k">def</span> <span class="nf">cache_info</span><span class="p">():</span>
+            <span class="sd">&quot;&quot;&quot;Report cache statistics&quot;&quot;&quot;</span>
+            <span class="k">with</span> <span class="n">lock</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">_CacheInfo</span><span class="p">(</span><span class="n">hits</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">misses</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">maxsize</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">cache</span><span class="p">))</span>
+
+        <span class="k">def</span> <span class="nf">cache_clear</span><span class="p">():</span>
+            <span class="sd">&quot;&quot;&quot;Clear the cache and cache statistics&quot;&quot;&quot;</span>
+            <span class="k">with</span> <span class="n">lock</span><span class="p">:</span>
+                <span class="n">cache</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+                <span class="n">root</span><span class="p">[:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">root</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">]</span>
+                <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">root</span>
+                <span class="n">hits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">misses</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">full</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="bp">False</span>
+
+        <span class="n">wrapper</span><span class="o">.</span><span class="n">cache_info</span> <span class="o">=</span> <span class="n">cache_info</span>
+        <span class="n">wrapper</span><span class="o">.</span><span class="n">cache_clear</span> <span class="o">=</span> <span class="n">cache_clear</span>
+        <span class="k">return</span> <span class="n">update_wrapper</span><span class="p">(</span><span class="n">wrapper</span><span class="p">,</span> <span class="n">user_function</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">decorating_function</span>
 </pre></div></div>
 
           </div>
@@ -137,7 +341,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.10.2 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 2.10.3 documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

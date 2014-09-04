@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.analysis.bond_valence &mdash; pymatgen 2.10.3 documentation</title>
+    <title>pymatgen.analysis.bond_valence &mdash; pymatgen 2.10.4 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '2.10.3',
+        VERSION:     '2.10.4',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.10.3 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 2.10.4 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.10.3 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 2.10.4 documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -70,16 +70,18 @@
 <span class="n">__date__</span> <span class="o">=</span> <span class="s">&quot;Oct 26, 2012&quot;</span>
 
 <span class="kn">import</span> <span class="nn">collections</span>
-<span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">operator</span>
 <span class="kn">import</span> <span class="nn">os</span>
-
 <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">exp</span><span class="p">,</span> <span class="n">sqrt</span>
+
+<span class="kn">from</span> <span class="nn">monty.serialization</span> <span class="kn">import</span> <span class="n">loadfn</span>
+
 <span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="kn">import</span> <span class="n">Element</span><span class="p">,</span> <span class="n">Specie</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="kn">import</span> <span class="n">Structure</span>
 <span class="kn">from</span> <span class="nn">pymatgen.symmetry.finder</span> <span class="kn">import</span> <span class="n">SymmetryFinder</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="kn">import</span> <span class="n">get_el_sp</span>
+
 
 <span class="c">#Let&#39;s initialize some module level properties.</span>
 
@@ -95,17 +97,15 @@
 
 <span class="c">#Read in BV parameters.</span>
 <span class="n">BV_PARAMS</span> <span class="o">=</span> <span class="p">{}</span>
-<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">module_dir</span><span class="p">,</span> <span class="s">&quot;bvparam_1991.json&quot;</span><span class="p">),</span> <span class="s">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-        <span class="n">BV_PARAMS</span><span class="p">[</span><span class="n">Element</span><span class="p">(</span><span class="n">k</span><span class="p">)]</span> <span class="o">=</span> <span class="n">v</span>
+<span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">loadfn</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">module_dir</span><span class="p">,</span> <span class="s">&quot;bvparam_1991.yaml&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="n">BV_PARAMS</span><span class="p">[</span><span class="n">Element</span><span class="p">(</span><span class="n">k</span><span class="p">)]</span> <span class="o">=</span> <span class="n">v</span>
 
-<span class="c">#Read in json containing data-mined ICSD BV data.</span>
-<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">module_dir</span><span class="p">,</span> <span class="s">&quot;icsd_bv.json&quot;</span><span class="p">),</span> <span class="s">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-    <span class="n">all_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
-    <span class="n">ICSD_BV_DATA</span> <span class="o">=</span> <span class="p">{</span><span class="n">Specie</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">sp</span><span class="p">):</span> <span class="n">data</span>
-                    <span class="k">for</span> <span class="n">sp</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">all_data</span><span class="p">[</span><span class="s">&quot;bvsum&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
-    <span class="n">PRIOR_PROB</span> <span class="o">=</span> <span class="p">{</span><span class="n">Specie</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">sp</span><span class="p">):</span> <span class="n">data</span>
-                  <span class="k">for</span> <span class="n">sp</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">all_data</span><span class="p">[</span><span class="s">&quot;occurrence&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+<span class="c">#Read in yaml containing data-mined ICSD BV data.</span>
+<span class="n">all_data</span> <span class="o">=</span> <span class="n">loadfn</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">module_dir</span><span class="p">,</span> <span class="s">&quot;icsd_bv.yaml&quot;</span><span class="p">))</span>
+<span class="n">ICSD_BV_DATA</span> <span class="o">=</span> <span class="p">{</span><span class="n">Specie</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">sp</span><span class="p">):</span> <span class="n">data</span>
+                <span class="k">for</span> <span class="n">sp</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">all_data</span><span class="p">[</span><span class="s">&quot;bvsum&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+<span class="n">PRIOR_PROB</span> <span class="o">=</span> <span class="p">{</span><span class="n">Specie</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">sp</span><span class="p">):</span> <span class="n">data</span>
+              <span class="k">for</span> <span class="n">sp</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">all_data</span><span class="p">[</span><span class="s">&quot;occurrence&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
 
 
 <div class="viewcode-block" id="calculate_bv_sum"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.bond_valence.calculate_bv_sum">[docs]</a><span class="k">def</span> <span class="nf">calculate_bv_sum</span><span class="p">(</span><span class="n">site</span><span class="p">,</span> <span class="n">nn_list</span><span class="p">,</span> <span class="n">scale_factor</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
@@ -616,7 +616,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.10.3 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 2.10.4 documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

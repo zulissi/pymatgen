@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.analysis package &mdash; pymatgen 2.10.3 documentation</title>
+    <title>pymatgen.analysis package &mdash; pymatgen 2.10.4 documentation</title>
     
     <link rel="stylesheet" href="_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '2.10.3',
+        VERSION:     '2.10.4',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.10.3 documentation" href="index.html" />
+    <link rel="top" title="pymatgen 2.10.4 documentation" href="index.html" />
  
 <script type="text/javascript">
   var _gaq = _gaq || [];
@@ -44,7 +44,7 @@
         <li class="right" >
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="index.html">pymatgen 2.10.3 documentation</a> &raquo;</li> 
+        <li><a href="index.html">pymatgen 2.10.4 documentation</a> &raquo;</li> 
       </ul>
     </div>  
 
@@ -277,7 +277,7 @@ Li10GeP2S12 Lithium Super Ionic Conductor Material. Chemistry of Materials,
 </div>
 <dl class="class">
 <dt id="pymatgen.analysis.diffusion_analyzer.DiffusionAnalyzer">
-<em class="property">class </em><tt class="descname">DiffusionAnalyzer</tt><big>(</big><em>structure</em>, <em>displacements</em>, <em>specie</em>, <em>temperature</em>, <em>time_step</em>, <em>step_skip</em>, <em>min_obs=30</em>, <em>weighted=True</em><big>)</big><a class="reference internal" href="_modules/pymatgen/analysis/diffusion_analyzer.html#DiffusionAnalyzer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.diffusion_analyzer.DiffusionAnalyzer" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descname">DiffusionAnalyzer</tt><big>(</big><em>structure</em>, <em>displacements</em>, <em>specie</em>, <em>temperature</em>, <em>time_step</em>, <em>step_skip</em>, <em>smoothed=True</em>, <em>min_obs=30</em>, <em>weighted=True</em><big>)</big><a class="reference internal" href="_modules/pymatgen/analysis/diffusion_analyzer.html#DiffusionAnalyzer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.diffusion_analyzer.DiffusionAnalyzer" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="pymatgen.serializers.html#pymatgen.serializers.json_coders.MSONable" title="pymatgen.serializers.json_coders.MSONable"><tt class="xref py py-class docutils literal"><span class="pre">pymatgen.serializers.json_coders.MSONable</span></tt></a></p>
 <p>Class for performing diffusion analysis.</p>
 <p>This constructor is meant to be used with pre-processed data.
@@ -289,6 +289,7 @@ format), the diffusivity is given by:</p>
 <p>where d is the dimensionality, t is the time. To obtain a reliable
 diffusion estimate, a least squares regression of the MSD against
 time to obtain the slope, which is then related to the diffusivity.</p>
+<p>For traditional analysis, use smoothed=False and weighted=False.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -304,15 +305,19 @@ String. E.g., &#8220;Li&#8221;.</li>
 <li><strong>step_skip</strong> (<em>int</em>) &#8211; Sampling frequency of the displacements (
 time_step is multiplied by this number to get the real time
 between measurements)</li>
+<li><strong>smoothed</strong> (<em>bool</em>) &#8211; Whether to smooth the MSD. Generally more
+accurate, but makes error analysis complicated.</li>
 <li><strong>min_obs</strong> (<em>int</em>) &#8211; Minimum number of observations to have before
 including in the MSD vs dt calculation. E.g. If a structure
 has 10 diffusing atoms, and min_obs = 30, the MSD vs dt will be
 calculated up to dt = total_run_time / 3, so that each
-diffusing atom is measured at least 3 uncorrelated times.</li>
+diffusing atom is measured at least 3 uncorrelated times.
+Only applies in smoothed=True.</li>
 <li><strong>weighted</strong> (<em>bool</em>) &#8211; Uses a weighted least squares to fit the
-MSD vs dt. Weights are proportional to 1/dt, since the
-number of observations are also proportional to 1/dt (and
-hence the variance is proportional to dt)</li>
+MSD vs dt. Weights are proportional to 1/Var, which is
+in turn proportional to number of <em>independent</em> observations.
+Number of independent (non-overlapping) observations is
+proportional to 1 / dt. Only applies if smoothed=True.</li>
 </ul>
 </td>
 </tr>
@@ -435,7 +440,7 @@ hence the variance is proportional to dt)</li>
 
 <dl class="method">
 <dt id="pymatgen.analysis.diffusion_analyzer.DiffusionAnalyzer.get_smoothed_msd_plot">
-<tt class="descname">get_smoothed_msd_plot</tt><big>(</big><em>plt=None</em><big>)</big><a class="reference internal" href="_modules/pymatgen/analysis/diffusion_analyzer.html#DiffusionAnalyzer.get_smoothed_msd_plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.diffusion_analyzer.DiffusionAnalyzer.get_smoothed_msd_plot" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">get_smoothed_msd_plot</tt><big>(</big><em>plt=None</em>, <em>smoothed=True</em><big>)</big><a class="reference internal" href="_modules/pymatgen/analysis/diffusion_analyzer.html#DiffusionAnalyzer.get_smoothed_msd_plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.diffusion_analyzer.DiffusionAnalyzer.get_smoothed_msd_plot" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the plot of the smoothed msd vs time graph. Useful for
 checking convergence. This can be written to an image file.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -480,8 +485,30 @@ time data with the data.</td>
 </dd></dl>
 
 <dl class="function">
+<dt id="pymatgen.analysis.diffusion_analyzer.fit_arrhenius">
+<tt class="descname">fit_arrhenius</tt><big>(</big><em>temps</em>, <em>diffusivities</em><big>)</big><a class="reference internal" href="_modules/pymatgen/analysis/diffusion_analyzer.html#fit_arrhenius"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.diffusion_analyzer.fit_arrhenius" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="docutils">
+<dt>Returns Ea and c from the Arrhenius fit:</dt>
+<dd>D = c * exp(-Ea/kT)</dd>
+</dl>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>temps</strong> (<em>[float]</em>) &#8211; A sequence of temperatures. units: K</li>
+<li><strong>diffusivities</strong> (<em>[float]</em>) &#8211; A sequence of diffusivities (e.g.,
+from DiffusionAnalyzer.diffusivity). units: cm^2/s</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
 <dt id="pymatgen.analysis.diffusion_analyzer.get_arrhenius_plot">
-<tt class="descname">get_arrhenius_plot</tt><big>(</big><em>temps</em>, <em>diffusivities</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pymatgen/analysis/diffusion_analyzer.html#get_arrhenius_plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.diffusion_analyzer.get_arrhenius_plot" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">get_arrhenius_plot</tt><big>(</big><em>temps</em>, <em>diffusivities</em>, <em>diffusivity_errors=None</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pymatgen/analysis/diffusion_analyzer.html#get_arrhenius_plot"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.diffusion_analyzer.get_arrhenius_plot" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns an Arrhenius plot.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -489,8 +516,10 @@ time data with the data.</td>
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>temps</strong> (<em>[float]</em>) &#8211; A sequence of temperatures.</li>
-<li><strong>diffusivities</strong> &#8211; A sequence of diffusivities (e.g.,
+<li><strong>diffusivities</strong> (<em>[float]</em>) &#8211; A sequence of diffusivities (e.g.,
 from DiffusionAnalyzer.diffusivity).</li>
+<li><strong>diffusivity_errors</strong> &#8211; A sequence of errors for the
+diffusivities. If None, no error bar is plotted.</li>
 </ul>
 </td>
 </tr>
@@ -2200,7 +2229,7 @@ definition in Site and PeriodicSite.</li>
 
 <dl class="class">
 <dt id="pymatgen.analysis.structure_matcher.StructureMatcher">
-<em class="property">class </em><tt class="descname">StructureMatcher</tt><big>(</big><em>ltol=0.2</em>, <em>stol=0.3</em>, <em>angle_tol=5</em>, <em>primitive_cell=True</em>, <em>scale=True</em>, <em>attempt_supercell=False</em>, <em>allow_subset=False</em>, <em>comparator=&lt;pymatgen.analysis.structure_matcher.SpeciesComparator object at 0x107e30150&gt;</em>, <em>supercell_size='num_sites'</em><big>)</big><a class="reference internal" href="_modules/pymatgen/analysis/structure_matcher.html#StructureMatcher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.structure_matcher.StructureMatcher" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descname">StructureMatcher</tt><big>(</big><em>ltol=0.2</em>, <em>stol=0.3</em>, <em>angle_tol=5</em>, <em>primitive_cell=True</em>, <em>scale=True</em>, <em>attempt_supercell=False</em>, <em>allow_subset=False</em>, <em>comparator=&lt;pymatgen.analysis.structure_matcher.SpeciesComparator object at 0x107d9c850&gt;</em>, <em>supercell_size='num_sites'</em><big>)</big><a class="reference internal" href="_modules/pymatgen/analysis/structure_matcher.html#StructureMatcher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pymatgen.analysis.structure_matcher.StructureMatcher" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="pymatgen.serializers.html#pymatgen.serializers.json_coders.MSONable" title="pymatgen.serializers.json_coders.MSONable"><tt class="xref py py-class docutils literal"><span class="pre">pymatgen.serializers.json_coders.MSONable</span></tt></a></p>
 <p>Class to match structures by similarity.</p>
 <p>Algorithm:</p>
@@ -2646,7 +2675,7 @@ of materials data.</p>
         <li class="right" >
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="index.html">pymatgen 2.10.3 documentation</a> &raquo;</li> 
+        <li><a href="index.html">pymatgen 2.10.4 documentation</a> &raquo;</li> 
       </ul>
     </div>
 

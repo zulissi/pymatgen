@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.core.composition &mdash; pymatgen 2.10.6 documentation</title>
+    <title>pymatgen.core.composition &mdash; pymatgen 3.0.0 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '2.10.6',
+        VERSION:     '3.0.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.10.6 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.10.6 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 3.0.0 documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -73,18 +73,23 @@
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">collections</span>
 <span class="kn">import</span> <span class="nn">string</span>
+
+<span class="kn">import</span> <span class="nn">six</span>
+<span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="nb">filter</span>
+<span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="nb">map</span>
+<span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="nb">zip</span>
+
 <span class="kn">from</span> <span class="nn">fractions</span> <span class="kn">import</span> <span class="n">gcd</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">total_ordering</span>
 <span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">chain</span>
-<span class="kn">from</span> <span class="nn">monty.dev</span> <span class="kn">import</span> <span class="n">deprecated</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="kn">import</span> <span class="n">get_el_sp</span><span class="p">,</span> <span class="n">Element</span>
 <span class="kn">from</span> <span class="nn">pymatgen.util.string_utils</span> <span class="kn">import</span> <span class="n">formula_double_format</span>
-<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">MSONable</span>
+<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">PMGSONable</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.units</span> <span class="kn">import</span> <span class="n">unitized</span>
 
 
 <span class="nd">@total_ordering</span>
-<div class="viewcode-block" id="Composition"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.composition.Composition">[docs]</a><span class="k">class</span> <span class="nc">Composition</span><span class="p">(</span><span class="n">collections</span><span class="o">.</span><span class="n">Mapping</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">Hashable</span><span class="p">,</span> <span class="n">MSONable</span><span class="p">):</span>
+<div class="viewcode-block" id="Composition"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.composition.Composition">[docs]</a><span class="k">class</span> <span class="nc">Composition</span><span class="p">(</span><span class="n">collections</span><span class="o">.</span><span class="n">Mapping</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">Hashable</span><span class="p">,</span> <span class="n">PMGSONable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Represents a Composition, which is essentially a {element:amount} mapping</span>
 <span class="sd">    type. Composition is written to be immutable and hashable,</span>
@@ -163,11 +168,11 @@
 <span class="sd">                ambiguity.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">allow_negative</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&#39;allow_negative&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">basestring</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">six</span><span class="o">.</span><span class="n">string_types</span><span class="p">):</span>
             <span class="n">elmap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_formula</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">elmap</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">elmap</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">elmap</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
             <span class="k">if</span> <span class="n">v</span> <span class="o">&lt;</span> <span class="o">-</span><span class="n">Composition</span><span class="o">.</span><span class="n">amount_tolerance</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">allow_negative</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">CompositionError</span><span class="p">(</span><span class="s">&quot;Amounts in Composition cannot be &quot;</span>
                                        <span class="s">&quot;negative!&quot;</span><span class="p">)</span>
@@ -210,7 +215,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">new_el_map</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
         <span class="n">new_el_map</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">other</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">other</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="n">new_el_map</span><span class="p">[</span><span class="n">get_el_sp</span><span class="p">(</span><span class="n">k</span><span class="p">)]</span> <span class="o">+=</span> <span class="n">v</span>
         <span class="k">return</span> <span class="n">Composition</span><span class="p">(</span><span class="n">new_el_map</span><span class="p">,</span> <span class="n">allow_negative</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">allow_negative</span><span class="p">)</span>
 </div>
@@ -225,7 +230,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">new_el_map</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
         <span class="n">new_el_map</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">other</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">other</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="n">new_el_map</span><span class="p">[</span><span class="n">get_el_sp</span><span class="p">(</span><span class="n">k</span><span class="p">)]</span> <span class="o">-=</span> <span class="n">v</span>
         <span class="k">return</span> <span class="n">Composition</span><span class="p">(</span><span class="n">new_el_map</span><span class="p">,</span> <span class="n">allow_negative</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">allow_negative</span><span class="p">)</span>
 </div>
@@ -312,7 +317,7 @@
 <span class="sd">        e.g., Li4 Fe4 P4 O16.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">sym_amt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_el_amt_dict</span><span class="p">()</span>
-        <span class="n">syms</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">sym_amt</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">get_el_sp</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">syms</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">sym_amt</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">sym</span><span class="p">:</span> <span class="n">get_el_sp</span><span class="p">(</span><span class="n">sym</span><span class="p">)</span><span class="o">.</span><span class="n">X</span><span class="p">)</span>
         <span class="n">formula</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span> <span class="o">+</span> <span class="n">formula_double_format</span><span class="p">(</span><span class="n">sym_amt</span><span class="p">[</span><span class="n">s</span><span class="p">],</span> <span class="bp">False</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">syms</span><span class="p">]</span>
         <span class="k">return</span> <span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">formula</span><span class="p">)</span>
 </div>
@@ -387,17 +392,6 @@
 
         <span class="k">return</span> <span class="n">formula</span><span class="p">,</span> <span class="n">factor</span>
 </div>
-    <span class="nd">@deprecated</span><span class="p">(</span><span class="n">fractional_composition</span><span class="p">)</span> <span class="c">#as of 8/20/14</span>
-<div class="viewcode-block" id="Composition.get_fractional_composition"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.composition.Composition.get_fractional_composition">[docs]</a>    <span class="k">def</span> <span class="nf">get_fractional_composition</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns the normalized composition which the number of species sum to</span>
-<span class="sd">        1.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            Normalized composition which the number of species sum to 1.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fractional_composition</span>
-</div>
     <span class="nd">@property</span>
 <div class="viewcode-block" id="Composition.reduced_formula"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.composition.Composition.reduced_formula">[docs]</a>    <span class="k">def</span> <span class="nf">reduced_formula</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -411,12 +405,12 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns view of elements in Composition.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_elmap</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_elmap</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
 </div>
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
             <span class="s">&quot;{}{}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">formula_double_format</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">ignore_ones</span><span class="o">=</span><span class="bp">False</span><span class="p">))</span>
-            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()])</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()])</span>
 
     <span class="nd">@property</span>
 <div class="viewcode-block" id="Composition.num_atoms"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.composition.Composition.num_atoms">[docs]</a>    <span class="k">def</span> <span class="nf">num_atoms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -492,16 +486,6 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_formula</span><span class="p">(</span><span class="n">expanded_formula</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">get_sym_dict</span><span class="p">(</span><span class="n">formula</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
 
-    <span class="nd">@staticmethod</span>
-    <span class="nd">@deprecated</span><span class="p">(</span><span class="n">__init__</span><span class="p">)</span>
-<div class="viewcode-block" id="Composition.from_formula"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.composition.Composition.from_formula">[docs]</a>    <span class="k">def</span> <span class="nf">from_formula</span><span class="p">(</span><span class="n">formula</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        .. deprecated:: 1.6.1</span>
-
-<span class="sd">        Use Composition(formula) instead.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">Composition</span><span class="p">(</span><span class="n">formula</span><span class="p">)</span>
-</div>
     <span class="nd">@property</span>
 <div class="viewcode-block" id="Composition.anonymized_formula"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.composition.Composition.anonymized_formula">[docs]</a>    <span class="k">def</span> <span class="nf">anonymized_formula</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -531,10 +515,10 @@
     <span class="nd">@classmethod</span>
 <div class="viewcode-block" id="Composition.from_dict"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.composition.Composition.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Creates a composition from a dict generated by to_dict. Strictly not</span>
+<span class="sd">        Creates a composition from a dict generated by as_dict(). Strictly not</span>
 <span class="sd">        necessary given that the standard constructor already takes in such an</span>
 <span class="sd">        input, but this method preserves the standard pymatgen API of having</span>
-<span class="sd">        from_dict methods to reconstitute objects generated by to_dict. Allows</span>
+<span class="sd">        from_dict methods to reconstitute objects generated by as_dict(). Allows</span>
 <span class="sd">        for easier introspection.</span>
 
 <span class="sd">        Args:</span>
@@ -553,8 +537,7 @@
             <span class="n">d</span><span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">symbol</span><span class="p">]</span> <span class="o">+=</span> <span class="n">a</span>
         <span class="k">return</span> <span class="n">d</span>
 </div>
-    <span class="nd">@property</span>
-<div class="viewcode-block" id="Composition.to_dict"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.composition.Composition.to_dict">[docs]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Composition.as_dict"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.composition.Composition.as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns:</span>
 <span class="sd">            dict with species symbol and (unreduced) amount e.g.,</span>
@@ -573,7 +556,7 @@
 <span class="sd">            {&quot;Fe&quot;: 2.0, &quot;O&quot;:3.0}</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">c</span> <span class="o">=</span> <span class="n">Composition</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reduced_formula</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">c</span><span class="o">.</span><span class="n">to_dict</span>
+        <span class="k">return</span> <span class="n">c</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span>
 </div>
     <span class="nd">@property</span>
 <div class="viewcode-block" id="Composition.to_data_dict"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.composition.Composition.to_data_dict">[docs]</a>    <span class="k">def</span> <span class="nf">to_data_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -584,10 +567,10 @@
 <span class="sd">            reduced_cell_formula, elements and nelements.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">{</span><span class="s">&quot;reduced_cell_composition&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_reduced_dict</span><span class="p">,</span>
-                <span class="s">&quot;unit_cell_composition&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_dict</span><span class="p">,</span>
+                <span class="s">&quot;unit_cell_composition&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">as_dict</span><span class="p">(),</span>
                 <span class="s">&quot;reduced_cell_formula&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduced_formula</span><span class="p">,</span>
-                <span class="s">&quot;elements&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span>
-                <span class="s">&quot;nelements&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">())}</span>
+                <span class="s">&quot;elements&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span>
+                <span class="s">&quot;nelements&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span><span class="o">.</span><span class="n">keys</span><span class="p">())}</span>
 </div>
     <span class="nd">@staticmethod</span>
 <div class="viewcode-block" id="Composition.ranked_compositions_from_indeterminate_formula"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.composition.Composition.ranked_compositions_from_indeterminate_formula">[docs]</a>    <span class="k">def</span> <span class="nf">ranked_compositions_from_indeterminate_formula</span><span class="p">(</span><span class="n">fuzzy_formula</span><span class="p">,</span>
@@ -799,13 +782,14 @@
     <span class="n">syms</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">sym_amt</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span>
                   <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">get_el_sp</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">X</span><span class="p">)</span>
 
-    <span class="n">syms</span> <span class="o">=</span> <span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="nb">abs</span><span class="p">(</span><span class="n">sym_amt</span><span class="p">[</span><span class="n">s</span><span class="p">])</span> <span class="o">&gt;</span> <span class="n">Composition</span><span class="o">.</span><span class="n">amount_tolerance</span><span class="p">,</span> <span class="n">syms</span><span class="p">)</span>
+    <span class="n">syms</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="nb">abs</span><span class="p">(</span><span class="n">sym_amt</span><span class="p">[</span><span class="n">s</span><span class="p">])</span> <span class="o">&gt;</span>
+                                 <span class="n">Composition</span><span class="o">.</span><span class="n">amount_tolerance</span><span class="p">,</span> <span class="n">syms</span><span class="p">))</span>
     <span class="n">num_el</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">syms</span><span class="p">)</span>
     <span class="n">contains_polyanion</span> <span class="o">=</span> <span class="p">(</span><span class="n">num_el</span> <span class="o">&gt;=</span> <span class="mi">3</span> <span class="ow">and</span>
                           <span class="n">get_el_sp</span><span class="p">(</span><span class="n">syms</span><span class="p">[</span><span class="n">num_el</span> <span class="o">-</span> <span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">X</span>
                           <span class="o">-</span> <span class="n">get_el_sp</span><span class="p">(</span><span class="n">syms</span><span class="p">[</span><span class="n">num_el</span> <span class="o">-</span> <span class="mi">2</span><span class="p">])</span><span class="o">.</span><span class="n">X</span> <span class="o">&lt;</span> <span class="mf">1.65</span><span class="p">)</span>
 
-    <span class="n">factor</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="nb">reduce</span><span class="p">(</span><span class="n">gcd</span><span class="p">,</span> <span class="n">sym_amt</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
+    <span class="n">factor</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">moves</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span><span class="n">gcd</span><span class="p">,</span> <span class="n">sym_amt</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
     <span class="n">reduced_form</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">n</span> <span class="o">=</span> <span class="n">num_el</span> <span class="o">-</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">contains_polyanion</span> <span class="k">else</span> <span class="n">num_el</span>
     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
@@ -870,7 +854,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.10.6 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 3.0.0 documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

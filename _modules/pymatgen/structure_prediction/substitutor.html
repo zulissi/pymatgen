@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.structure_prediction.substitutor &mdash; pymatgen 2.10.6 documentation</title>
+    <title>pymatgen.structure_prediction.substitutor &mdash; pymatgen 3.0.0 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '2.10.6',
+        VERSION:     '3.0.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.10.6 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.10.6 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 3.0.0 documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -61,6 +61,7 @@
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="nb">zip</span>
 
 <span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Will Richards, Geoffroy Hautier&quot;</span>
 <span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot;Copyright 2012, The Materials Project&quot;</span>
@@ -69,7 +70,12 @@
 <span class="n">__email__</span> <span class="o">=</span> <span class="s">&quot;wrichard@mit.edu&quot;</span>
 <span class="n">__date__</span> <span class="o">=</span> <span class="s">&quot;Aug 31, 2012&quot;</span>
 
-<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">MSONable</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">mul</span>
+<span class="kn">import</span> <span class="nn">six</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">PMGSONable</span>
 <span class="kn">from</span> <span class="nn">pymatgen.structure_prediction.substitution_probability</span> \
     <span class="kn">import</span> <span class="n">SubstitutionProbability</span>
 <span class="kn">from</span> <span class="nn">pymatgen.transformations.standard_transformations</span> \
@@ -77,12 +83,9 @@
 <span class="kn">from</span> <span class="nn">pymatgen.alchemy.transmuters</span> <span class="kn">import</span> <span class="n">StandardTransmuter</span>
 <span class="kn">from</span> <span class="nn">pymatgen.alchemy.materials</span> <span class="kn">import</span> <span class="n">TransformedStructure</span>
 <span class="kn">from</span> <span class="nn">pymatgen.alchemy.filters</span> <span class="kn">import</span> <span class="n">RemoveDuplicatesFilter</span><span class="p">,</span> <span class="n">RemoveExistingFilter</span>
-<span class="kn">import</span> <span class="nn">itertools</span>
-<span class="kn">import</span> <span class="nn">logging</span>
-<span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">mul</span>
 
 
-<div class="viewcode-block" id="Substitutor"><a class="viewcode-back" href="../../../pymatgen.structure_prediction.html#pymatgen.structure_prediction.substitutor.Substitutor">[docs]</a><span class="k">class</span> <span class="nc">Substitutor</span><span class="p">(</span><span class="n">MSONable</span><span class="p">):</span>
+<div class="viewcode-block" id="Substitutor"><a class="viewcode-back" href="../../../pymatgen.structure_prediction.html#pymatgen.structure_prediction.substitutor.Substitutor">[docs]</a><span class="k">class</span> <span class="nc">Substitutor</span><span class="p">(</span><span class="n">PMGSONable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    This object uses a data mined ionic substitution approach to propose</span>
 <span class="sd">    compounds likely to be stable. It relies on an algorithm presented in</span>
@@ -121,16 +124,16 @@
 <div class="viewcode-block" id="Substitutor.pred_from_structures"><a class="viewcode-back" href="../../../pymatgen.structure_prediction.html#pymatgen.structure_prediction.substitutor.Substitutor.pred_from_structures">[docs]</a>    <span class="k">def</span> <span class="nf">pred_from_structures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target_species</span><span class="p">,</span> <span class="n">structures_list</span><span class="p">,</span>
                              <span class="n">remove_duplicates</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">remove_existing</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        performs a structure prediction targeting compounds containing all of </span>
+<span class="sd">        performs a structure prediction targeting compounds containing all of</span>
 <span class="sd">        the target_species, based on a list of structure (those structures</span>
 <span class="sd">        can for instance come from a database like the ICSD). It will return</span>
 <span class="sd">        all the structures formed by ionic substitutions with a probability</span>
 <span class="sd">        higher than the threshold</span>
-<span class="sd">        </span>
+
 <span class="sd">        Notes:</span>
 <span class="sd">        If the default probability model is used, input structures must</span>
 <span class="sd">        be oxidation state decorated.</span>
-<span class="sd">        </span>
+
 <span class="sd">        This method does not change the number of species in a structure. i.e</span>
 <span class="sd">        if the number of target species is 3, only input structures containing</span>
 <span class="sd">        3 species will be considered.</span>
@@ -174,7 +177,7 @@
                         <span class="bp">self</span><span class="o">.</span><span class="n">_threshold</span><span class="p">:</span>
 
                     <span class="n">clean_subst</span> <span class="o">=</span> <span class="p">{</span><span class="n">els</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span> <span class="n">permut</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-                                   <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">els</span><span class="p">))</span>
+                                   <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">els</span><span class="p">))</span>
                                    <span class="k">if</span> <span class="n">els</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">!=</span> <span class="n">permut</span><span class="p">[</span><span class="n">i</span><span class="p">]}</span>
 
                     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">clean_subst</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -185,7 +188,7 @@
                     <span class="k">if</span> <span class="n">Substitutor</span><span class="o">.</span><span class="n">_is_charge_balanced</span><span class="p">(</span>
                             <span class="n">transf</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="s">&#39;structure&#39;</span><span class="p">])):</span>
                         <span class="n">ts</span> <span class="o">=</span> <span class="n">TransformedStructure</span><span class="p">(</span>
-                            <span class="n">s</span><span class="p">[</span><span class="s">&#39;structure&#39;</span><span class="p">],</span> <span class="p">[</span><span class="n">transf</span><span class="p">],</span> 
+                            <span class="n">s</span><span class="p">[</span><span class="s">&#39;structure&#39;</span><span class="p">],</span> <span class="p">[</span><span class="n">transf</span><span class="p">],</span>
                             <span class="n">history</span><span class="o">=</span><span class="p">[{</span><span class="s">&quot;source&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]}],</span>
                             <span class="n">other_parameters</span><span class="o">=</span><span class="p">{</span>
                                 <span class="s">&#39;type&#39;</span><span class="p">:</span> <span class="s">&#39;structure_prediction&#39;</span><span class="p">,</span>
@@ -268,12 +271,12 @@
         <span class="k">def</span> <span class="nf">_recurse</span><span class="p">(</span><span class="n">output_prob</span><span class="p">,</span> <span class="n">output_species</span><span class="p">):</span>
             <span class="n">best_case_prob</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">max_probabilities</span><span class="p">)</span>
             <span class="n">best_case_prob</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">output_prob</span><span class="p">)]</span> <span class="o">=</span> <span class="n">output_prob</span>
-            <span class="k">if</span> <span class="nb">reduce</span><span class="p">(</span><span class="n">mul</span><span class="p">,</span> <span class="n">best_case_prob</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_threshold</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">six</span><span class="o">.</span><span class="n">moves</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span><span class="n">mul</span><span class="p">,</span> <span class="n">best_case_prob</span><span class="p">)</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_threshold</span><span class="p">:</span>
                 <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">output_species</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">species_list</span><span class="p">):</span>
                     <span class="n">odict</span> <span class="o">=</span> <span class="p">{</span>
                         <span class="s">&#39;substitutions&#39;</span><span class="p">:</span>
                         <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">species_list</span><span class="p">,</span> <span class="n">output_species</span><span class="p">)),</span>
-                        <span class="s">&#39;probability&#39;</span><span class="p">:</span> <span class="nb">reduce</span><span class="p">(</span><span class="n">mul</span><span class="p">,</span> <span class="n">best_case_prob</span><span class="p">)}</span>
+                        <span class="s">&#39;probability&#39;</span><span class="p">:</span> <span class="n">six</span><span class="o">.</span><span class="n">moves</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span><span class="n">mul</span><span class="p">,</span> <span class="n">best_case_prob</span><span class="p">)}</span>
                     <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">odict</span><span class="p">)</span>
                     <span class="k">return</span>
                 <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sp</span><span class="o">.</span><span class="n">species</span><span class="p">:</span>
@@ -304,8 +307,7 @@
                      <span class="s">&#39;compositions found&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">output</span><span class="p">)))</span>
         <span class="k">return</span> <span class="n">output</span>
 </div>
-    <span class="nd">@property</span>
-<div class="viewcode-block" id="Substitutor.to_dict"><a class="viewcode-back" href="../../../pymatgen.structure_prediction.html#pymatgen.structure_prediction.substitutor.Substitutor.to_dict">[docs]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Substitutor.as_dict"><a class="viewcode-back" href="../../../pymatgen.structure_prediction.html#pymatgen.structure_prediction.substitutor.Substitutor.as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">{</span><span class="s">&quot;name&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="s">&quot;version&quot;</span><span class="p">:</span> <span class="n">__version__</span><span class="p">,</span>
                 <span class="s">&quot;kwargs&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_kwargs</span><span class="p">,</span> <span class="s">&quot;threshold&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_threshold</span><span class="p">,</span>
                 <span class="s">&quot;@module&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span><span class="p">,</span>
@@ -349,7 +351,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.10.6 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 3.0.0 documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

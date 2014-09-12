@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.core.structure &mdash; pymatgen 2.10.6 documentation</title>
+    <title>pymatgen.core.structure &mdash; pymatgen 3.0.0 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '2.10.6',
+        VERSION:     '3.0.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.10.6 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.10.6 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 3.0.0 documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -80,31 +80,35 @@
 <span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">ABCMeta</span><span class="p">,</span> <span class="n">abstractmethod</span><span class="p">,</span> <span class="n">abstractproperty</span>
 <span class="kn">import</span> <span class="nn">random</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">fnmatch</span> <span class="kn">import</span> <span class="n">fnmatch</span>
+<span class="kn">import</span> <span class="nn">re</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+
+<span class="kn">import</span> <span class="nn">six</span>
+<span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="nb">map</span><span class="p">,</span> <span class="nb">zip</span>
 
 <span class="kn">from</span> <span class="nn">fractions</span> <span class="kn">import</span> <span class="n">gcd</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.operations</span> <span class="kn">import</span> <span class="n">SymmOp</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.lattice</span> <span class="kn">import</span> <span class="n">Lattice</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="kn">import</span> <span class="n">Element</span><span class="p">,</span> <span class="n">Specie</span><span class="p">,</span> <span class="n">get_el_sp</span>
-<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">MSONable</span>
+<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">PMGSONable</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.sites</span> <span class="kn">import</span> <span class="n">Site</span><span class="p">,</span> <span class="n">PeriodicSite</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.bonds</span> <span class="kn">import</span> <span class="n">CovalentBond</span><span class="p">,</span> <span class="n">get_bond_length</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.composition</span> <span class="kn">import</span> <span class="n">Composition</span>
 <span class="kn">from</span> <span class="nn">pymatgen.util.coord_utils</span> <span class="kn">import</span> <span class="n">get_angle</span><span class="p">,</span> <span class="n">all_distances</span>
 <span class="kn">from</span> <span class="nn">monty.design_patterns</span> <span class="kn">import</span> <span class="n">singleton</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.units</span> <span class="kn">import</span> <span class="n">Mass</span><span class="p">,</span> <span class="n">Length</span>
-<span class="kn">from</span> <span class="nn">monty.dev</span> <span class="kn">import</span> <span class="n">deprecated</span>
+<span class="kn">from</span> <span class="nn">monty.io</span> <span class="kn">import</span> <span class="n">zopen</span>
 
 
-<div class="viewcode-block" id="SiteCollection"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.SiteCollection">[docs]</a><span class="k">class</span> <span class="nc">SiteCollection</span><span class="p">(</span><span class="n">collections</span><span class="o">.</span><span class="n">Sequence</span><span class="p">):</span>
+<div class="viewcode-block" id="SiteCollection"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.SiteCollection">[docs]</a><span class="k">class</span> <span class="nc">SiteCollection</span><span class="p">(</span><span class="nb">object</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">Sequence</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">with_metaclass</span><span class="p">(</span><span class="n">ABCMeta</span><span class="p">)):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Basic SiteCollection. Essentially a sequence of Sites or PeriodicSites.</span>
 <span class="sd">    This serves as a base class for Molecule (a collection of Site, i.e., no</span>
 <span class="sd">    periodicity) and Structure (a collection of PeriodicSites, i.e.,</span>
 <span class="sd">    periodicity). Not meant to be instantiated directly.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">ABCMeta</span>
 
     <span class="c">#Tolerance in Angstrom for determining if sites are too close.</span>
     <span class="n">DISTANCE_TOLERANCE</span> <span class="o">=</span> <span class="mf">0.01</span>
@@ -341,9 +345,33 @@
             <span class="k">return</span> <span class="bp">True</span>
         <span class="n">all_dists</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">distance_matrix</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">triu_indices</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="mi">1</span><span class="p">)]</span>
         <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">all_dists</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">tol</span><span class="p">)</span>
+</div>
+    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="SiteCollection.to"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.SiteCollection.to">[docs]</a>    <span class="k">def</span> <span class="nf">to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generates well-known string representations of SiteCollections (e.g.,</span>
+<span class="sd">        molecules / structures). Should return a string type or write to a file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+</div>
+    <span class="nd">@classmethod</span>
+    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="SiteCollection.from_str"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.SiteCollection.from_str">[docs]</a>    <span class="k">def</span> <span class="nf">from_str</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">input_string</span><span class="p">,</span> <span class="n">fmt</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reads in SiteCollection from a string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+</div>
+    <span class="nd">@classmethod</span>
+    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="SiteCollection.from_file"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.SiteCollection.from_file">[docs]</a>    <span class="k">def</span> <span class="nf">from_file</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reads in SiteCollection from a filename.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
 
 </div></div>
-<div class="viewcode-block" id="IStructure"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IStructure">[docs]</a><span class="k">class</span> <span class="nc">IStructure</span><span class="p">(</span><span class="n">SiteCollection</span><span class="p">,</span> <span class="n">MSONable</span><span class="p">):</span>
+<div class="viewcode-block" id="IStructure"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IStructure">[docs]</a><span class="k">class</span> <span class="nc">IStructure</span><span class="p">(</span><span class="n">SiteCollection</span><span class="p">,</span> <span class="n">PMGSONable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Basic immutable Structure object with periodicity. Essentially a sequence</span>
 <span class="sd">    of PeriodicSites having a common lattice. IStructure is made to be</span>
@@ -398,7 +426,7 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_lattice</span> <span class="o">=</span> <span class="n">Lattice</span><span class="p">(</span><span class="n">lattice</span><span class="p">)</span>
 
         <span class="n">sites</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">species</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">species</span><span class="p">)):</span>
             <span class="n">prop</span> <span class="o">=</span> <span class="bp">None</span>
             <span class="k">if</span> <span class="n">site_properties</span><span class="p">:</span>
                 <span class="n">prop</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">site_properties</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
@@ -653,7 +681,7 @@
         <span class="n">all_ranges</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">nmin</span><span class="p">,</span> <span class="n">nmax</span><span class="p">)]</span>
 
         <span class="n">latt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lattice</span>
-        <span class="n">neighbors</span> <span class="o">=</span> <span class="p">[</span><span class="nb">list</span><span class="p">()</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">))]</span>
+        <span class="n">neighbors</span> <span class="o">=</span> <span class="p">[</span><span class="nb">list</span><span class="p">()</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">))]</span>
         <span class="n">all_fcoords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mod</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
         <span class="n">coords_in_cell</span> <span class="o">=</span> <span class="n">latt</span><span class="o">.</span><span class="n">get_cartesian_coords</span><span class="p">(</span><span class="n">all_fcoords</span><span class="p">)</span>
         <span class="n">site_coords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cart_coords</span>
@@ -692,26 +720,20 @@
         <span class="n">inner</span> <span class="o">=</span> <span class="n">r</span> <span class="o">-</span> <span class="n">dr</span>
         <span class="k">return</span> <span class="p">[(</span><span class="n">site</span><span class="p">,</span> <span class="n">dist</span><span class="p">)</span> <span class="k">for</span> <span class="p">(</span><span class="n">site</span><span class="p">,</span> <span class="n">dist</span><span class="p">)</span> <span class="ow">in</span> <span class="n">outer</span> <span class="k">if</span> <span class="n">dist</span> <span class="o">&gt;</span> <span class="n">inner</span><span class="p">]</span>
 </div>
-<div class="viewcode-block" id="IStructure.get_sorted_structure"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IStructure.get_sorted_structure">[docs]</a>    <span class="k">def</span> <span class="nf">get_sorted_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">cmp</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+<div class="viewcode-block" id="IStructure.get_sorted_structure"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IStructure.get_sorted_structure">[docs]</a>    <span class="k">def</span> <span class="nf">get_sorted_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get a sorted copy of the structure. The parameters have the same</span>
 <span class="sd">        meaning as in list.sort. By default, sites are sorted by the</span>
 <span class="sd">        electronegativity of the species.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            cmp: Specifies a custom comparison function of two arguments</span>
-<span class="sd">                (iterable elements) which should return a negative, zero or</span>
-<span class="sd">                positive number depending on whether the first argument is</span>
-<span class="sd">                considered smaller than, equal to, or larger than the second</span>
-<span class="sd">                argument: cmp=lambda x,y: cmp(x.lower(), y.lower()). The</span>
-<span class="sd">                default value is None.</span>
 <span class="sd">            key: Specifies a function of one argument that is used to extract</span>
 <span class="sd">                a comparison key from each list element: key=str.lower. The</span>
 <span class="sd">                default value is None (compare the elements directly).</span>
 <span class="sd">            reverse (bool): If set to True, then the list elements are sorted</span>
 <span class="sd">                as if each comparison were reversed.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">sites</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">cmp</span><span class="o">=</span><span class="nb">cmp</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="n">reverse</span><span class="p">)</span>
+        <span class="n">sites</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="n">reverse</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">from_sites</span><span class="p">(</span><span class="n">sites</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="IStructure.get_reduced_structure"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IStructure.get_reduced_structure">[docs]</a>    <span class="k">def</span> <span class="nf">get_reduced_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reduction_algo</span><span class="o">=</span><span class="s">&quot;niggli&quot;</span><span class="p">):</span>
@@ -828,7 +850,7 @@
             <span class="n">vec</span> <span class="o">-=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">vec</span><span class="p">)</span>
         <span class="n">sp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">species_and_occu</span>
         <span class="n">structs</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="n">nimages</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nimages</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">interpolate_lattices</span><span class="p">:</span>
                 <span class="n">l_a</span> <span class="o">=</span> <span class="n">lstart</span> <span class="o">+</span> <span class="n">x</span> <span class="o">/</span> <span class="n">nimages</span> <span class="o">*</span> <span class="n">lvec</span>
                 <span class="n">l</span> <span class="o">=</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">from_lengths_and_angles</span><span class="p">(</span><span class="o">*</span><span class="n">l_a</span><span class="p">)</span>
@@ -876,7 +898,7 @@
                          <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">sites</span><span class="p">,</span>
                                               <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">species_string</span><span class="p">)]</span>
 
-        <span class="n">num_fu</span> <span class="o">=</span> <span class="nb">reduce</span><span class="p">(</span><span class="n">gcd</span><span class="p">,</span> <span class="nb">map</span><span class="p">(</span><span class="nb">len</span><span class="p">,</span> <span class="n">grouped_sites</span><span class="p">))</span>
+        <span class="n">num_fu</span> <span class="o">=</span> <span class="n">six</span><span class="o">.</span><span class="n">moves</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span><span class="n">gcd</span><span class="p">,</span> <span class="nb">map</span><span class="p">(</span><span class="nb">len</span><span class="p">,</span> <span class="n">grouped_sites</span><span class="p">))</span>
         <span class="n">min_vol</span> <span class="o">=</span> <span class="n">original_volume</span> <span class="o">*</span> <span class="mf">0.5</span> <span class="o">/</span> <span class="n">num_fu</span>
 
         <span class="n">min_site_list</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">grouped_sites</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">group</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">group</span><span class="p">))</span>
@@ -884,7 +906,7 @@
         <span class="n">min_site_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">site</span><span class="o">.</span><span class="n">to_unit_cell</span> <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">min_site_list</span><span class="p">]</span>
         <span class="n">org</span> <span class="o">=</span> <span class="n">min_site_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">coords</span>
         <span class="n">possible_vectors</span> <span class="o">=</span> <span class="p">[</span><span class="n">min_site_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">coords</span> <span class="o">-</span> <span class="n">org</span>
-                            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">min_site_list</span><span class="p">))]</span>
+                            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">min_site_list</span><span class="p">))]</span>
 
         <span class="c">#Let&#39;s try to use the shortest vector possible first. Allows for faster</span>
         <span class="c">#convergence to primitive cell.</span>
@@ -901,7 +923,7 @@
                              <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]])</span>
         <span class="n">l_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lattice</span><span class="o">.</span><span class="n">get_cartesian_coords</span><span class="p">(</span><span class="n">l_points</span><span class="p">)</span>
 
-        <span class="k">for</span> <span class="n">v</span><span class="p">,</span> <span class="n">repl_pos</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="n">possible_vectors</span><span class="p">,</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">3</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">v</span><span class="p">,</span> <span class="n">repl_pos</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="n">possible_vectors</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">))):</span>
             <span class="c">#Try combinations of new lattice vectors with existing lattice</span>
             <span class="c">#vectors.</span>
             <span class="n">latt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lattice</span><span class="o">.</span><span class="n">matrix</span>
@@ -979,7 +1001,7 @@
         <span class="k">return</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">outs</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;Structure Summary ({s})&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">composition</span><span class="p">)),</span>
+        <span class="n">outs</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;Structure Summary ({s})&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">formula</span><span class="p">),</span>
                 <span class="s">&quot;Reduced Formula: {}&quot;</span>
                 <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">reduced_formula</span><span class="p">)]</span>
         <span class="n">to_s</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="s">&quot;</span><span class="si">%0.6f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">x</span>
@@ -994,12 +1016,11 @@
                                             <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">site</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">])]))</span>
         <span class="k">return</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outs</span><span class="p">)</span>
 
-    <span class="nd">@property</span>
-<div class="viewcode-block" id="IStructure.to_dict"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IStructure.to_dict">[docs]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="IStructure.as_dict"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IStructure.as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Json-serializable dict representation of Structure</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">latt_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lattice</span><span class="o">.</span><span class="n">to_dict</span>
+        <span class="n">latt_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lattice</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span>
         <span class="k">del</span> <span class="n">latt_dict</span><span class="p">[</span><span class="s">&quot;@module&quot;</span><span class="p">]</span>
         <span class="k">del</span> <span class="n">latt_dict</span><span class="p">[</span><span class="s">&quot;@class&quot;</span><span class="p">]</span>
 
@@ -1007,7 +1028,7 @@
              <span class="s">&quot;@class&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span>
              <span class="s">&quot;lattice&quot;</span><span class="p">:</span> <span class="n">latt_dict</span><span class="p">,</span> <span class="s">&quot;sites&quot;</span><span class="p">:</span> <span class="p">[]}</span>
         <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
-            <span class="n">site_dict</span> <span class="o">=</span> <span class="n">site</span><span class="o">.</span><span class="n">to_dict</span>
+            <span class="n">site_dict</span> <span class="o">=</span> <span class="n">site</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span>
             <span class="k">del</span> <span class="n">site_dict</span><span class="p">[</span><span class="s">&quot;lattice&quot;</span><span class="p">]</span>
             <span class="k">del</span> <span class="n">site_dict</span><span class="p">[</span><span class="s">&quot;@module&quot;</span><span class="p">]</span>
             <span class="k">del</span> <span class="n">site_dict</span><span class="p">[</span><span class="s">&quot;@class&quot;</span><span class="p">]</span>
@@ -1018,7 +1039,7 @@
 <div class="viewcode-block" id="IStructure.from_dict"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IStructure.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Reconstitute a Structure object from a dict representation of Structure</span>
-<span class="sd">        created using to_dict.</span>
+<span class="sd">        created using as_dict().</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            d (dict): Dict representation of structure.</span>
@@ -1063,9 +1084,101 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="n">space</span><span class="p">,</span>
                                 <span class="n">frac_coords</span><span class="o">=</span><span class="n">frac_coords</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="IStructure.to"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IStructure.to">[docs]</a>    <span class="k">def</span> <span class="nf">to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Outputs the structure to a file or string.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            fmt (str): Format to output to. Defaults to JSON unless filename</span>
+<span class="sd">                is provided. If fmt is specifies, it overrides whatever the</span>
+<span class="sd">                filename is. Options include &quot;cif&quot;, &quot;poscar&quot;, &quot;cssr&quot;, &quot;json&quot;.</span>
+<span class="sd">                Non-case sensitive.</span>
+<span class="sd">            filename (str): If provided, output will be written to a file. If</span>
+<span class="sd">                fmt is not specified, the format is determined from the</span>
+<span class="sd">                filename. Defaults is None, i.e. string output.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            (str) if filename is None. None otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">pymatgen.io.cifio</span> <span class="kn">import</span> <span class="n">CifWriter</span>
+        <span class="kn">from</span> <span class="nn">pymatgen.io.vaspio</span> <span class="kn">import</span> <span class="n">Poscar</span>
+        <span class="kn">from</span> <span class="nn">pymatgen.io.cssrio</span> <span class="kn">import</span> <span class="n">Cssr</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span> <span class="ow">or</span> <span class="s">&quot;&quot;</span>
+        <span class="n">fmt</span> <span class="o">=</span> <span class="s">&quot;&quot;</span> <span class="k">if</span> <span class="n">fmt</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">fmt</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">fmt</span> <span class="o">==</span> <span class="s">&quot;cif&quot;</span> <span class="ow">or</span> <span class="n">fnmatch</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="s">&quot;*.cif*&quot;</span><span class="p">):</span>
+            <span class="n">writer</span> <span class="o">=</span> <span class="n">CifWriter</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">fmt</span> <span class="o">==</span> <span class="s">&quot;poscar&quot;</span> <span class="ow">or</span> <span class="n">fnmatch</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="s">&quot;POSCAR*&quot;</span><span class="p">):</span>
+            <span class="n">writer</span> <span class="o">=</span> <span class="n">Poscar</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">fmt</span> <span class="o">==</span> <span class="s">&quot;cssr&quot;</span> <span class="ow">or</span> <span class="n">fnmatch</span><span class="p">(</span><span class="n">fname</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span> <span class="s">&quot;*.cssr*&quot;</span><span class="p">):</span>
+            <span class="n">writer</span> <span class="o">=</span> <span class="n">Cssr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">zopen</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                    <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">as_dict</span><span class="p">(),</span> <span class="n">f</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">as_dict</span><span class="p">())</span>
+
+        <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+            <span class="n">writer</span><span class="o">.</span><span class="n">write_file</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">writer</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="IStructure.from_str"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IStructure.from_str">[docs]</a>    <span class="k">def</span> <span class="nf">from_str</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">input_string</span><span class="p">,</span> <span class="n">fmt</span><span class="p">,</span> <span class="n">primitive</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reads a structure from a string.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            input_string (str): String to parse.</span>
+<span class="sd">            fmt (str): A format specification.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            IStructure / Structure</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">pymatgen.io.cifio</span> <span class="kn">import</span> <span class="n">CifParser</span>
+        <span class="kn">from</span> <span class="nn">pymatgen.io.vaspio</span> <span class="kn">import</span> <span class="n">Poscar</span>
+        <span class="kn">from</span> <span class="nn">pymatgen.io.cssrio</span> <span class="kn">import</span> <span class="n">Cssr</span>
+        <span class="k">if</span> <span class="n">fmt</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;cif&quot;</span><span class="p">:</span>
+            <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">input_string</span><span class="p">)</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="n">primitive</span><span class="o">=</span><span class="n">primitive</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">fmt</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;poscar&quot;</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">Poscar</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">input_string</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span><span class="o">.</span><span class="n">structure</span>
+        <span class="k">elif</span> <span class="n">fmt</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;cssr&quot;</span><span class="p">:</span>
+            <span class="n">cssr</span> <span class="o">=</span> <span class="n">Cssr</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">input_string</span><span class="p">)</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">cssr</span><span class="o">.</span><span class="n">structure</span>
+        <span class="k">elif</span> <span class="n">fmt</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;json&quot;</span><span class="p">:</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">input_string</span><span class="p">)</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Unrecognized format!&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">sort</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">get_sorted_structure</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_sites</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="IStructure.from_file"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IStructure.from_file">[docs]</a>    <span class="k">def</span> <span class="nf">from_file</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">primitive</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reads a structure from a file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filename (str): The filename to read from.</span>
+<span class="sd">            primitive (bool): Whether to convert to a primitive cell for cifs.</span>
+<span class="sd">                Defaults to False.</span>
+<span class="sd">            sort (bool): Whether to sort sites. Default to False.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Structure.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">pymatgen.io.smartio</span> <span class="kn">import</span> <span class="n">read_structure</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_sites</span><span class="p">(</span><span class="n">read_structure</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">primitive</span><span class="o">=</span><span class="n">primitive</span><span class="p">,</span>
+                                             <span class="n">sort</span><span class="o">=</span><span class="n">sort</span><span class="p">))</span>
 
 </div></div>
-<div class="viewcode-block" id="IMolecule"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IMolecule">[docs]</a><span class="k">class</span> <span class="nc">IMolecule</span><span class="p">(</span><span class="n">SiteCollection</span><span class="p">,</span> <span class="n">MSONable</span><span class="p">):</span>
+<div class="viewcode-block" id="IMolecule"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IMolecule">[docs]</a><span class="k">class</span> <span class="nc">IMolecule</span><span class="p">(</span><span class="n">SiteCollection</span><span class="p">,</span> <span class="n">PMGSONable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Basic immutable Molecule object without periodicity. Essentially a</span>
 <span class="sd">    sequence of sites. IMolecule is made to be immutable so that they can</span>
@@ -1107,7 +1220,7 @@
                                   <span class="s">&quot;coordinates.&quot;</span><span class="p">))</span>
 
         <span class="n">sites</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">species</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">species</span><span class="p">)):</span>
             <span class="n">prop</span> <span class="o">=</span> <span class="bp">None</span>
             <span class="k">if</span> <span class="n">site_properties</span><span class="p">:</span>
                 <span class="n">prop</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">site_properties</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
@@ -1287,7 +1400,7 @@
         <span class="k">return</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">outs</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;Molecule Summary ({s})&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">composition</span><span class="p">)),</span>
+        <span class="n">outs</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;Molecule Summary ({s})&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">formula</span><span class="p">),</span>
                 <span class="s">&quot;Reduced Formula: &quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">reduced_formula</span><span class="p">,</span>
                 <span class="s">&quot;Charge = {}, Spin Mult = {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">_charge</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_spin_multiplicity</span><span class="p">)]</span>
@@ -1299,8 +1412,7 @@
                                             <span class="n">site</span><span class="o">.</span><span class="n">coords</span><span class="p">])]))</span>
         <span class="k">return</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outs</span><span class="p">)</span>
 
-    <span class="nd">@property</span>
-<div class="viewcode-block" id="IMolecule.to_dict"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IMolecule.to_dict">[docs]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="IMolecule.as_dict"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IMolecule.as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Json-serializable dict representation of Molecule</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -1310,7 +1422,7 @@
              <span class="s">&quot;spin_multiplicity&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_spin_multiplicity</span><span class="p">,</span>
              <span class="s">&quot;sites&quot;</span><span class="p">:</span> <span class="p">[]}</span>
         <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
-            <span class="n">site_dict</span> <span class="o">=</span> <span class="n">site</span><span class="o">.</span><span class="n">to_dict</span>
+            <span class="n">site_dict</span> <span class="o">=</span> <span class="n">site</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span>
             <span class="k">del</span> <span class="n">site_dict</span><span class="p">[</span><span class="s">&quot;@module&quot;</span><span class="p">]</span>
             <span class="k">del</span> <span class="n">site_dict</span><span class="p">[</span><span class="s">&quot;@class&quot;</span><span class="p">]</span>
             <span class="n">d</span><span class="p">[</span><span class="s">&quot;sites&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">site_dict</span><span class="p">)</span>
@@ -1320,7 +1432,7 @@
 <div class="viewcode-block" id="IMolecule.from_dict"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IMolecule.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Reconstitute a Molecule object from a dict representation created using</span>
-<span class="sd">        to_dict.</span>
+<span class="sd">        as_dict().</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            d (dict): dict representation of Molecule.</span>
@@ -1450,8 +1562,8 @@
         <span class="n">coords</span> <span class="o">=</span> <span class="p">[]</span>
 
         <span class="n">centered_coords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cart_coords</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">center_of_mass</span>
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">images</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">range</span><span class="p">(</span><span class="n">images</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
-                                         <span class="nb">range</span><span class="p">(</span><span class="n">images</span><span class="p">[</span><span class="mi">2</span><span class="p">])):</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">images</span><span class="p">[</span><span class="mi">0</span><span class="p">])),</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">images</span><span class="p">[</span><span class="mi">1</span><span class="p">])),</span>
+                                         <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">images</span><span class="p">[</span><span class="mi">2</span><span class="p">]))):</span>
             <span class="n">box_center</span> <span class="o">=</span> <span class="p">[(</span><span class="n">i</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">*</span> <span class="n">a</span><span class="p">,</span> <span class="p">(</span><span class="n">j</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">*</span> <span class="n">b</span><span class="p">,</span> <span class="p">(</span><span class="n">k</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">*</span> <span class="n">c</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">random_rotation</span><span class="p">:</span>
                 <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
@@ -1489,6 +1601,99 @@
                               <span class="n">charge</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_charge</span><span class="p">,</span>
                               <span class="n">spin_multiplicity</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_spin_multiplicity</span><span class="p">,</span>
                               <span class="n">site_properties</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">site_properties</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="IMolecule.to"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IMolecule.to">[docs]</a>    <span class="k">def</span> <span class="nf">to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fmt</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Outputs the molecule to a file or string.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            fmt (str): Format to output to. Defaults to JSON unless filename</span>
+<span class="sd">                is provided. If fmt is specifies, it overrides whatever the</span>
+<span class="sd">                filename is. Options include &quot;xyz&quot;, &quot;gjf&quot;, &quot;g03&quot;, &quot;json&quot;. If</span>
+<span class="sd">                you have OpenBabel installed, any of the formats supported by</span>
+<span class="sd">                OpenBabel. Non-case sensitive.</span>
+<span class="sd">            filename (str): If provided, output will be written to a file. If</span>
+<span class="sd">                fmt is not specified, the format is determined from the</span>
+<span class="sd">                filename. Defaults is None, i.e. string output.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            (str) if filename is None. None otherwise.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">pymatgen.io.xyzio</span> <span class="kn">import</span> <span class="n">XYZ</span>
+        <span class="kn">from</span> <span class="nn">pymatgen.io.gaussianio</span> <span class="kn">import</span> <span class="n">GaussianInput</span>
+        <span class="kn">from</span> <span class="nn">pymatgen.io.babelio</span> <span class="kn">import</span> <span class="n">BabelMolAdaptor</span>
+
+        <span class="n">fmt</span> <span class="o">=</span> <span class="s">&quot;&quot;</span> <span class="k">if</span> <span class="n">fmt</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">fmt</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">filename</span> <span class="ow">or</span> <span class="s">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">fmt</span> <span class="o">==</span> <span class="s">&quot;xyz&quot;</span> <span class="ow">or</span> <span class="n">fnmatch</span><span class="p">(</span><span class="n">fname</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span> <span class="s">&quot;*.xyz*&quot;</span><span class="p">):</span>
+            <span class="n">writer</span> <span class="o">=</span> <span class="n">XYZ</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">any</span><span class="p">([</span><span class="n">fmt</span> <span class="o">==</span> <span class="n">r</span> <span class="ow">or</span> <span class="n">fnmatch</span><span class="p">(</span><span class="n">fname</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span> <span class="s">&quot;*.{}*&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r</span><span class="p">))</span>
+                  <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;gjf&quot;</span><span class="p">,</span> <span class="s">&quot;g03&quot;</span><span class="p">,</span> <span class="s">&quot;g09&quot;</span><span class="p">,</span> <span class="s">&quot;com&quot;</span><span class="p">,</span> <span class="s">&quot;inp&quot;</span><span class="p">]]):</span>
+            <span class="n">writer</span> <span class="o">=</span> <span class="n">GaussianInput</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">fmt</span> <span class="o">==</span> <span class="s">&quot;json&quot;</span> <span class="ow">or</span> <span class="n">fnmatch</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="s">&quot;*.json*&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">fnmatch</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span>
+                                                                  <span class="s">&quot;*.mson*&quot;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">zopen</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                    <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">as_dict</span><span class="p">(),</span> <span class="n">f</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">as_dict</span><span class="p">())</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s">&quot;\.(pdb|mol|mdl|sdf|sd|ml2|sy2|mol2|cml|mrv)&quot;</span><span class="p">,</span>
+                          <span class="n">fname</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+            <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">fmt</span><span class="p">)</span> <span class="ow">and</span> <span class="n">m</span><span class="p">:</span>
+                <span class="n">fmt</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">writer</span> <span class="o">=</span> <span class="n">BabelMolAdaptor</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">writer</span><span class="o">.</span><span class="n">write_file</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">file_format</span><span class="o">=</span><span class="n">fmt</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">filename</span><span class="p">:</span>
+            <span class="n">writer</span><span class="o">.</span><span class="n">write_file</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">writer</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="IMolecule.from_str"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IMolecule.from_str">[docs]</a>    <span class="k">def</span> <span class="nf">from_str</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">input_string</span><span class="p">,</span> <span class="n">fmt</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reads the molecule from a string.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            input_string (str): String to parse.</span>
+<span class="sd">            fmt (str): Format to output to. Defaults to JSON unless filename</span>
+<span class="sd">                is provided. If fmt is specifies, it overrides whatever the</span>
+<span class="sd">                filename is. Options include &quot;xyz&quot;, &quot;gjf&quot;, &quot;g03&quot;, &quot;json&quot;. If</span>
+<span class="sd">                you have OpenBabel installed, any of the formats supported by</span>
+<span class="sd">                OpenBabel. Non-case sensitive.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            IMolecule or Molecule.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">pymatgen.io.xyzio</span> <span class="kn">import</span> <span class="n">XYZ</span>
+        <span class="kn">from</span> <span class="nn">pymatgen.io.gaussianio</span> <span class="kn">import</span> <span class="n">GaussianInput</span>
+        <span class="k">if</span> <span class="n">fmt</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;xyz&quot;</span><span class="p">:</span>
+            <span class="n">m</span> <span class="o">=</span> <span class="n">XYZ</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">input_string</span><span class="p">)</span><span class="o">.</span><span class="n">molecule</span>
+        <span class="k">elif</span> <span class="n">fmt</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;gjf&quot;</span><span class="p">,</span> <span class="s">&quot;g03&quot;</span><span class="p">,</span> <span class="s">&quot;g09&quot;</span><span class="p">,</span> <span class="s">&quot;com&quot;</span><span class="p">,</span> <span class="s">&quot;inp&quot;</span><span class="p">]:</span>
+            <span class="n">m</span> <span class="o">=</span> <span class="n">GaussianInput</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">input_string</span><span class="p">)</span><span class="o">.</span><span class="n">molecule</span>
+        <span class="k">elif</span> <span class="n">fmt</span> <span class="o">==</span> <span class="s">&quot;json&quot;</span><span class="p">:</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">input_string</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">pymatgen.io.babelio</span> <span class="kn">import</span> <span class="n">BabelMolAdaptor</span>
+            <span class="n">m</span> <span class="o">=</span> <span class="n">BabelMolAdaptor</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">input_string</span><span class="p">,</span>
+                                            <span class="n">file_format</span><span class="o">=</span><span class="n">fmt</span><span class="p">)</span><span class="o">.</span><span class="n">pymatgen_mol</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_sites</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="IMolecule.from_file"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IMolecule.from_file">[docs]</a>    <span class="k">def</span> <span class="nf">from_file</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reads a molecule from a file.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filename (str): The filename to read from.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Molecule</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">pymatgen.io.smartio</span> <span class="kn">import</span> <span class="n">read_mol</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_sites</span><span class="p">(</span><span class="n">read_mol</span><span class="p">(</span><span class="n">filename</span><span class="p">))</span>
 
 </div></div>
 <div class="viewcode-block" id="Structure"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.Structure">[docs]</a><span class="k">class</span> <span class="nc">Structure</span><span class="p">(</span><span class="n">IStructure</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">MutableSequence</span><span class="p">):</span>
@@ -1562,7 +1767,7 @@
                                  <span class="s">&quot;as Structure!&quot;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">site</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">site</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">site</span><span class="p">,</span> \
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">site</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">string_types</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">site</span><span class="p">,</span> \
                     <span class="n">collections</span><span class="o">.</span><span class="n">Sequence</span><span class="p">)):</span>
                 <span class="n">sp</span> <span class="o">=</span> <span class="n">site</span>
                 <span class="n">frac_coords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">frac_coords</span>
@@ -1637,16 +1842,6 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">new_site</span><span class="p">)</span>
 </div>
-    <span class="nd">@deprecated</span><span class="p">(</span><span class="n">__delitem__</span><span class="p">)</span>
-<div class="viewcode-block" id="Structure.remove"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.Structure.remove">[docs]</a>    <span class="k">def</span> <span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Remove site at index i.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            i (int): Index of site to remove.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">del</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
-</div>
 <div class="viewcode-block" id="Structure.add_site_property"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.Structure.add_site_property">[docs]</a>    <span class="k">def</span> <span class="nf">add_site_property</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">property_name</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Adds a property to all sites.</span>
@@ -1658,7 +1853,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Values must be same length as sites.&quot;</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">)):</span>
             <span class="n">site</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
             <span class="n">props</span> <span class="o">=</span> <span class="n">site</span><span class="o">.</span><span class="n">properties</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">props</span><span class="p">:</span>
@@ -1700,7 +1895,7 @@
             <span class="k">return</span> <span class="n">PeriodicSite</span><span class="p">(</span><span class="n">new_atom_occu</span><span class="p">,</span> <span class="n">site</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">,</span> <span class="n">latt</span><span class="p">,</span>
                                 <span class="n">properties</span><span class="o">=</span><span class="n">site</span><span class="o">.</span><span class="n">properties</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">mod_site</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">mod_site</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">))</span>
 </div>
 <div class="viewcode-block" id="Structure.replace"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.Structure.replace">[docs]</a>    <span class="k">def</span> <span class="nf">replace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
                 <span class="n">properties</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
@@ -1737,7 +1932,7 @@
 <span class="sd">            species: Sequence of species to remove, e.g., [&quot;Li&quot;, &quot;Na&quot;].</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">new_sites</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">species</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">get_el_sp</span><span class="p">,</span> <span class="n">species</span><span class="p">)</span>
+        <span class="n">species</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">get_el_sp</span><span class="p">,</span> <span class="n">species</span><span class="p">))</span>
 
         <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">:</span>
             <span class="n">new_sp_occu</span> <span class="o">=</span> <span class="p">{</span><span class="n">sp</span><span class="p">:</span> <span class="n">amt</span> <span class="k">for</span> <span class="n">sp</span><span class="p">,</span> <span class="n">amt</span> <span class="ow">in</span> <span class="n">site</span><span class="o">.</span><span class="n">species_and_occu</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
@@ -1775,7 +1970,7 @@
             <span class="n">new_frac</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lattice</span><span class="o">.</span><span class="n">get_fractional_coords</span><span class="p">(</span><span class="n">new_cart</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">PeriodicSite</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">species_and_occu</span><span class="p">,</span> <span class="n">new_frac</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lattice</span><span class="p">,</span>
                                 <span class="n">properties</span><span class="o">=</span><span class="n">site</span><span class="o">.</span><span class="n">properties</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">operate_site</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">operate_site</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">))</span>
 </div>
 <div class="viewcode-block" id="Structure.modify_lattice"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.Structure.modify_lattice">[docs]</a>    <span class="k">def</span> <span class="nf">modify_lattice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_lattice</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -1808,7 +2003,7 @@
         <span class="n">s</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">strain</span><span class="p">))</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">modify_lattice</span><span class="p">(</span><span class="n">Lattice</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_lattice</span><span class="o">.</span><span class="n">matrix</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="p">))</span>
 </div>
-<div class="viewcode-block" id="Structure.sort"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.Structure.sort">[docs]</a>    <span class="k">def</span> <span class="nf">sort</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">cmp</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+<div class="viewcode-block" id="Structure.sort"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.Structure.sort">[docs]</a>    <span class="k">def</span> <span class="nf">sort</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Sort a structure in place. The parameters have the same meaning as in</span>
 <span class="sd">        list.sort. By default, sites are sorted by the electronegativity of</span>
@@ -1818,19 +2013,13 @@
 <span class="sd">        in place.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            cmp: Specifies a custom comparison function of two arguments</span>
-<span class="sd">                (iterable elements) which should return a negative, zero or</span>
-<span class="sd">                positive number depending on whether the first argument is</span>
-<span class="sd">                considered smaller than, equal to, or larger than the second</span>
-<span class="sd">                argument: cmp=lambda x,y: cmp(x.lower(), y.lower()). The</span>
-<span class="sd">                default value is None.</span>
 <span class="sd">            key: Specifies a function of one argument that is used to extract</span>
 <span class="sd">                a comparison key from each list element: key=str.lower. The</span>
 <span class="sd">                default value is None (compare the elements directly).</span>
 <span class="sd">            reverse (bool): If set to True, then the list elements are sorted</span>
 <span class="sd">                as if each comparison were reversed.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">,</span> <span class="nb">cmp</span><span class="o">=</span><span class="nb">cmp</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="n">reverse</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="n">reverse</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="Structure.translate_sites"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.Structure.translate_sites">[docs]</a>    <span class="k">def</span> <span class="nf">translate_sites</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">vector</span><span class="p">,</span> <span class="n">frac_coords</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
                         <span class="n">to_unit_cell</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
@@ -2070,7 +2259,7 @@
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">site</span><span class="p">,</span> <span class="n">Site</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">site</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">site</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">site</span><span class="p">,</span> \
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">site</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">string_types</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">site</span><span class="p">,</span> \
                     <span class="n">collections</span><span class="o">.</span><span class="n">Sequence</span><span class="p">)):</span>
                 <span class="n">sp</span> <span class="o">=</span> <span class="n">site</span>
                 <span class="n">coords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">coords</span>
@@ -2171,7 +2360,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Values must be same length as sites.&quot;</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">)):</span>
             <span class="n">site</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
             <span class="n">props</span> <span class="o">=</span> <span class="n">site</span><span class="o">.</span><span class="n">properties</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">props</span><span class="p">:</span>
@@ -2179,19 +2368,6 @@
             <span class="n">props</span><span class="p">[</span><span class="n">property_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">Site</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">species_and_occu</span><span class="p">,</span> <span class="n">site</span><span class="o">.</span><span class="n">coords</span><span class="p">,</span>
                                   <span class="n">properties</span><span class="o">=</span><span class="n">props</span><span class="p">)</span>
-</div>
-    <span class="nd">@deprecated</span><span class="p">(</span><span class="n">__delitem__</span><span class="p">)</span>
-<div class="viewcode-block" id="Molecule.remove"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.Molecule.remove">[docs]</a>    <span class="k">def</span> <span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Delete site at index i.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            i (int): Index of site to remove.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            New structure with site removed.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">del</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
 </div>
 <div class="viewcode-block" id="Molecule.replace_species"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.Molecule.replace_species">[docs]</a>    <span class="k">def</span> <span class="nf">replace_species</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">species_mapping</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -2229,22 +2405,7 @@
                     <span class="k">else</span><span class="p">:</span>
                         <span class="n">new_atom_occu</span><span class="p">[</span><span class="n">sp</span><span class="p">]</span> <span class="o">=</span> <span class="n">amt</span>
             <span class="k">return</span> <span class="n">Site</span><span class="p">(</span><span class="n">new_atom_occu</span><span class="p">,</span> <span class="n">site</span><span class="o">.</span><span class="n">coords</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="n">site</span><span class="o">.</span><span class="n">properties</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">mod_site</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">)</span>
-</div>
-    <span class="nd">@deprecated</span><span class="p">(</span><span class="n">__setitem__</span><span class="p">)</span>
-<div class="viewcode-block" id="Molecule.replace"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.Molecule.replace">[docs]</a>    <span class="k">def</span> <span class="nf">replace</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">species_n_occu</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Replace a single site. Takes either a species or a dict of occus.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            i (int): Index of the site in the _sites list</span>
-<span class="sd">            species (Specie-like): A species object.</span>
-<span class="sd">            coords (3x1 array): If supplied, the new coords are used.</span>
-<span class="sd">                Otherwise, the old coordinates are retained.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">coords</span> <span class="o">=</span> <span class="n">coords</span> <span class="k">if</span> <span class="n">coords</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">coords</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">Site</span><span class="p">(</span><span class="n">species_n_occu</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span>
-                              <span class="n">properties</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">properties</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">mod_site</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">))</span>
 </div>
 <div class="viewcode-block" id="Molecule.remove_species"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.Molecule.remove_species">[docs]</a>    <span class="k">def</span> <span class="nf">remove_species</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">species</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -2254,7 +2415,7 @@
 <span class="sd">            species: Species to remove.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">new_sites</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">species</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">get_el_sp</span><span class="p">,</span> <span class="n">species</span><span class="p">)</span>
+        <span class="n">species</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">get_el_sp</span><span class="p">,</span> <span class="n">species</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">:</span>
             <span class="n">new_sp_occu</span> <span class="o">=</span> <span class="p">{</span><span class="n">sp</span><span class="p">:</span> <span class="n">amt</span> <span class="k">for</span> <span class="n">sp</span><span class="p">,</span> <span class="n">amt</span> <span class="ow">in</span> <span class="n">site</span><span class="o">.</span><span class="n">species_and_occu</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
                            <span class="k">if</span> <span class="n">sp</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">species</span><span class="p">}</span>
@@ -2318,7 +2479,7 @@
             <span class="n">new_cart</span> <span class="o">=</span> <span class="n">symmop</span><span class="o">.</span><span class="n">operate</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">coords</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">Site</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">species_and_occu</span><span class="p">,</span> <span class="n">new_cart</span><span class="p">,</span>
                         <span class="n">properties</span><span class="o">=</span><span class="n">site</span><span class="o">.</span><span class="n">properties</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">operate_site</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">operate_site</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sites</span><span class="p">))</span>
 </div>
 <div class="viewcode-block" id="Molecule.copy"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.Molecule.copy">[docs]</a>    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -2399,7 +2560,7 @@
 
         <span class="c"># Align X to the origin.</span>
         <span class="n">x</span> <span class="o">=</span> <span class="n">func_grp</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="n">func_grp</span><span class="o">.</span><span class="n">translate_sites</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">func_grp</span><span class="p">)),</span> <span class="n">origin</span> <span class="o">-</span> <span class="n">x</span><span class="o">.</span><span class="n">coords</span><span class="p">)</span>
+        <span class="n">func_grp</span><span class="o">.</span><span class="n">translate_sites</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">func_grp</span><span class="p">))),</span> <span class="n">origin</span> <span class="o">-</span> <span class="n">x</span><span class="o">.</span><span class="n">coords</span><span class="p">)</span>
 
         <span class="c">#Find angle between the attaching bond and the bond to be replaced.</span>
         <span class="n">v1</span> <span class="o">=</span> <span class="n">func_grp</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">coords</span> <span class="o">-</span> <span class="n">origin</span>
@@ -2482,7 +2643,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.10.6 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 3.0.0 documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

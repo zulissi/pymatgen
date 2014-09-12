@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.matproj.rest &mdash; pymatgen 2.10.6 documentation</title>
+    <title>pymatgen.matproj.rest &mdash; pymatgen 3.0.0 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '2.10.6',
+        VERSION:     '3.0.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.10.6 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.10.6 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 3.0.0 documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -82,12 +82,13 @@
 <span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 
-<span class="kn">from</span> <span class="nn">monty.dev</span> <span class="kn">import</span> <span class="n">deprecated</span>
+<span class="kn">from</span> <span class="nn">monty.json</span> <span class="kn">import</span> <span class="n">MontyEncoder</span><span class="p">,</span> <span class="n">MontyDecoder</span>
 
 <span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="kn">import</span> <span class="n">ALL_ELEMENT_SYMBOLS</span><span class="p">,</span> <span class="n">Element</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.composition</span> <span class="kn">import</span> <span class="n">Composition</span>
-<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">PMGJSONDecoder</span>
 <span class="kn">from</span> <span class="nn">pymatgen.entries.computed_entries</span> <span class="kn">import</span> <span class="n">ComputedStructureEntry</span>
 <span class="kn">from</span> <span class="nn">pymatgen.entries.compatibility</span> <span class="kn">import</span> <span class="n">MaterialsProjectCompatibility</span>
 <span class="kn">from</span> <span class="nn">pymatgen.entries.exp_entries</span> <span class="kn">import</span> <span class="n">ExpEntry</span>
@@ -95,8 +96,6 @@
 <span class="kn">from</span> <span class="nn">pymatgen.apps.borg.hive</span> <span class="kn">import</span> <span class="n">VaspToComputedEntryDrone</span>
 <span class="kn">from</span> <span class="nn">pymatgen.apps.borg.queen</span> <span class="kn">import</span> <span class="n">BorgQueen</span>
 <span class="kn">from</span> <span class="nn">pymatgen.matproj.snl</span> <span class="kn">import</span> <span class="n">StructureNL</span>
-<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">PMGJSONEncoder</span>
-<span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="kn">import</span> <span class="n">PeriodicTable</span>
 
 
 <div class="viewcode-block" id="MPRester"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRester">[docs]</a><span class="k">class</span> <span class="nc">MPRester</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -180,7 +179,7 @@
                 <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">payload</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">200</span><span class="p">,</span> <span class="mi">400</span><span class="p">]:</span>
                 <span class="k">try</span><span class="p">:</span>
-                    <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">PMGJSONDecoder</span><span class="p">)</span>
+                    <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">MPDecoder</span><span class="p">)</span>
                 <span class="k">except</span><span class="p">:</span>
                     <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">data</span><span class="p">[</span><span class="s">&quot;valid_response&quot;</span><span class="p">]:</span>
@@ -416,7 +415,7 @@
 <span class="sd">            List of ComputedEntries.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">entries</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">elements</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">elements</span><span class="p">)):</span>
             <span class="k">for</span> <span class="n">els</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">combinations</span><span class="p">(</span><span class="n">elements</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
                 <span class="k">try</span><span class="p">:</span>
                     <span class="n">entries</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
@@ -473,7 +472,7 @@
         <span class="k">try</span><span class="p">:</span>
             <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">payload</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">200</span><span class="p">,</span> <span class="mi">400</span><span class="p">]:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">PMGJSONDecoder</span><span class="p">)</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">MPDecoder</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">data</span><span class="p">[</span><span class="s">&quot;valid_response&quot;</span><span class="p">]:</span>
                     <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;warning&quot;</span><span class="p">):</span>
                         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;warning&quot;</span><span class="p">])</span>
@@ -541,40 +540,6 @@
                    <span class="s">&quot;properties&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">properties</span><span class="p">)}</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_request</span><span class="p">(</span><span class="s">&quot;/query&quot;</span><span class="p">,</span> <span class="n">payload</span><span class="o">=</span><span class="n">payload</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s">&quot;POST&quot;</span><span class="p">)</span>
 </div>
-    <span class="nd">@deprecated</span><span class="p">(</span><span class="n">replacement</span><span class="o">=</span><span class="n">query</span><span class="p">)</span>
-<div class="viewcode-block" id="MPRester.mpquery"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRester.mpquery">[docs]</a>    <span class="k">def</span> <span class="nf">mpquery</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">criteria</span><span class="p">,</span> <span class="n">properties</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Performs an advanced mpquery, which is a Mongo-like syntax for directly</span>
-<span class="sd">        querying the Materials Project database via the mpquery rest interface.</span>
-<span class="sd">        Please refer to the Materials Project REST wiki</span>
-<span class="sd">        https://materialsproject.org/wiki/index.php/The_Materials_API#mpquery</span>
-<span class="sd">        on the mpquery language and supported criteria and properties.</span>
-<span class="sd">        Essentially, any supported properties within MPRester should be</span>
-<span class="sd">        supported in mpquery.</span>
-
-<span class="sd">        Mpquery allows an advanced developer to perform queries which are</span>
-<span class="sd">        otherwise too cumbersome to perform using the standard convenience</span>
-<span class="sd">        methods.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            criteria (dict): Criteria of the query as a mongo-style dict.</span>
-<span class="sd">                For example, {&quot;elements&quot;:{&quot;$in&quot;:[&quot;Li&quot;, &quot;Na&quot;, &quot;K&quot;], &quot;$all&quot;: [</span>
-<span class="sd">                &quot;O&quot;]}, &quot;nelements&quot;:2} selects all Li, Na and K oxides.</span>
-<span class="sd">                {&quot;band_gap&quot;: {&quot;$gt&quot;: 1}} selects all materials with band gaps</span>
-<span class="sd">                greater than 1 eV.</span>
-<span class="sd">            properties (list): Properties to request for as a list. For</span>
-<span class="sd">                example, [&quot;formula&quot;, &quot;formation_energy_per_atom&quot;] returns</span>
-<span class="sd">                the formula and formation energy per atom.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            List of results. E.g.,</span>
-<span class="sd">            [{u&#39;formula&#39;: {u&#39;O&#39;: 1, u&#39;Li&#39;: 2.0}},</span>
-<span class="sd">            {u&#39;formula&#39;: {u&#39;Na&#39;: 2.0, u&#39;O&#39;: 2.0}},</span>
-<span class="sd">            {u&#39;formula&#39;: {u&#39;K&#39;: 1, u&#39;O&#39;: 3.0}},</span>
-<span class="sd">            ...]</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">criteria</span><span class="p">,</span> <span class="n">properties</span><span class="p">)</span>
-</div>
 <div class="viewcode-block" id="MPRester.submit_structures"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRester.submit_structures">[docs]</a>    <span class="k">def</span> <span class="nf">submit_structures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structures</span><span class="p">,</span> <span class="n">authors</span><span class="p">,</span> <span class="n">projects</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
                           <span class="n">references</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">remarks</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
                           <span class="n">histories</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">created_at</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
@@ -639,12 +604,12 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">snl</span> <span class="o">=</span> <span class="n">snl</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">snl</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="k">else</span> <span class="p">[</span><span class="n">snl</span><span class="p">]</span>
-            <span class="n">jsondata</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">to_dict</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">snl</span><span class="p">]</span>
-            <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;snl&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">jsondata</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">PMGJSONEncoder</span><span class="p">)}</span>
+            <span class="n">jsondata</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">snl</span><span class="p">]</span>
+            <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;snl&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">jsondata</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">MontyEncoder</span><span class="p">)}</span>
             <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&quot;{}/snl/submit&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">preamble</span><span class="p">),</span>
                                          <span class="n">data</span><span class="o">=</span><span class="n">payload</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">200</span><span class="p">,</span> <span class="mi">400</span><span class="p">]:</span>
-                <span class="n">resp</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">PMGJSONDecoder</span><span class="p">)</span>
+                <span class="n">resp</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">MPDecoder</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">resp</span><span class="p">[</span><span class="s">&quot;valid_response&quot;</span><span class="p">]:</span>
                     <span class="k">if</span> <span class="n">resp</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;warning&quot;</span><span class="p">):</span>
                         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">resp</span><span class="p">[</span><span class="s">&quot;warning&quot;</span><span class="p">])</span>
@@ -680,7 +645,7 @@
                 <span class="s">&quot;{}/snl/delete&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">preamble</span><span class="p">),</span> <span class="n">data</span><span class="o">=</span><span class="n">payload</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">200</span><span class="p">,</span> <span class="mi">400</span><span class="p">]:</span>
-                <span class="n">resp</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">PMGJSONDecoder</span><span class="p">)</span>
+                <span class="n">resp</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">MPDecoder</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">resp</span><span class="p">[</span><span class="s">&quot;valid_response&quot;</span><span class="p">]:</span>
                     <span class="k">if</span> <span class="n">resp</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;warning&quot;</span><span class="p">):</span>
                         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">resp</span><span class="p">[</span><span class="s">&quot;warning&quot;</span><span class="p">])</span>
@@ -785,7 +750,7 @@
                     <span class="s">&quot;parameters&quot;</span><span class="p">:</span> <span class="n">e</span><span class="o">.</span><span class="n">parameters</span><span class="p">,</span>
                     <span class="s">&quot;final_energy&quot;</span><span class="p">:</span> <span class="n">e</span><span class="o">.</span><span class="n">energy</span><span class="p">,</span>
                     <span class="s">&quot;final_energy_per_atom&quot;</span><span class="p">:</span> <span class="n">e</span><span class="o">.</span><span class="n">energy_per_atom</span><span class="p">,</span>
-                    <span class="s">&quot;initial_structure&quot;</span><span class="p">:</span> <span class="n">e</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;initial_structure&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_dict</span>
+                    <span class="s">&quot;initial_structure&quot;</span><span class="p">:</span> <span class="n">e</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;initial_structure&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span>
                 <span class="p">}</span>
             <span class="p">}</span>
             <span class="k">if</span> <span class="s">&quot;history&quot;</span> <span class="ow">in</span> <span class="n">e</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
@@ -806,11 +771,11 @@
 <span class="sd">        Returns the stability of all entries.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;entries&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">entries</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">PMGJSONEncoder</span><span class="p">)}</span>
+            <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;entries&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">entries</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">MontyEncoder</span><span class="p">)}</span>
             <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s">&quot;{}/phase_diagram/calculate_stability&quot;</span>
                                          <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">preamble</span><span class="p">),</span> <span class="n">data</span><span class="o">=</span><span class="n">payload</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">200</span><span class="p">,</span> <span class="mi">400</span><span class="p">]:</span>
-                <span class="n">resp</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">PMGJSONDecoder</span><span class="p">)</span>
+                <span class="n">resp</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">MPDecoder</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">resp</span><span class="p">[</span><span class="s">&quot;valid_response&quot;</span><span class="p">]:</span>
                     <span class="k">if</span> <span class="n">resp</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;warning&quot;</span><span class="p">):</span>
                         <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">resp</span><span class="p">[</span><span class="s">&quot;warning&quot;</span><span class="p">])</span>
@@ -888,14 +853,15 @@
                     <span class="n">f</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
                     <span class="n">c</span> <span class="o">=</span> <span class="n">Composition</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">f</span><span class="p">))</span>
                     <span class="c">#Check for valid Elements in keys.</span>
-                    <span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">e</span><span class="p">:</span> <span class="n">Element</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">symbol</span><span class="p">),</span> <span class="n">c</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+                    <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">c</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                        <span class="n">Element</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">symbol</span><span class="p">)</span>
                     <span class="n">all_formulas</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">reduced_formula</span><span class="p">)</span>
                 <span class="k">return</span> <span class="p">{</span><span class="s">&quot;pretty_formula&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s">&quot;$in&quot;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">all_formulas</span><span class="p">)}}</span>
 
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">toks</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">parse_tok</span><span class="p">(</span><span class="n">toks</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="p">{</span><span class="s">&quot;$or&quot;</span><span class="p">:</span> <span class="nb">map</span><span class="p">(</span><span class="n">parse_tok</span><span class="p">,</span> <span class="n">toks</span><span class="p">)}</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s">&quot;$or&quot;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">parse_tok</span><span class="p">,</span> <span class="n">toks</span><span class="p">))}</span>
 
 </div></div>
 <div class="viewcode-block" id="MPRestError"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRestError">[docs]</a><span class="k">class</span> <span class="nc">MPRestError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
@@ -903,7 +869,41 @@
 <span class="sd">    Exception class for MPRestAdaptor.</span>
 <span class="sd">    Raised when the query has problems, e.g., bad query format.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">pass</span></div>
+    <span class="k">pass</span>
+
+</div>
+<div class="viewcode-block" id="MPDecoder"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPDecoder">[docs]</a><span class="k">class</span> <span class="nc">MPDecoder</span><span class="p">(</span><span class="n">MontyDecoder</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A Json Decoder which supports the MSONable API. By default, the</span>
+<span class="sd">    decoder attempts to find a module and name associated with a dict. If</span>
+<span class="sd">    found, the decoder will generate a Pymatgen as a priority.  If that fails,</span>
+<span class="sd">    the original decoded dictionary from the string is returned. Note that</span>
+<span class="sd">    nested lists and dicts containing pymatgen object will be decoded correctly</span>
+<span class="sd">    as well.</span>
+
+<span class="sd">    Usage:</span>
+<span class="sd">        Add it as a *cls* keyword when using json.load</span>
+<span class="sd">        json.loads(json_string, cls=MPDecoder)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="MPDecoder.process_decoded"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPDecoder.process_decoded">[docs]</a>    <span class="k">def</span> <span class="nf">process_decoded</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Recursive method to support decoding dicts and lists containing</span>
+<span class="sd">        pymatgen objects.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="s">&quot;module&quot;</span> <span class="ow">in</span> <span class="n">d</span> <span class="ow">and</span> <span class="s">&quot;class&quot;</span> <span class="ow">in</span> <span class="n">d</span><span class="p">:</span>
+            <span class="n">modname</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="s">&quot;module&quot;</span><span class="p">]</span>
+            <span class="n">classname</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="s">&quot;class&quot;</span><span class="p">]</span>
+            <span class="n">mod</span> <span class="o">=</span> <span class="nb">__import__</span><span class="p">(</span><span class="n">modname</span><span class="p">,</span> <span class="nb">globals</span><span class="p">(),</span> <span class="nb">locals</span><span class="p">(),</span> <span class="p">[</span><span class="n">classname</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">classname</span><span class="p">):</span>
+                <span class="n">cls_</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="n">classname</span><span class="p">)</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                        <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;module&quot;</span><span class="p">,</span> <span class="s">&quot;class&quot;</span><span class="p">]}</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cls_</span><span class="p">,</span> <span class="s">&quot;from_dict&quot;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="n">cls_</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">process_decoded</span><span class="p">(</span><span class="n">k</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_decoded</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="k">return</span> <span class="n">MontyDecoder</span><span class="o">.</span><span class="n">process_decoded</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span></div></div>
 </pre></div>
 
           </div>
@@ -937,7 +937,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 2.10.6 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 3.0.0 documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

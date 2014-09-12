@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.vaspio.vasp_input &mdash; pymatgen 2.10.6 documentation</title>
+    <title>pymatgen.io.vaspio.vasp_input &mdash; pymatgen 3.0.0 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '2.10.6',
+        VERSION:     '3.0.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.10.6 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.0 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 2.10.6 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.0 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -76,14 +76,15 @@
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
-<span class="kn">import</span> <span class="nn">ConfigParser</span>
 <span class="kn">import</span> <span class="nn">logging</span>
 
+<span class="kn">import</span> <span class="nn">six</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">numpy.linalg</span> <span class="kn">import</span> <span class="n">det</span>
 
 <span class="kn">from</span> <span class="nn">monty.io</span> <span class="kn">import</span> <span class="n">zopen</span>
 <span class="kn">from</span> <span class="nn">monty.os.path</span> <span class="kn">import</span> <span class="n">zpath</span>
+<span class="kn">from</span> <span class="nn">monty.json</span> <span class="kn">import</span> <span class="n">MontyDecoder</span>
 
 <span class="kn">from</span> <span class="nn">pymatgen.core.lattice</span> <span class="kn">import</span> <span class="n">Lattice</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.physical_constants</span> <span class="kn">import</span> <span class="n">BOLTZMANN_CONST</span>
@@ -93,14 +94,13 @@
 <span class="kn">from</span> <span class="nn">monty.design_patterns</span> <span class="kn">import</span> <span class="n">cached_class</span>
 <span class="kn">from</span> <span class="nn">pymatgen.util.string_utils</span> <span class="kn">import</span> <span class="n">str_aligned</span><span class="p">,</span> <span class="n">str_delimited</span>
 <span class="kn">from</span> <span class="nn">pymatgen.util.io_utils</span> <span class="kn">import</span> <span class="n">clean_lines</span>
-<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">MSONable</span><span class="p">,</span> <span class="n">PMGJSONDecoder</span>
-<span class="kn">import</span> <span class="nn">pymatgen</span>
+<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">PMGSONable</span>\
 
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
 
 
-<div class="viewcode-block" id="Poscar"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.Poscar">[docs]</a><span class="k">class</span> <span class="nc">Poscar</span><span class="p">(</span><span class="n">MSONable</span><span class="p">):</span>
+<div class="viewcode-block" id="Poscar"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.Poscar">[docs]</a><span class="k">class</span> <span class="nc">Poscar</span><span class="p">(</span><span class="n">PMGSONable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Object for representing the data in a POSCAR or CONTCAR file.</span>
 <span class="sd">    Please note that this current implementation. Most attributes can be set</span>
@@ -242,7 +242,7 @@
                     <span class="k">try</span><span class="p">:</span>
                         <span class="n">potcar</span> <span class="o">=</span> <span class="n">Potcar</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dirname</span><span class="p">,</span> <span class="n">f</span><span class="p">))</span>
                         <span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="n">sym</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;_&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">sym</span> <span class="ow">in</span> <span class="n">potcar</span><span class="o">.</span><span class="n">symbols</span><span class="p">]</span>
-                        <span class="nb">map</span><span class="p">(</span><span class="n">get_el_sp</span><span class="p">,</span> <span class="n">names</span><span class="p">)</span>  <span class="c"># ensure that the names are valid</span>
+                        <span class="p">[</span><span class="n">get_el_sp</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">names</span><span class="p">]</span> <span class="c"># ensure valid names</span>
                     <span class="k">except</span><span class="p">:</span>
                         <span class="n">names</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="k">with</span> <span class="n">zopen</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
@@ -286,7 +286,7 @@
         <span class="n">lines</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">clean_lines</span><span class="p">(</span><span class="n">chunks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">),</span> <span class="bp">False</span><span class="p">))</span>
         <span class="n">comment</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">scale</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">lines</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-        <span class="n">lattice</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+        <span class="n">lattice</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()]</span>
                             <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">5</span><span class="p">]])</span>
         <span class="k">if</span> <span class="n">scale</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="c"># In vasp, a negative scale factor is treated as a volume. We need</span>
@@ -298,14 +298,14 @@
 
         <span class="n">vasp5_symbols</span> <span class="o">=</span> <span class="bp">False</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">natoms</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+            <span class="n">natoms</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()]</span>
             <span class="n">ipos</span> <span class="o">=</span> <span class="mi">6</span>
         <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
             <span class="n">vasp5_symbols</span> <span class="o">=</span> <span class="bp">True</span>
             <span class="n">symbols</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
-            <span class="n">natoms</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+            <span class="n">natoms</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()]</span>
             <span class="n">atomic_symbols</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">natoms</span><span class="p">)):</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">natoms</span><span class="p">)):</span>
                 <span class="n">atomic_symbols</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">symbols</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="o">*</span> <span class="n">natoms</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
             <span class="n">ipos</span> <span class="o">=</span> <span class="mi">7</span>
 
@@ -327,7 +327,7 @@
         <span class="k">if</span> <span class="n">default_names</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">atomic_symbols</span> <span class="o">=</span> <span class="p">[]</span>
-                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">natoms</span><span class="p">)):</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">natoms</span><span class="p">)):</span>
                     <span class="n">atomic_symbols</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">default_names</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="o">*</span> <span class="n">natoms</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
                 <span class="n">vasp5_symbols</span> <span class="o">=</span> <span class="bp">True</span>
             <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
@@ -347,7 +347,7 @@
             <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">IndexError</span><span class="p">):</span>
                 <span class="c">#Defaulting to false names.</span>
                 <span class="n">atomic_symbols</span> <span class="o">=</span> <span class="p">[]</span>
-                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">natoms</span><span class="p">)):</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">natoms</span><span class="p">)):</span>
                     <span class="n">sym</span> <span class="o">=</span> <span class="n">Element</span><span class="o">.</span><span class="n">from_Z</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">symbol</span>
                     <span class="n">atomic_symbols</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">sym</span><span class="p">]</span> <span class="o">*</span> <span class="n">natoms</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
                 <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&quot;Elements in POSCAR cannot be determined. &quot;</span>
@@ -357,9 +357,9 @@
         <span class="c"># read the atomic coordinates</span>
         <span class="n">coords</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">selective_dynamics</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span> <span class="k">if</span> <span class="n">sdynamics</span> <span class="k">else</span> <span class="bp">None</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="n">nsites</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nsites</span><span class="p">):</span>
             <span class="n">toks</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="n">ipos</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
-            <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">toks</span><span class="p">[:</span><span class="mi">3</span><span class="p">]))</span>
+            <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">toks</span><span class="p">[:</span><span class="mi">3</span><span class="p">]])</span>
             <span class="k">if</span> <span class="n">sdynamics</span><span class="p">:</span>
                 <span class="n">selective_dynamics</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">tok</span><span class="o">.</span><span class="n">upper</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;T&quot;</span>
                                            <span class="k">for</span> <span class="n">tok</span> <span class="ow">in</span> <span class="n">toks</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">6</span><span class="p">]])</span>
@@ -459,11 +459,10 @@
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
             <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_string</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
 </div>
-    <span class="nd">@property</span>
-<div class="viewcode-block" id="Poscar.to_dict"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.Poscar.to_dict">[docs]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Poscar.as_dict"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.Poscar.as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">{</span><span class="s">&quot;@module&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span><span class="p">,</span>
                 <span class="s">&quot;@class&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span>
-                <span class="s">&quot;structure&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="o">.</span><span class="n">to_dict</span><span class="p">,</span>
+                <span class="s">&quot;structure&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="o">.</span><span class="n">as_dict</span><span class="p">(),</span>
                 <span class="s">&quot;true_names&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">true_names</span><span class="p">,</span>
                 <span class="s">&quot;selective_dynamics&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">selective_dynamics</span><span class="p">,</span>
                 <span class="s">&quot;velocities&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">velocities</span><span class="p">,</span>
@@ -525,7 +524,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">velocities</span> <span class="o">=</span> <span class="n">velocities</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
 
 </div></div>
-<div class="viewcode-block" id="Incar"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.Incar">[docs]</a><span class="k">class</span> <span class="nc">Incar</span><span class="p">(</span><span class="nb">dict</span><span class="p">):</span>
+<div class="viewcode-block" id="Incar"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.Incar">[docs]</a><span class="k">class</span> <span class="nc">Incar</span><span class="p">(</span><span class="nb">dict</span><span class="p">,</span> <span class="n">PMGSONable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    INCAR object for reading and writing INCAR files. Essentially consists of</span>
 <span class="sd">    a dictionary with some helper functions</span>
@@ -548,12 +547,11 @@
 <span class="sd">        valid INCAR tags. Also cleans the parameter and val by stripping</span>
 <span class="sd">        leading and trailing white spaces.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">Incar</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__setitem__</span><span class="p">(</span><span class="n">key</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span>
-                                       <span class="n">Incar</span><span class="o">.</span><span class="n">proc_val</span><span class="p">(</span><span class="n">key</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">val</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
-                                       <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">basestring</span><span class="p">)</span> <span class="k">else</span> <span class="n">val</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Incar</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__setitem__</span><span class="p">(</span>
+            <span class="n">key</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">Incar</span><span class="o">.</span><span class="n">proc_val</span><span class="p">(</span><span class="n">key</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">val</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">string_types</span><span class="p">)</span> <span class="k">else</span> <span class="n">val</span><span class="p">)</span>
 </div>
-    <span class="nd">@property</span>
-<div class="viewcode-block" id="Incar.to_dict"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.Incar.to_dict">[docs]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Incar.as_dict"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.Incar.as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
         <span class="n">d</span><span class="p">[</span><span class="s">&quot;@module&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span>
         <span class="n">d</span><span class="p">[</span><span class="s">&quot;@class&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
@@ -753,7 +751,7 @@
         <span class="k">return</span> <span class="n">Incar</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
 
 </div></div>
-<div class="viewcode-block" id="Kpoints"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.Kpoints">[docs]</a><span class="k">class</span> <span class="nc">Kpoints</span><span class="p">(</span><span class="n">MSONable</span><span class="p">):</span>
+<div class="viewcode-block" id="Kpoints"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.Kpoints">[docs]</a><span class="k">class</span> <span class="nc">Kpoints</span><span class="p">(</span><span class="n">PMGSONable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    KPOINT reader/writer.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -993,11 +991,11 @@
 
         <span class="c">#Automatic gamma and Monk KPOINTS, with optional shift</span>
         <span class="k">if</span> <span class="n">style</span> <span class="o">==</span> <span class="s">&quot;g&quot;</span> <span class="ow">or</span> <span class="n">style</span> <span class="o">==</span> <span class="s">&quot;m&quot;</span><span class="p">:</span>
-            <span class="n">kpts</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+            <span class="n">kpts</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()]</span>
             <span class="n">kpts_shift</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">4</span> <span class="ow">and</span> <span class="n">coord_pattern</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">lines</span><span class="p">[</span><span class="mi">4</span><span class="p">]):</span>
                 <span class="k">try</span><span class="p">:</span>
-                    <span class="n">kpts_shift</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+                    <span class="n">kpts_shift</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()]</span>
                 <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
                     <span class="k">pass</span>
             <span class="k">return</span> <span class="n">Kpoints</span><span class="o">.</span><span class="n">gamma_automatic</span><span class="p">(</span><span class="n">kpts</span><span class="p">,</span> <span class="n">kpts_shift</span><span class="p">)</span> <span class="k">if</span> <span class="n">style</span> <span class="o">==</span> <span class="s">&quot;g&quot;</span> \
@@ -1007,8 +1005,8 @@
         <span class="k">if</span> <span class="n">num_kpts</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">style</span> <span class="o">=</span> <span class="n">Kpoints</span><span class="o">.</span><span class="n">supported_modes</span><span class="o">.</span><span class="n">Cartesian</span> <span class="k">if</span> <span class="n">style</span> <span class="ow">in</span> <span class="s">&quot;ck&quot;</span> \
                 <span class="k">else</span> <span class="n">Kpoints</span><span class="o">.</span><span class="n">supported_modes</span><span class="o">.</span><span class="n">Reciprocal</span>
-            <span class="n">kpts</span> <span class="o">=</span> <span class="p">[</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">())</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">6</span><span class="p">)]</span>
-            <span class="n">kpts_shift</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+            <span class="n">kpts</span> <span class="o">=</span> <span class="p">[[</span><span class="nb">float</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">6</span><span class="p">)]</span>
+            <span class="n">kpts_shift</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()]</span>
             <span class="k">return</span> <span class="n">Kpoints</span><span class="p">(</span><span class="n">comment</span><span class="o">=</span><span class="n">comment</span><span class="p">,</span> <span class="n">num_kpts</span><span class="o">=</span><span class="n">num_kpts</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="n">style</span><span class="p">,</span>
                            <span class="n">kpts</span><span class="o">=</span><span class="n">kpts</span><span class="p">,</span> <span class="n">kpts_shift</span><span class="o">=</span><span class="n">kpts_shift</span><span class="p">)</span>
 
@@ -1041,9 +1039,9 @@
         <span class="n">tet_weight</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="n">tet_connections</span> <span class="o">=</span> <span class="bp">None</span>
 
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span> <span class="o">+</span> <span class="n">num_kpts</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span> <span class="o">+</span> <span class="n">num_kpts</span><span class="p">):</span>
             <span class="n">toks</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
-            <span class="n">kpts</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">toks</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">])])</span>
+            <span class="n">kpts</span><span class="o">.</span><span class="n">append</span><span class="p">([[</span><span class="nb">float</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">toks</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">3</span><span class="p">]]])</span>
             <span class="n">kpts_weights</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">toks</span><span class="p">[</span><span class="mi">3</span><span class="p">]))</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">toks</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">4</span><span class="p">:</span>
                 <span class="n">labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">toks</span><span class="p">[</span><span class="mi">4</span><span class="p">])</span>
@@ -1056,11 +1054,11 @@
                 <span class="n">tet_number</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">toks</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
                 <span class="n">tet_weight</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">toks</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
                 <span class="n">tet_connections</span> <span class="o">=</span> <span class="p">[]</span>
-                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">5</span> <span class="o">+</span> <span class="n">num_kpts</span><span class="p">,</span> <span class="mi">5</span> <span class="o">+</span> <span class="n">num_kpts</span> <span class="o">+</span> <span class="n">tet_number</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">5</span> <span class="o">+</span> <span class="n">num_kpts</span><span class="p">,</span> <span class="mi">5</span> <span class="o">+</span> <span class="n">num_kpts</span> <span class="o">+</span> <span class="n">tet_number</span><span class="p">):</span>
                     <span class="n">toks</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
                     <span class="n">tet_connections</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="nb">int</span><span class="p">(</span><span class="n">toks</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
                                             <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">toks</span><span class="p">[</span><span class="n">j</span><span class="p">])</span>
-                                             <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">)]))</span>
+                                             <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">)]))</span>
         <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
             <span class="k">pass</span>
 
@@ -1084,7 +1082,7 @@
         <span class="n">style</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">lower</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">style</span> <span class="o">==</span> <span class="s">&quot;l&quot;</span><span class="p">:</span>
             <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">coord_type</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpts</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpts</span><span class="p">)):</span>
             <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">kpts</span><span class="p">[</span><span class="n">i</span><span class="p">]]))</span>
             <span class="k">if</span> <span class="n">style</span> <span class="o">==</span> <span class="s">&quot;l&quot;</span><span class="p">:</span>
                 <span class="n">lines</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="s">&quot; ! &quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
@@ -1112,8 +1110,7 @@
             <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">kpts_shift</span><span class="p">]))</span>
         <span class="k">return</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span> <span class="o">+</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span>
 
-    <span class="nd">@property</span>
-<div class="viewcode-block" id="Kpoints.to_dict"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.Kpoints.to_dict">[docs]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Kpoints.as_dict"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.Kpoints.as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;json friendly dict representation of Kpoints&quot;&quot;&quot;</span>
         <span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;comment&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">comment</span><span class="p">,</span> <span class="s">&quot;nkpoints&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_kpts</span><span class="p">,</span>
              <span class="s">&quot;generation_style&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">style</span><span class="p">,</span> <span class="s">&quot;kpoints&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">kpts</span><span class="p">,</span>
@@ -1152,12 +1149,6 @@
 <div class="viewcode-block" id="get_potcar_dir"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.get_potcar_dir">[docs]</a><span class="k">def</span> <span class="nf">get_potcar_dir</span><span class="p">():</span>
     <span class="k">if</span> <span class="s">&quot;VASP_PSP_DIR&quot;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&quot;VASP_PSP_DIR&quot;</span><span class="p">]</span>
-    <span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">pymatgen</span><span class="o">.</span><span class="n">__file__</span><span class="p">),</span>
-                                     <span class="s">&quot;pymatgen.cfg&quot;</span><span class="p">)):</span>
-        <span class="n">module_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">pymatgen</span><span class="o">.</span><span class="n">__file__</span><span class="p">)</span>
-        <span class="n">config</span> <span class="o">=</span> <span class="n">ConfigParser</span><span class="o">.</span><span class="n">SafeConfigParser</span><span class="p">()</span>
-        <span class="n">config</span><span class="o">.</span><span class="n">readfp</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">module_dir</span><span class="p">,</span> <span class="s">&quot;pymatgen.cfg&quot;</span><span class="p">)))</span>
-        <span class="k">return</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;VASP&quot;</span><span class="p">,</span> <span class="s">&quot;pspdir&quot;</span><span class="p">)</span>
     <span class="k">return</span> <span class="bp">None</span>
 
 </div>
@@ -1187,13 +1178,12 @@
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>  <span class="c"># raw POTCAR as a string</span>
-
         <span class="c"># AJ (5/18/2012) - only search on relevant portion of POTCAR, should</span>
         <span class="c"># fail gracefully if string not found</span>
-        <span class="n">search_string</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;END of PSCTR-controll &quot;</span>
-                                                   <span class="s">&quot;parameters&quot;</span><span class="p">)]</span>
+        <span class="c">#search_string = self.data[0:self.data.find(&quot;END of PSCTR-controll</span>
+        <span class="c"># parameters&quot;)]</span>
         <span class="n">keypairs</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&quot;;*\s*(.+?)\s*=\s*([^;\n]+)\s*&quot;</span><span class="p">,</span>
-                              <span class="n">re</span><span class="o">.</span><span class="n">M</span><span class="p">)</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">search_string</span><span class="p">)</span>
+                              <span class="n">re</span><span class="o">.</span><span class="n">M</span><span class="p">)</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">keywords</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">keypairs</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -1206,7 +1196,7 @@
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">from_file</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
         <span class="k">with</span> <span class="n">zopen</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">PotcarSingle</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+            <span class="k">return</span> <span class="n">PotcarSingle</span><span class="p">(</span><span class="nb">bytes</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()))</span>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">from_symbol_and_functional</span><span class="p">(</span><span class="n">symbol</span><span class="p">,</span> <span class="n">functional</span><span class="o">=</span><span class="s">&quot;PBE&quot;</span><span class="p">):</span>
@@ -1269,7 +1259,7 @@
         <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
 
 </div>
-<div class="viewcode-block" id="Potcar"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.Potcar">[docs]</a><span class="k">class</span> <span class="nc">Potcar</span><span class="p">(</span><span class="nb">list</span><span class="p">):</span>
+<div class="viewcode-block" id="Potcar"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.Potcar">[docs]</a><span class="k">class</span> <span class="nc">Potcar</span><span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="n">PMGSONable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Object for reading and writing POTCAR files for calculations. Consists of a</span>
 <span class="sd">    list of PotcarSingle.</span>
@@ -1291,8 +1281,7 @@
         <span class="k">if</span> <span class="n">symbols</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">set_symbols</span><span class="p">(</span><span class="n">symbols</span><span class="p">,</span> <span class="n">functional</span><span class="p">,</span> <span class="n">sym_potcar_map</span><span class="p">)</span>
 
-    <span class="nd">@property</span>
-<div class="viewcode-block" id="Potcar.to_dict"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.Potcar.to_dict">[docs]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Potcar.as_dict"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.Potcar.as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">{</span><span class="s">&quot;functional&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">functional</span><span class="p">,</span> <span class="s">&quot;symbols&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">symbols</span><span class="p">,</span>
                 <span class="s">&quot;@module&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span><span class="p">,</span>
                 <span class="s">&quot;@class&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">}</span>
@@ -1369,7 +1358,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
 
 </div></div>
-<div class="viewcode-block" id="VaspInput"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.VaspInput">[docs]</a><span class="k">class</span> <span class="nc">VaspInput</span><span class="p">(</span><span class="nb">dict</span><span class="p">,</span> <span class="n">MSONable</span><span class="p">):</span>
+<div class="viewcode-block" id="VaspInput"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.VaspInput">[docs]</a><span class="k">class</span> <span class="nc">VaspInput</span><span class="p">(</span><span class="nb">dict</span><span class="p">,</span> <span class="n">PMGSONable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Class to contain a set of vasp input objects corresponding to a run.</span>
 
@@ -1380,7 +1369,7 @@
 <span class="sd">        potcar: Potcar object.</span>
 <span class="sd">        optional_files: Other input files supplied as a dict of {</span>
 <span class="sd">            filename: object}. The object should follow standard pymatgen</span>
-<span class="sd">            conventions in implementing a to_dict and from_dict method.</span>
+<span class="sd">            conventions in implementing a as_dict() and from_dict method.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">incar</span><span class="p">,</span> <span class="n">kpoints</span><span class="p">,</span> <span class="n">poscar</span><span class="p">,</span> <span class="n">potcar</span><span class="p">,</span> <span class="n">optional_files</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
@@ -1401,16 +1390,15 @@
             <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
 
-    <span class="nd">@property</span>
-<div class="viewcode-block" id="VaspInput.to_dict"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.VaspInput.to_dict">[docs]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="o">.</span><span class="n">to_dict</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+<div class="viewcode-block" id="VaspInput.as_dict"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.VaspInput.as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
         <span class="n">d</span><span class="p">[</span><span class="s">&quot;@module&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span>
         <span class="n">d</span><span class="p">[</span><span class="s">&quot;@class&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
         <span class="k">return</span> <span class="n">d</span>
 </div>
     <span class="nd">@classmethod</span>
 <div class="viewcode-block" id="VaspInput.from_dict"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.VaspInput.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
-        <span class="n">dec</span> <span class="o">=</span> <span class="n">PMGJSONDecoder</span><span class="p">()</span>
+        <span class="n">dec</span> <span class="o">=</span> <span class="n">MontyDecoder</span><span class="p">()</span>
         <span class="n">sub_d</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;optional_files&quot;</span><span class="p">:</span> <span class="p">{}}</span>
         <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;INCAR&quot;</span><span class="p">,</span> <span class="s">&quot;POSCAR&quot;</span><span class="p">,</span> <span class="s">&quot;POTCAR&quot;</span><span class="p">,</span> <span class="s">&quot;KPOINTS&quot;</span><span class="p">]:</span>
@@ -1492,7 +1480,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 2.10.6 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.0 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

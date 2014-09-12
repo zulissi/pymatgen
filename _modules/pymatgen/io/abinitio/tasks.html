@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.abinitio.tasks &mdash; pymatgen 2.10.6 documentation</title>
+    <title>pymatgen.io.abinitio.tasks &mdash; pymatgen 3.0.0 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '2.10.6',
+        VERSION:     '3.0.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 2.10.6 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.0 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 2.10.6 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.0 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -74,17 +74,22 @@
 
 <span class="kn">from</span> <span class="nn">pymatgen.io.abinitio</span> <span class="kn">import</span> <span class="n">abiinspect</span>
 <span class="kn">from</span> <span class="nn">pymatgen.io.abinitio</span> <span class="kn">import</span> <span class="n">events</span> 
+<span class="kn">import</span> <span class="nn">six</span>
+<span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="nb">map</span>
+<span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="nb">zip</span>
 
 <span class="k">try</span><span class="p">:</span>
     <span class="kn">from</span> <span class="nn">pydispatch</span> <span class="kn">import</span> <span class="n">dispatcher</span>
 <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
     <span class="k">pass</span>
 
-<span class="kn">from</span> <span class="nn">monty.json</span> <span class="kn">import</span> <span class="n">loadf</span> 
+
+<span class="kn">from</span> <span class="nn">monty.serialization</span> <span class="kn">import</span> <span class="n">loadfn</span>
+
 <span class="kn">from</span> <span class="nn">pymatgen.core.design_patterns</span> <span class="kn">import</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">AttrDict</span>
 <span class="kn">from</span> <span class="nn">pymatgen.util.io_utils</span> <span class="kn">import</span> <span class="n">FileLock</span>
 <span class="kn">from</span> <span class="nn">pymatgen.util.string_utils</span> <span class="kn">import</span> <span class="n">stream_has_colours</span><span class="p">,</span> <span class="n">is_string</span><span class="p">,</span> <span class="n">list_strings</span><span class="p">,</span> <span class="n">WildCard</span>
-<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">MSONable</span><span class="p">,</span> <span class="n">json_pretty_dump</span>
+<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">PMGSONable</span><span class="p">,</span> <span class="n">json_pretty_dump</span>
 <span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.utils</span> <span class="kn">import</span> <span class="n">File</span><span class="p">,</span> <span class="n">Directory</span><span class="p">,</span> <span class="n">irdvars_for_ext</span><span class="p">,</span> <span class="n">abi_splitext</span><span class="p">,</span> <span class="n">abi_extensions</span><span class="p">,</span> <span class="n">FilepathFixer</span><span class="p">,</span> <span class="n">Condition</span>
 
 <span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.qadapters</span> <span class="kn">import</span> <span class="n">qadapter_class</span>
@@ -119,7 +124,7 @@
     <span class="kn">import</span> <span class="nn">traceback</span>
     <span class="k">return</span> <span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()</span>
 
-<span class="k">class</span> <span class="nc">TaskResults</span><span class="p">(</span><span class="nb">dict</span><span class="p">,</span> <span class="n">MSONable</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">TaskResults</span><span class="p">(</span><span class="nb">dict</span><span class="p">,</span> <span class="n">PMGSONable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Dictionary used to store the most important results produced by a Task.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -164,8 +169,7 @@
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">exceptions</span>
 
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
         <span class="n">d</span><span class="p">[</span><span class="s">&quot;@module&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span>
         <span class="n">d</span><span class="p">[</span><span class="s">&quot;@class&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
@@ -176,11 +180,11 @@
         <span class="k">return</span> <span class="n">cls</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;@module&quot;</span><span class="p">,</span> <span class="s">&quot;@class&quot;</span><span class="p">,]})</span>
 
     <span class="k">def</span> <span class="nf">json_dump</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
-        <span class="n">json_pretty_dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_dict</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span> 
+        <span class="n">json_pretty_dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">as_dict</span><span class="p">(),</span> <span class="n">filename</span><span class="p">)</span>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">json_load</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">loadf</span><span class="p">(</span><span class="n">filename</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">loadfn</span><span class="p">(</span><span class="n">filename</span><span class="p">))</span>
 
 
 <span class="k">class</span> <span class="nc">ParalHintsError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
@@ -873,7 +877,7 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Wrong string </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">s</span><span class="p">)</span>
 
 
-<span class="k">class</span> <span class="nc">Node</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="k">class</span> <span class="nc">Node</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">with_metaclass</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span><span class="p">,</span> <span class="nb">object</span><span class="p">)):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Abstract base class defining the interface that must be </span>
 <span class="sd">    implemented by the nodes of the calculation.</span>
@@ -881,7 +885,6 @@
 <span class="sd">    Nodes are hashable and can be tested for equality</span>
 <span class="sd">    (hash uses the node identifier, while eq uses workdir).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span>
 
     <span class="c"># Possible status of the node.</span>
     <span class="n">S_INIT</span> <span class="o">=</span> <span class="n">Status</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
@@ -1125,9 +1128,7 @@
     <span class="sd">&quot;&quot;&quot;Exception raised while trying to restart the `Task`.&quot;&quot;&quot;</span>
 
 
-<span class="k">class</span> <span class="nc">Task</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
-    <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span>
-
+<span class="k">class</span> <span class="nc">Task</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">with_metaclass</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span><span class="p">,</span> <span class="n">Node</span><span class="p">)):</span>
     <span class="n">Error</span> <span class="o">=</span> <span class="n">TaskError</span>
 
     <span class="c"># List of `AbinitEvent` subclasses that are tested in the not_converged method. </span>
@@ -1791,7 +1792,7 @@
             <span class="s">&quot;task_name&quot;</span>      <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
             <span class="s">&quot;task_returncode&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">returncode</span><span class="p">,</span>
             <span class="s">&quot;task_status&quot;</span>    <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="p">,</span>
-            <span class="c">#&quot;task_events&quot;    : self.events.to_dict</span>
+            <span class="c">#&quot;task_events&quot;    : self.events.as_dict()</span>
         <span class="p">})</span>
 
     <span class="k">def</span> <span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span> <span class="n">is_abspath</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
@@ -2702,7 +2703,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 2.10.6 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.0 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

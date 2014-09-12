@@ -1,0 +1,449 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.io.gwwrapper.GWworkflows &mdash; pymatgen 3.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '3.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+    <link rel="top" title="pymatgen 3.0.1 documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" />
+ 
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-33990148-1']);
+  _gaq.push(['_trackPageview']);
+</script>
+
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for pymatgen.io.gwwrapper.GWworkflows</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Michiel van Setten&quot;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot; &quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;0.9&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s">&quot;Michiel van Setten&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s">&quot;mjvansetten@gmail.com&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span> <span class="s">&quot;May 2014&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">os.path</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.abiobjects</span> <span class="kn">import</span> <span class="n">asabistructure</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.calculations</span> <span class="kn">import</span> <span class="n">g0w0_extended</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.flows</span> <span class="kn">import</span> <span class="n">AbinitFlow</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.tasks</span> <span class="kn">import</span> <span class="n">TaskManager</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.pseudos</span> <span class="kn">import</span> <span class="n">PseudoTable</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.gwwrapper.GWtasks</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.gwwrapper.helpers</span> <span class="kn">import</span> <span class="n">now</span><span class="p">,</span> <span class="n">s_name</span><span class="p">,</span> <span class="n">expand_tests</span><span class="p">,</span> <span class="n">read_grid_from_file</span><span class="p">,</span> <span class="n">is_converged</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.gwwrapper.helpers</span> <span class="kn">import</span> <span class="n">read_extra_abivars</span>
+<span class="kn">from</span> <span class="nn">fireworks.core.firework</span> <span class="kn">import</span> <span class="n">FireWork</span><span class="p">,</span> <span class="n">Workflow</span>
+<span class="kn">from</span> <span class="nn">fireworks.core.launchpad</span> <span class="kn">import</span> <span class="n">LaunchPad</span>
+
+<span class="n">MODULE_DIR</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">__file__</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="GWWorkflow"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWworkflows.GWWorkflow">[docs]</a><span class="k">class</span> <span class="nc">GWWorkflow</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    UNDER CONSTRUCTION</span>
+<span class="sd">    Base class for GW workflows. the code specific implementations should extend this one.</span>
+<span class="sd">    the base class should contain the convergence calculations structure</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="GWWorkflow.grid"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWworkflows.GWWorkflow.grid">[docs]</a>    <span class="k">def</span> <span class="nf">grid</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_grid</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="GWWorkflow.all_done"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWworkflows.GWWorkflow.all_done">[docs]</a>    <span class="k">def</span> <span class="nf">all_done</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_all_done</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="GWWorkflow.workdir"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWworkflows.GWWorkflow.workdir">[docs]</a>    <span class="k">def</span> <span class="nf">workdir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_workdir</span>
+</div>
+<div class="viewcode-block" id="GWWorkflow.set_status"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWworkflows.GWWorkflow.set_status">[docs]</a>    <span class="k">def</span> <span class="nf">set_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_grid</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_all_done</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_workdir</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_converged</span> <span class="o">=</span> <span class="n">is_converged</span><span class="p">(</span><span class="bp">False</span><span class="p">,</span> <span class="n">structure</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_grid</span> <span class="o">=</span> <span class="n">read_grid_from_file</span><span class="p">(</span><span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span><span class="o">+</span><span class="s">&quot;.full_res&quot;</span><span class="p">)[</span><span class="s">&#39;grid&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_all_done</span> <span class="o">=</span> <span class="n">read_grid_from_file</span><span class="p">(</span><span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span><span class="o">+</span><span class="s">&quot;.full_res&quot;</span><span class="p">)[</span><span class="s">&#39;all_done&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_workdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">),</span> <span class="s">&#39;work_&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">grid</span><span class="p">))</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">IOError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">):</span>
+            <span class="k">pass</span>
+
+</div></div>
+<div class="viewcode-block" id="VaspGWFWWorkFlow"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWworkflows.VaspGWFWWorkFlow">[docs]</a><span class="k">class</span> <span class="nc">VaspGWFWWorkFlow</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Object containing a VASP GW workflow for a single structure</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">work_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connections</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fw_id</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prep_id</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wf</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="VaspGWFWWorkFlow.add_work"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWworkflows.VaspGWFWWorkFlow.add_work">[docs]</a>    <span class="k">def</span> <span class="nf">add_work</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">):</span>
+        <span class="n">tasks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">job</span> <span class="o">=</span> <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;job&#39;</span><span class="p">]</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;adding job &#39;</span> <span class="o">+</span> <span class="n">job</span> <span class="o">+</span> <span class="s">&#39; to the workslist as &#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">fw_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">job</span> <span class="o">==</span> <span class="s">&#39;prep&#39;</span><span class="p">:</span>
+            <span class="n">launch_spec</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;task_type&#39;</span><span class="p">:</span> <span class="s">&#39;Preparation job&#39;</span><span class="p">,</span> <span class="s">&#39;_category&#39;</span><span class="p">:</span> <span class="s">&#39;cluster&#39;</span><span class="p">,</span> <span class="s">&#39;_queueadapter&#39;</span><span class="p">:</span> <span class="s">&#39;qadapterdict&#39;</span><span class="p">}</span>
+            <span class="n">task</span> <span class="o">=</span> <span class="n">VaspGWInputTask</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+            <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+            <span class="n">task</span> <span class="o">=</span> <span class="n">VaspGWExecuteTask</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+            <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+            <span class="n">task</span> <span class="o">=</span> <span class="n">VaspGWToDiagTask</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+            <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+            <span class="n">task</span> <span class="o">=</span> <span class="n">VaspGWExecuteTask</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+            <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+            <span class="n">fw</span> <span class="o">=</span> <span class="n">FireWork</span><span class="p">(</span><span class="n">tasks</span><span class="p">,</span> <span class="n">spec</span><span class="o">=</span><span class="n">launch_spec</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">job</span><span class="p">,</span> <span class="n">created_on</span><span class="o">=</span><span class="n">now</span><span class="p">(),</span> <span class="n">fw_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">fw_id</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connections</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">fw_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prep_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fw_id</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fw_id</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">connections</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">job</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&#39;G0W0&#39;</span><span class="p">,</span> <span class="s">&#39;GW0&#39;</span><span class="p">,</span> <span class="s">&#39;scGW0&#39;</span><span class="p">]:</span>
+            <span class="n">launch_spec</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;task_type&#39;</span><span class="p">:</span> <span class="s">&#39;GW job&#39;</span><span class="p">,</span> <span class="s">&#39;_category&#39;</span><span class="p">:</span> <span class="s">&#39;cluster&#39;</span><span class="p">,</span> <span class="s">&#39;_queueadapter&#39;</span><span class="p">:</span> <span class="s">&#39;qadapterdict&#39;</span><span class="p">}</span>
+            <span class="n">task</span> <span class="o">=</span> <span class="n">VaspGWInputTask</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+            <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+            <span class="n">task</span> <span class="o">=</span> <span class="n">VaspGWGetPrepResTask</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+            <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+            <span class="n">task</span> <span class="o">=</span> <span class="n">VaspGWExecuteTask</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+            <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;spec&#39;</span><span class="p">][</span><span class="s">&#39;converge&#39;</span><span class="p">]:</span>
+                <span class="n">task</span> <span class="o">=</span> <span class="n">VaspGWWriteConDatTask</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+                <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+                <span class="n">task</span> <span class="o">=</span> <span class="n">VaspGWTestConTask</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+                <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+            <span class="n">fw</span> <span class="o">=</span> <span class="n">FireWork</span><span class="p">(</span><span class="n">tasks</span><span class="p">,</span> <span class="n">spec</span><span class="o">=</span><span class="n">launch_spec</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">job</span><span class="p">,</span> <span class="n">created_on</span><span class="o">=</span><span class="n">now</span><span class="p">(),</span> <span class="n">fw_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">fw_id</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connections</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">fw_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">connections</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">prep_id</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fw_id</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fw_id</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">fw</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;unspecified job, this should have been captured before !!&#39;</span><span class="p">)</span>
+            <span class="nb">exit</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">work_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fw</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="VaspGWFWWorkFlow.create"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWworkflows.VaspGWFWWorkFlow.create">[docs]</a>    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wf</span> <span class="o">=</span> <span class="n">Workflow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">work_list</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">connections</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s">&#39;VaspGWFWWorkFlow&#39;</span><span class="p">,</span> <span class="n">created_on</span><span class="o">=</span><span class="n">now</span><span class="p">())</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;creating workflow&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="VaspGWFWWorkFlow.add_to_db"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWworkflows.VaspGWFWWorkFlow.add_to_db">[docs]</a>    <span class="k">def</span> <span class="nf">add_to_db</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">launchpad_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;FW_CONFIG_DIR&#39;</span><span class="p">],</span> <span class="s">&#39;my_launchpad.yaml&#39;</span><span class="p">)</span>
+        <span class="n">lp</span> <span class="o">=</span> <span class="n">LaunchPad</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">launchpad_file</span><span class="p">)</span>
+        <span class="n">lp</span><span class="o">.</span><span class="n">add_wf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wf</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="SingleAbinitGWWorkFlow"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWworkflows.SingleAbinitGWWorkFlow">[docs]</a><span class="k">class</span> <span class="nc">SingleAbinitGWWorkFlow</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    interface the</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">RESPONSE_MODELS</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;cd&quot;</span><span class="p">,</span> <span class="s">&quot;godby&quot;</span><span class="p">,</span> <span class="s">&quot;hybersten&quot;</span><span class="p">,</span> <span class="s">&quot;linden&quot;</span><span class="p">,</span> <span class="s">&quot;farid&quot;</span><span class="p">]</span>
+    <span class="n">TESTS</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;ecuteps&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;test_range&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">14</span><span class="p">),</span> <span class="s">&#39;method&#39;</span><span class="p">:</span> <span class="s">&#39;direct&#39;</span><span class="p">,</span> <span class="s">&#39;control&#39;</span><span class="p">:</span> <span class="s">&quot;gap&quot;</span><span class="p">,</span> <span class="s">&#39;level&#39;</span><span class="p">:</span> <span class="s">&quot;sigma&quot;</span><span class="p">},</span>
+             <span class="s">&#39;nscf_nbands&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;test_range&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">30</span><span class="p">,</span> <span class="mi">40</span><span class="p">),</span> <span class="s">&#39;method&#39;</span><span class="p">:</span> <span class="s">&#39;set_bands&#39;</span><span class="p">,</span> <span class="s">&#39;control&#39;</span><span class="p">:</span> <span class="s">&quot;gap&quot;</span><span class="p">,</span> <span class="s">&#39;level&#39;</span><span class="p">:</span> <span class="s">&quot;nscf&quot;</span><span class="p">},</span>
+             <span class="s">&#39;response_model&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;test_range&#39;</span><span class="p">:</span> <span class="n">RESPONSE_MODELS</span><span class="p">,</span> <span class="s">&#39;method&#39;</span><span class="p">:</span> <span class="s">&#39;direct&#39;</span><span class="p">,</span> <span class="s">&#39;control&#39;</span><span class="p">:</span> <span class="s">&#39;gap&#39;</span><span class="p">,</span> <span class="s">&#39;level&#39;</span><span class="p">:</span> <span class="s">&#39;screening&#39;</span><span class="p">}}</span>
+    <span class="c"># scf level test are run independently, the last value will be used in the nscf and sigma tests</span>
+    <span class="c">#&#39;test&#39;: {&#39;test_range&#39;: (1, 2, 3), &#39;method&#39;: &#39;direct&#39;, &#39;control&#39;: &quot;e_ks_max&quot;, &#39;level&#39;: &quot;scf&quot;},</span>
+    <span class="n">CONVS</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;ecut&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;test_range&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">28</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">36</span><span class="p">,</span> <span class="mi">40</span><span class="p">,</span> <span class="mi">44</span><span class="p">),</span> <span class="s">&#39;method&#39;</span><span class="p">:</span> <span class="s">&#39;direct&#39;</span><span class="p">,</span> <span class="s">&#39;control&#39;</span><span class="p">:</span> <span class="s">&quot;e_ks_max&quot;</span><span class="p">,</span> <span class="s">&#39;level&#39;</span><span class="p">:</span> <span class="s">&quot;scf&quot;</span><span class="p">},</span>
+             <span class="s">&#39;ecuteps&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;test_range&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span> <span class="s">&#39;method&#39;</span><span class="p">:</span> <span class="s">&#39;direct&#39;</span><span class="p">,</span> <span class="s">&#39;control&#39;</span><span class="p">:</span> <span class="s">&quot;gap&quot;</span><span class="p">,</span> <span class="s">&#39;level&#39;</span><span class="p">:</span> <span class="s">&quot;sigma&quot;</span><span class="p">},</span>
+             <span class="s">&#39;nscf_nbands&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s">&#39;test_range&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">25</span><span class="p">,</span> <span class="mi">35</span><span class="p">,</span> <span class="mi">45</span><span class="p">),</span> <span class="s">&#39;method&#39;</span><span class="p">:</span> <span class="s">&#39;set_bands&#39;</span><span class="p">,</span> <span class="s">&#39;control&#39;</span><span class="p">:</span> <span class="s">&quot;gap&quot;</span><span class="p">,</span> <span class="s">&#39;level&#39;</span><span class="p">:</span> <span class="s">&quot;nscf&quot;</span><span class="p">}}</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">spec</span><span class="p">,</span> <span class="n">option</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">structure</span> <span class="o">=</span> <span class="n">structure</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spec</span> <span class="o">=</span> <span class="n">spec</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">option</span> <span class="o">=</span> <span class="n">option</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tests</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">get_defaults_tests</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">convs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">get_defaults_convs</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">response_models</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">get_response_models</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">option</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">all_converged</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">option</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">convs</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">all_converged</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">all_converged</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">path_add</span> <span class="o">=</span> <span class="s">&#39;.conv&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_converged</span> <span class="k">else</span> <span class="s">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span> <span class="o">=</span> <span class="n">s_name</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="p">)</span><span class="o">+</span><span class="n">path_add</span>
+        <span class="n">abi_pseudo</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;ABINIT_PS_EXT&#39;</span><span class="p">]</span>
+        <span class="n">abi_pseudo_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;ABINIT_PS&#39;</span><span class="p">]</span>
+        <span class="n">pseudos</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">element_composition</span><span class="p">:</span>
+            <span class="n">pseudo</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">abi_pseudo_dir</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">element</span><span class="p">)</span> <span class="o">+</span> <span class="n">abi_pseudo</span><span class="p">)</span>
+            <span class="n">pseudos</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pseudo</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pseudo_table</span> <span class="o">=</span> <span class="n">PseudoTable</span><span class="p">(</span><span class="n">pseudos</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="SingleAbinitGWWorkFlow.get_defaults_tests"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWworkflows.SingleAbinitGWWorkFlow.get_defaults_tests">[docs]</a>    <span class="k">def</span> <span class="nf">get_defaults_tests</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">TESTS</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="SingleAbinitGWWorkFlow.get_defaults_convs"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWworkflows.SingleAbinitGWWorkFlow.get_defaults_convs">[docs]</a>    <span class="k">def</span> <span class="nf">get_defaults_convs</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">CONVS</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="SingleAbinitGWWorkFlow.get_response_models"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWworkflows.SingleAbinitGWWorkFlow.get_response_models">[docs]</a>    <span class="k">def</span> <span class="nf">get_response_models</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">RESPONSE_MODELS</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SingleAbinitGWWorkFlow.get_electrons"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWworkflows.SingleAbinitGWWorkFlow.get_electrons">[docs]</a>    <span class="k">def</span> <span class="nf">get_electrons</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method for retrieving the number of valence electrons</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">electrons</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">structure</span><span class="o">.</span><span class="n">species</span><span class="p">:</span>
+            <span class="n">entries</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pseudo_table</span><span class="o">.</span><span class="n">pseudos_with_symbol</span><span class="p">(</span><span class="n">element</span><span class="o">.</span><span class="n">symbol</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">entries</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+            <span class="n">pseudo</span> <span class="o">=</span> <span class="n">entries</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">electrons</span> <span class="o">+=</span> <span class="n">pseudo</span><span class="o">.</span><span class="n">Z_val</span>
+        <span class="k">return</span> <span class="n">electrons</span>
+</div>
+<div class="viewcode-block" id="SingleAbinitGWWorkFlow.get_bands"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWworkflows.SingleAbinitGWWorkFlow.get_bands">[docs]</a>    <span class="k">def</span> <span class="nf">get_bands</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method for retrieving the standard number of bands</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">bands</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_electrons</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">bands</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SingleAbinitGWWorkFlow.get_work_dir"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWworkflows.SingleAbinitGWWorkFlow.get_work_dir">[docs]</a>    <span class="k">def</span> <span class="nf">get_work_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">s_name</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_converged</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;_&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">option</span><span class="p">[</span><span class="s">&#39;test&#39;</span><span class="p">])</span><span class="o">+</span><span class="s">&#39;_&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">option</span><span class="p">[</span><span class="s">&#39;value&#39;</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SingleAbinitGWWorkFlow.create"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWworkflows.SingleAbinitGWWorkFlow.create">[docs]</a>    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        create single abinit G0W0 flow</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">manager</span> <span class="o">=</span> <span class="s">&#39;slurm&#39;</span> <span class="k">if</span> <span class="s">&#39;ceci&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="p">[</span><span class="s">&#39;mode&#39;</span><span class="p">]</span> <span class="k">else</span> <span class="s">&#39;shell&#39;</span>
+        <span class="c"># an AbiStructure object has an overwritten version of get_sorted_structure that sorts according to Z</span>
+        <span class="c"># this could also be pulled into the constructor of Abistructure</span>
+        <span class="n">abi_structure</span> <span class="o">=</span> <span class="n">asabistructure</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="p">)</span><span class="o">.</span><span class="n">get_sorted_structure</span><span class="p">()</span>
+        <span class="n">manager</span> <span class="o">=</span> <span class="n">TaskManager</span><span class="o">.</span><span class="n">from_user_config</span><span class="p">()</span>
+        <span class="c"># Initialize the flow.</span>
+        <span class="c"># FIXME</span>
+        <span class="c"># Don&#39;t know why protocol=-1 does not work here.</span>
+        <span class="n">flow</span> <span class="o">=</span> <span class="n">AbinitFlow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span><span class="p">,</span> <span class="n">manager</span><span class="p">,</span> <span class="n">pickle_protocol</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c"># kpoint grid defined over density 40 &gt; ~ 3 3 3</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="p">[</span><span class="s">&#39;converge&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_converged</span><span class="p">:</span>
+            <span class="c"># (2x2x2) gamma centered mesh for the convergence test on nbands and ecuteps</span>
+            <span class="n">scf_kppa</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># use the specified density for the final calculation with the converged nbands and ecuteps of other</span>
+            <span class="c"># stand alone calculations</span>
+            <span class="n">scf_kppa</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="p">[</span><span class="s">&#39;kp_grid_dens&#39;</span><span class="p">]</span>
+        <span class="n">gamma</span> <span class="o">=</span> <span class="bp">True</span>
+
+        <span class="c"># &#39;standard&#39; parameters for stand alone calculation</span>
+        <span class="n">nb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bands</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="p">)</span>
+        <span class="n">nscf_nband</span> <span class="o">=</span> <span class="p">[</span><span class="mi">10</span> <span class="o">*</span> <span class="n">nb</span><span class="p">]</span>
+
+        <span class="n">ecuteps</span> <span class="o">=</span> <span class="p">[</span><span class="mi">8</span><span class="p">]</span>
+        <span class="n">ecutsigx</span> <span class="o">=</span> <span class="mi">8</span>
+
+        <span class="n">extra_abivars</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">paral_kgb</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">inclvkb</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="n">ecut</span><span class="o">=</span><span class="mi">44</span><span class="p">,</span>
+            <span class="n">pawecutdg</span><span class="o">=</span><span class="mi">88</span><span class="p">,</span>
+            <span class="n">gwmem</span><span class="o">=</span><span class="s">&#39;00&#39;</span><span class="p">,</span>
+            <span class="n">getden</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">istwfk</span><span class="o">=</span><span class="s">&quot;*1&quot;</span><span class="p">,</span>
+            <span class="n">timopt</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">nbdbuf</span><span class="o">=</span><span class="mi">8</span>
+        <span class="p">)</span>
+
+        <span class="c"># read user defined extra abivars from file &#39;extra_abivars&#39; should be dictionary</span>
+        <span class="n">extra_abivars</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">read_extra_abivars</span><span class="p">())</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">option</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">option</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&#39;ecuteps&#39;</span><span class="p">,</span> <span class="s">&#39;nscf_nbands&#39;</span><span class="p">]:</span>
+                    <span class="k">pass</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">extra_abivars</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">option</span><span class="p">[</span><span class="n">k</span><span class="p">]})</span>
+                    <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s">&#39;ecut&#39;</span><span class="p">:</span>
+                        <span class="n">extra_abivars</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;pawecutdg&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">option</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">*</span><span class="mi">2</span><span class="p">})</span>
+
+        <span class="n">response_models</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;godby&#39;</span><span class="p">]</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">grid</span> <span class="o">=</span> <span class="n">read_grid_from_file</span><span class="p">(</span><span class="n">s_name</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="p">)</span><span class="o">+</span><span class="s">&quot;.full_res&quot;</span><span class="p">)[</span><span class="s">&#39;grid&#39;</span><span class="p">]</span>
+            <span class="n">all_done</span> <span class="o">=</span> <span class="n">read_grid_from_file</span><span class="p">(</span><span class="n">s_name</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="p">)</span><span class="o">+</span><span class="s">&quot;.full_res&quot;</span><span class="p">)[</span><span class="s">&#39;all_done&#39;</span><span class="p">]</span>
+            <span class="n">workdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">s_name</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="p">),</span> <span class="s">&#39;w&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">grid</span><span class="p">))</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">IOError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">):</span>
+            <span class="n">grid</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">all_done</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="n">workdir</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">all_done</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="p">[</span><span class="s">&#39;test&#39;</span><span class="p">]</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="p">[</span><span class="s">&#39;converge&#39;</span><span class="p">])</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_converged</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="p">[</span><span class="s">&#39;test&#39;</span><span class="p">]:</span>
+                    <span class="k">print</span><span class="p">(</span><span class="s">&#39;| setting test calculation&#39;</span><span class="p">)</span>
+                    <span class="n">tests</span> <span class="o">=</span> <span class="n">SingleAbinitGWWorkFlow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="p">)</span><span class="o">.</span><span class="n">tests</span>
+                    <span class="n">response_models</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">grid</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&#39;| setting convergence calculations for grid 0&#39;</span><span class="p">)</span>
+                        <span class="n">tests</span> <span class="o">=</span> <span class="n">SingleAbinitGWWorkFlow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="p">)</span><span class="o">.</span><span class="n">convs</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&#39;| extending grid&#39;</span><span class="p">)</span>
+                        <span class="n">tests</span> <span class="o">=</span> <span class="n">expand_tests</span><span class="p">(</span><span class="n">SingleAbinitGWWorkFlow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="p">)</span><span class="o">.</span><span class="n">convs</span><span class="p">,</span> <span class="n">grid</span><span class="p">)</span>
+                <span class="n">ecuteps</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">nscf_nband</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">test</span> <span class="ow">in</span> <span class="n">tests</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">tests</span><span class="p">[</span><span class="n">test</span><span class="p">][</span><span class="s">&#39;level&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;scf&#39;</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">option</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                            <span class="n">extra_abivars</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">test</span> <span class="o">+</span> <span class="s">&#39;_s&#39;</span><span class="p">:</span> <span class="n">tests</span><span class="p">[</span><span class="n">test</span><span class="p">][</span><span class="s">&#39;test_range&#39;</span><span class="p">]})</span>
+                        <span class="k">elif</span> <span class="n">test</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">option</span><span class="p">:</span>
+                            <span class="n">extra_abivars</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">test</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">option</span><span class="p">[</span><span class="n">test</span><span class="p">]})</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">extra_abivars</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">test</span> <span class="o">+</span> <span class="s">&#39;_s&#39;</span><span class="p">:</span> <span class="n">tests</span><span class="p">[</span><span class="n">test</span><span class="p">][</span><span class="s">&#39;test_range&#39;</span><span class="p">]})</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">tests</span><span class="p">[</span><span class="n">test</span><span class="p">][</span><span class="s">&#39;test_range&#39;</span><span class="p">]:</span>
+                            <span class="k">if</span> <span class="n">test</span> <span class="o">==</span> <span class="s">&#39;nscf_nbands&#39;</span><span class="p">:</span>
+                                <span class="n">nscf_nband</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_bands</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="p">))</span>
+                                <span class="c">#scr_nband takes nscf_nbands if not specified</span>
+                                <span class="c">#sigma_nband takes scr_nbands if not specified</span>
+                            <span class="k">if</span> <span class="n">test</span> <span class="o">==</span> <span class="s">&#39;ecuteps&#39;</span><span class="p">:</span>
+                                <span class="n">ecuteps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                            <span class="k">if</span> <span class="n">test</span> <span class="o">==</span> <span class="s">&#39;response_model&#39;</span><span class="p">:</span>
+                                <span class="n">response_models</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_converged</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&#39;| setting up for testing the converged values at the high kp grid &#39;</span><span class="p">)</span>
+                <span class="c"># in this case a convergence study has already been performed.</span>
+                <span class="c"># The resulting parameters are passed as option</span>
+                <span class="n">ecuteps</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">option</span><span class="p">[</span><span class="s">&#39;ecuteps&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">option</span><span class="p">[</span><span class="s">&#39;ecuteps&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">convs</span><span class="p">[</span><span class="s">&#39;ecuteps&#39;</span><span class="p">][</span><span class="s">&#39;test_range&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span>
+                                                   <span class="bp">self</span><span class="o">.</span><span class="n">convs</span><span class="p">[</span><span class="s">&#39;ecuteps&#39;</span><span class="p">][</span><span class="s">&#39;test_range&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span>
+                <span class="n">nscf_nband</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">option</span><span class="p">[</span><span class="s">&#39;nscf_nbands&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">option</span><span class="p">[</span><span class="s">&#39;nscf_nbands&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">convs</span><span class="p">[</span><span class="s">&#39;nscf_nbands&#39;</span><span class="p">][</span>
+                    <span class="s">&#39;test_range&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">convs</span><span class="p">[</span><span class="s">&#39;nscf_nbands&#39;</span><span class="p">][</span><span class="s">&#39;test_range&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span>
+                <span class="c"># for option in self.option:</span>
+                <span class="c">#    if option not in [&#39;ecuteps&#39;, &#39;nscf_nband&#39;]:</span>
+                <span class="c">#        extra_abivars.update({option + &#39;_s&#39;: self.option[option]})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;| all is done for this material&#39;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;ecuteps : &#39;</span><span class="p">,</span> <span class="n">ecuteps</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;extra   : &#39;</span><span class="p">,</span> <span class="n">extra_abivars</span><span class="p">)</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;nscf_nb : &#39;</span><span class="p">,</span> <span class="n">nscf_nband</span><span class="p">)</span>
+
+        <span class="n">work</span> <span class="o">=</span> <span class="n">g0w0_extended</span><span class="p">(</span><span class="n">abi_structure</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pseudo_table</span><span class="p">,</span> <span class="n">scf_kppa</span><span class="p">,</span> <span class="n">nscf_nband</span><span class="p">,</span> <span class="n">ecuteps</span><span class="p">,</span> <span class="n">ecutsigx</span><span class="p">,</span>
+                             <span class="n">accuracy</span><span class="o">=</span><span class="s">&quot;normal&quot;</span><span class="p">,</span> <span class="n">spin_mode</span><span class="o">=</span><span class="s">&quot;unpolarized&quot;</span><span class="p">,</span> <span class="n">smearing</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">response_models</span><span class="o">=</span><span class="n">response_models</span><span class="p">,</span>
+                             <span class="n">charge</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">sigma_nband</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">scr_nband</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="n">gamma</span><span class="p">,</span>
+                             <span class="o">**</span><span class="n">extra_abivars</span><span class="p">)</span>
+
+        <span class="n">flow</span><span class="o">.</span><span class="n">register_work</span><span class="p">(</span><span class="n">work</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">flow</span><span class="o">.</span><span class="n">allocate</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="SingleAbinitGWWorkFlow.create_job_file"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWworkflows.SingleAbinitGWWorkFlow.create_job_file">[docs]</a>    <span class="k">def</span> <span class="nf">create_job_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">job_file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s">&quot;job_collection&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&#39;a&#39;</span><span class="p">)</span>
+        <span class="n">job_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;nohup abirun.py &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span> <span class="o">+</span> <span class="s">&#39; scheduler &gt; &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span> <span class="o">+</span> <span class="s">&#39;.log &amp; </span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+        <span class="n">job_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;sleep 2</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+        <span class="n">job_file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+
+    <div class="footer">
+        &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Geoffroy Hautier, William Davidson Richard, Stephen Dacek, Sai Jayaraman, Michael Kocher, Dan Gunter, Shreyas Cholia, Vincent L Chevrier, Rickard Armiento.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+<script type="text/javascript">
+  (function() {
+    var ga = document.createElement('script');
+    ga.src = ('https:' == document.location.protocol ?
+              'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    ga.setAttribute('async', 'true');
+    document.documentElement.firstChild.appendChild(ga);
+  })();
+</script>
+</div>
+
+  </body>
+</html>

@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.vaspio.vasp_input &mdash; pymatgen 3.0.0 documentation</title>
+    <title>pymatgen.io.vaspio.vasp_input &mdash; pymatgen 3.0.1 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '3.0.0',
+        VERSION:     '3.0.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.0.0 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.1 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 3.0.0 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.1 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -929,6 +929,56 @@
         <span class="k">return</span> <span class="n">Kpoints</span><span class="p">(</span><span class="n">comment</span><span class="p">,</span> <span class="n">num_kpts</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="p">[</span><span class="n">num_div</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
 </div>
     <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Kpoints.automatic_gamma_density"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.Kpoints.automatic_gamma_density">[docs]</a>    <span class="k">def</span> <span class="nf">automatic_gamma_density</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">kppa</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns an automatic Kpoint object based on a struc:ture and a kpoint</span>
+<span class="sd">        density. Uses Gamma centered meshes always. For GW.</span>
+
+<span class="sd">        Algorithm:</span>
+<span class="sd">            Uses a simple approach scaling the number of divisions along each</span>
+<span class="sd">            reciprocal lattice vector proportional to its length.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            structure:</span>
+<span class="sd">                Input structure</span>
+<span class="sd">            kppa:</span>
+<span class="sd">                Grid density</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">latt</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">lattice</span>
+        <span class="n">lengths</span> <span class="o">=</span> <span class="n">latt</span><span class="o">.</span><span class="n">abc</span>
+        <span class="n">ngrid</span> <span class="o">=</span> <span class="n">kppa</span> <span class="o">/</span> <span class="n">structure</span><span class="o">.</span><span class="n">num_sites</span>
+
+        <span class="n">mult</span> <span class="o">=</span> <span class="p">(</span><span class="n">ngrid</span> <span class="o">*</span> <span class="n">lengths</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">lengths</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">lengths</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">**</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="n">num_div</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">mult</span> <span class="o">/</span> <span class="n">l</span><span class="p">))</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">lengths</span><span class="p">]</span>
+
+        <span class="c">#ensure that numDiv[i] &gt; 0</span>
+        <span class="n">num_div</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">num_div</span><span class="p">]</span>
+
+        <span class="n">angles</span> <span class="o">=</span> <span class="n">latt</span><span class="o">.</span><span class="n">angles</span>
+        <span class="n">hex_angle_tol</span> <span class="o">=</span> <span class="mi">5</span>  <span class="c"># in degrees</span>
+        <span class="n">hex_length_tol</span> <span class="o">=</span> <span class="mf">0.01</span>  <span class="c"># in angstroms</span>
+        <span class="n">right_angles</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">angles</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="mi">90</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">hex_angle_tol</span><span class="p">]</span>
+        <span class="n">hex_angles</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+                      <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">angles</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="mi">60</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">hex_angle_tol</span> <span class="ow">or</span>
+                      <span class="nb">abs</span><span class="p">(</span><span class="n">angles</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="mi">120</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">hex_angle_tol</span><span class="p">]</span>
+
+        <span class="n">is_hexagonal</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">right_angles</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">hex_angles</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+                        <span class="ow">and</span> <span class="nb">abs</span><span class="p">(</span><span class="n">lengths</span><span class="p">[</span><span class="n">right_angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">-</span>
+                                <span class="n">lengths</span><span class="p">[</span><span class="n">right_angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]])</span> <span class="o">&lt;</span> <span class="n">hex_length_tol</span><span class="p">)</span>
+
+        <span class="c"># VASP documentation recommends to use even grids for n &lt;= 8 and odd</span>
+        <span class="c"># grids for n &gt; 8.</span>
+        <span class="n">num_div</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;=</span> <span class="mi">8</span> <span class="k">else</span> <span class="n">i</span> <span class="o">-</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">num_div</span><span class="p">]</span>
+
+        <span class="n">style</span> <span class="o">=</span> <span class="n">Kpoints</span><span class="o">.</span><span class="n">supported_modes</span><span class="o">.</span><span class="n">Gamma</span>
+
+        <span class="n">comment</span> <span class="o">=</span> <span class="s">&quot;pymatgen generated KPOINTS with grid density = &quot;</span> <span class="o">+</span> \
+            <span class="s">&quot;{} / atom&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">kppa</span><span class="p">)</span>
+        <span class="n">num_kpts</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">return</span> <span class="n">Kpoints</span><span class="p">(</span><span class="n">comment</span><span class="p">,</span> <span class="n">num_kpts</span><span class="p">,</span> <span class="n">style</span><span class="p">,</span> <span class="p">[</span><span class="n">num_div</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+</div>
 <div class="viewcode-block" id="Kpoints.automatic_linemode"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_input.Kpoints.automatic_linemode">[docs]</a>    <span class="k">def</span> <span class="nf">automatic_linemode</span><span class="p">(</span><span class="n">divisions</span><span class="p">,</span> <span class="n">ibz</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Convenient static constructor for a KPOINTS in mode line_mode.</span>
@@ -1480,7 +1530,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 3.0.0 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.1 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

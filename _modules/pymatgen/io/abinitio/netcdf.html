@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.abinitio.netcdf &mdash; pymatgen 3.0.0 documentation</title>
+    <title>pymatgen.io.abinitio.netcdf &mdash; pymatgen 3.0.1 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '3.0.0',
+        VERSION:     '3.0.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.0.0 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.1 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 3.0.0 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.1 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -64,6 +64,7 @@
 <span class="kn">from</span> <span class="nn">pymatgen.core.units</span> <span class="kn">import</span> <span class="n">ArrayWithUnit</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="kn">import</span> <span class="n">Structure</span>
 <span class="kn">from</span> <span class="nn">monty.dev</span> <span class="kn">import</span> <span class="n">requires</span>
+<span class="kn">import</span> <span class="nn">collections</span>
 
 
 <span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Matteo Giantomassi&quot;</span>
@@ -200,6 +201,9 @@
 <span class="sd">            cmode:</span>
 <span class="sd">                if cmode==&quot;c&quot;, a complex ndarrays is constructed and returned</span>
 <span class="sd">                (netcdf does not provide native support from complex datatype).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            numpy array if varname represents an array, scalar otherwise.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_variable</span><span class="p">(</span><span class="n">varname</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">)</span>
@@ -208,7 +212,12 @@
 
         <span class="k">if</span> <span class="n">cmode</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="c"># scalar or array</span>
-            <span class="k">return</span> <span class="n">var</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">var</span><span class="o">.</span><span class="n">shape</span> <span class="k">else</span> <span class="n">var</span><span class="p">[:]</span>
+            <span class="c"># getValue is not portable!</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">var</span><span class="o">.</span><span class="n">getValue</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">var</span><span class="o">.</span><span class="n">shape</span> <span class="k">else</span> <span class="n">var</span><span class="p">[:]</span>
+            <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">var</span><span class="o">.</span><span class="n">getValue</span><span class="p">()</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">var</span><span class="o">.</span><span class="n">shape</span> <span class="k">else</span> <span class="n">var</span><span class="p">[:]</span>
+
         <span class="k">else</span><span class="p">:</span>
             <span class="k">assert</span> <span class="n">var</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2</span>
             <span class="k">if</span> <span class="n">cmode</span> <span class="o">==</span> <span class="s">&quot;c&quot;</span><span class="p">:</span>
@@ -337,8 +346,7 @@
     <span class="n">ncdata</span><span class="p">,</span> <span class="n">closeit</span> <span class="o">=</span> <span class="n">as_ncreader</span><span class="p">(</span><span class="n">ncdata</span><span class="p">)</span>
 
     <span class="c"># TODO check whether atomic units are used</span>
-    <span class="n">lattice</span> <span class="o">=</span> <span class="n">ArrayWithUnit</span><span class="p">(</span><span class="n">ncdata</span><span class="o">.</span><span class="n">read_value</span><span class="p">(</span><span class="s">&quot;primitive_vectors&quot;</span><span class="p">),</span>
-                            <span class="s">&quot;bohr&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s">&quot;ang&quot;</span><span class="p">)</span>
+    <span class="n">lattice</span> <span class="o">=</span> <span class="n">ArrayWithUnit</span><span class="p">(</span><span class="n">ncdata</span><span class="o">.</span><span class="n">read_value</span><span class="p">(</span><span class="s">&quot;primitive_vectors&quot;</span><span class="p">),</span> <span class="s">&quot;bohr&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s">&quot;ang&quot;</span><span class="p">)</span>
 
     <span class="n">red_coords</span> <span class="o">=</span> <span class="n">ncdata</span><span class="o">.</span><span class="n">read_value</span><span class="p">(</span><span class="s">&quot;reduced_atom_positions&quot;</span><span class="p">)</span>
     <span class="n">natom</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">red_coords</span><span class="p">)</span>
@@ -408,7 +416,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 3.0.0 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.1 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

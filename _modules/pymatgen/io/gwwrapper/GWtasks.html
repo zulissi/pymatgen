@@ -1,0 +1,377 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.io.gwwrapper.GWtasks &mdash; pymatgen 3.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '3.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+    <link rel="top" title="pymatgen 3.0.1 documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" />
+ 
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-33990148-1']);
+  _gaq.push(['_trackPageview']);
+</script>
+
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for pymatgen.io.gwwrapper.GWtasks</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">GW tasks for fireworks workflows, currently Vasp only</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Michiel van Setten&quot;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot; &quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;0.9&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s">&quot;Michiel van Setten&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s">&quot;mjvansetten@gmail.com&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span> <span class="s">&quot;May 2014&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">os.path</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">socket</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="kn">import</span> <span class="n">Structure</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.gwwrapper.GWvaspinputsets</span> <span class="kn">import</span> <span class="n">SingleVaspGWWork</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.gwwrapper.GWvaspinputsets</span> <span class="kn">import</span> <span class="n">GWG0W0VaspInputSet</span>
+<span class="kn">from</span> <span class="nn">fireworks.core.firework</span> <span class="kn">import</span> <span class="n">FireTaskBase</span><span class="p">,</span> <span class="n">FWAction</span>
+<span class="kn">from</span> <span class="nn">fireworks.utilities.fw_serializers</span> <span class="kn">import</span> <span class="n">FWSerializable</span>
+
+
+<span class="n">MODULE_DIR</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">__file__</span><span class="p">))</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">MPGWVaspInputSet.joson contains the standards for GW calculations. This set contains all</span>
+<span class="sd">parameters for the first sc dft calculation. The modifications for the subsequent</span>
+<span class="sd">sub calculations are made below.</span>
+<span class="sd">For many settings the number of cores on which the calculations will be run is needed, this</span>
+<span class="sd">number is assumed to be on the environment variable NPARGWCALC.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="get_mpi_runner_ntasks_keyword"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWtasks.get_mpi_runner_ntasks_keyword">[docs]</a><span class="k">def</span> <span class="nf">get_mpi_runner_ntasks_keyword</span><span class="p">(</span><span class="n">mpi_runner</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">mpi_runner</span> <span class="o">==</span> <span class="s">&#39;srun&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s">&#39;-n&#39;</span>
+    <span class="k">elif</span> <span class="n">mpi_runner</span> <span class="o">==</span> <span class="s">&#39;mpirun&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s">&#39;-np&#39;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">EnvironmentError</span><span class="p">(</span><span class="s">&#39;Keyword for &lt;number of tasks to run&gt; is not found &#39;</span>
+                               <span class="s">&#39;for mpi_runner {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mpi_runner</span><span class="p">))</span>
+
+</div>
+<div class="viewcode-block" id="get_vasp_environment"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWtasks.get_vasp_environment">[docs]</a><span class="k">def</span> <span class="nf">get_vasp_environment</span><span class="p">(</span><span class="n">calculation_type</span><span class="o">=</span><span class="s">&#39;standard&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Method to get the vasp environmental variables</span>
+<span class="sd">    :param calculation_type: Type of calculation for the Vasp job (&#39;standard&#39; or &#39;hse&#39; at the moment)</span>
+<span class="sd">    :return: Dictionary with the necessary variables (vasp executable, vasp modules, vasp pseudos and mpi_runner)</span>
+<span class="sd">    on a particular cluster for a particular type of calculation</span>
+<span class="sd">    :raise ValueError: if the type of calculation is not allowed</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">calculation_type</span> <span class="o">==</span> <span class="s">&#39;standard&#39;</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">vasp_exe</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;VASP_EXE&#39;</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">hostname</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">()</span>
+            <span class="k">raise</span> <span class="ne">EnvironmentError</span><span class="p">(</span><span class="s">&#39;VASP_EXE environment variable on &#39;</span>
+                                   <span class="s">&#39;cluster &quot;{hn}&quot; not found&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">hn</span><span class="o">=</span><span class="n">hostname</span><span class="p">))</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">vasp_modules</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;VASP_MODULES&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">hostname</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">()</span>
+            <span class="k">raise</span> <span class="ne">EnvironmentError</span><span class="p">(</span><span class="s">&#39;VASP_MODULES environment variable on &#39;</span>
+                                   <span class="s">&#39;cluster &quot;{hn}&quot; not found&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">hn</span><span class="o">=</span><span class="n">hostname</span><span class="p">))</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">vasp_mpi_runner</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;VASP_MPI_RUNNER&#39;</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">hostname</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">()</span>
+            <span class="k">raise</span> <span class="ne">EnvironmentError</span><span class="p">(</span><span class="s">&#39;VASP_MPI_RUNNER environment variable on &#39;</span>
+                                   <span class="s">&#39;cluster &quot;{hn}&quot; not found&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">hn</span><span class="o">=</span><span class="n">hostname</span><span class="p">))</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">vasp_psp_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;VASP_PSP_DIR&#39;</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">hostname</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">()</span>
+            <span class="k">raise</span> <span class="ne">EnvironmentError</span><span class="p">(</span><span class="s">&#39;VASP_PSP_DIR environment variable on &#39;</span>
+                                   <span class="s">&#39;cluster &quot;{hn}&quot; not found&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">hn</span><span class="o">=</span><span class="n">hostname</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="n">calculation_type</span> <span class="o">==</span> <span class="s">&#39;hse&#39;</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">vasp_exe</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;VASP_HSE_EXE&#39;</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">hostname</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">()</span>
+            <span class="k">raise</span> <span class="ne">EnvironmentError</span><span class="p">(</span><span class="s">&#39;VASP_HSE_EXE environment variable on &#39;</span>
+                                   <span class="s">&#39;cluster &quot;{hn}&quot; not found&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">hn</span><span class="o">=</span><span class="n">hostname</span><span class="p">))</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">vasp_modules</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;VASP_HSE_MODULES&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">hostname</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">()</span>
+            <span class="k">raise</span> <span class="ne">EnvironmentError</span><span class="p">(</span><span class="s">&#39;VASP_HSE_MODULES environment variable on &#39;</span>
+                                   <span class="s">&#39;cluster &quot;{hn}&quot; not found&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">hn</span><span class="o">=</span><span class="n">hostname</span><span class="p">))</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">vasp_mpi_runner</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;VASP_HSE_MPI_RUNNER&#39;</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">hostname</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">()</span>
+            <span class="k">raise</span> <span class="ne">EnvironmentError</span><span class="p">(</span><span class="s">&#39;VASP_HSE_MPI_RUNNER environment variable on &#39;</span>
+                                   <span class="s">&#39;cluster &quot;{hn}&quot; not found&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">hn</span><span class="o">=</span><span class="n">hostname</span><span class="p">))</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">vasp_psp_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;VASP_HSE_PSP_DIR&#39;</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">hostname</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">()</span>
+            <span class="k">raise</span> <span class="ne">EnvironmentError</span><span class="p">(</span><span class="s">&#39;VASP_HSE_PSP_DIR environment variable on &#39;</span>
+                                   <span class="s">&#39;cluster &quot;{hn}&quot; not found&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">hn</span><span class="o">=</span><span class="n">hostname</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;Vasp calculation type &quot;{}&quot; is not allowed &#39;</span>
+                         <span class="s">&#39;in get_vasp_environment&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">calculation_type</span><span class="p">))</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s">&#39;vasp_exe&#39;</span><span class="p">:</span> <span class="n">vasp_exe</span><span class="p">,</span> <span class="s">&#39;vasp_modules&#39;</span><span class="p">:</span> <span class="n">vasp_modules</span><span class="p">,</span>
+            <span class="s">&#39;vasp_mpi_runner&#39;</span><span class="p">:</span> <span class="n">vasp_mpi_runner</span><span class="p">,</span> <span class="s">&#39;vasp_psp_dir&#39;</span><span class="p">:</span> <span class="n">vasp_psp_dir</span><span class="p">,</span>
+            <span class="s">&#39;mpi_runner_ntasks_option&#39;</span><span class="p">:</span> <span class="n">get_mpi_runner_ntasks_keyword</span><span class="p">(</span><span class="n">vasp_mpi_runner</span><span class="p">)}</span>
+
+</div>
+<div class="viewcode-block" id="VaspGWTask"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWtasks.VaspGWTask">[docs]</a><span class="k">class</span> <span class="nc">VaspGWTask</span><span class="p">(</span><span class="n">FireTaskBase</span><span class="p">,</span> <span class="n">FWSerializable</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base class for vasp GW tasks</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_fw_name</span> <span class="o">=</span> <span class="s">&quot;Vasp GW task&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+        <span class="n">structure</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">parameters</span><span class="p">[</span><span class="s">&#39;structure&#39;</span><span class="p">])</span>
+        <span class="n">structure</span><span class="o">.</span><span class="n">vbm_l</span> <span class="o">=</span> <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;band_structure&#39;</span><span class="p">][</span><span class="s">&#39;vbm_l&#39;</span><span class="p">]</span>
+        <span class="n">structure</span><span class="o">.</span><span class="n">cbm_l</span> <span class="o">=</span> <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;band_structure&#39;</span><span class="p">][</span><span class="s">&#39;cbm_l&#39;</span><span class="p">]</span>
+        <span class="n">structure</span><span class="o">.</span><span class="n">vbm</span> <span class="o">=</span> <span class="p">(</span><span class="n">parameters</span><span class="p">[</span><span class="s">&#39;band_structure&#39;</span><span class="p">][</span><span class="s">&#39;vbm_a&#39;</span><span class="p">],</span> <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;band_structure&#39;</span><span class="p">][</span><span class="s">&#39;vbm_b&#39;</span><span class="p">],</span> <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;band_structure&#39;</span><span class="p">][</span><span class="s">&#39;vbm_c&#39;</span><span class="p">])</span>
+        <span class="n">structure</span><span class="o">.</span><span class="n">cbm</span> <span class="o">=</span> <span class="p">(</span><span class="n">parameters</span><span class="p">[</span><span class="s">&#39;band_structure&#39;</span><span class="p">][</span><span class="s">&#39;cbm_a&#39;</span><span class="p">],</span> <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;band_structure&#39;</span><span class="p">][</span><span class="s">&#39;cbm_b&#39;</span><span class="p">],</span> <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;band_structure&#39;</span><span class="p">][</span><span class="s">&#39;cbm_c&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">structure</span> <span class="o">=</span> <span class="n">structure</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job</span> <span class="o">=</span> <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;job&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spec</span> <span class="o">=</span> <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;spec&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">option</span> <span class="o">=</span> <span class="n">parameters</span><span class="p">[</span><span class="s">&#39;option&#39;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="VaspGWTask.get_system"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWtasks.VaspGWTask.get_system">[docs]</a>    <span class="k">def</span> <span class="nf">get_system</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">reduced_formula</span>
+</div>
+<div class="viewcode-block" id="VaspGWTask.get_prep_dir"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWtasks.VaspGWTask.get_prep_dir">[docs]</a>    <span class="k">def</span> <span class="nf">get_prep_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">launch_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_system</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">option</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">launch_dir</span> <span class="o">=</span> <span class="n">launch_dir</span> <span class="o">+</span> <span class="s">&#39;.&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">option</span><span class="p">[</span><span class="s">&#39;test_prep&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">option</span><span class="p">[</span><span class="s">&#39;value_prep&#39;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">launch_dir</span>
+</div>
+<div class="viewcode-block" id="VaspGWTask.get_launch_dir"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWtasks.VaspGWTask.get_launch_dir">[docs]</a>    <span class="k">def</span> <span class="nf">get_launch_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">launch_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prep_dir</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">job</span> <span class="ow">not</span> <span class="ow">in</span> <span class="s">&#39;prep&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s">&#39;test&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">option</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">option_name</span> <span class="o">=</span> <span class="s">&#39;.&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">option</span><span class="p">[</span><span class="s">&#39;test&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">option</span><span class="p">[</span><span class="s">&#39;value&#39;</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">option_name</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+            <span class="n">launch_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">launch_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">job</span> <span class="o">+</span> <span class="n">option_name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">launch_dir</span>
+
+
+</div></div>
+<div class="viewcode-block" id="VaspGWInputTask"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWtasks.VaspGWInputTask">[docs]</a><span class="k">class</span> <span class="nc">VaspGWInputTask</span><span class="p">(</span><span class="n">VaspGWTask</span><span class="p">):</span>
+    <span class="n">_fw_name</span> <span class="o">=</span> <span class="s">&quot;Vasp GW Input Task&quot;</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    class for creating input for GW calculations</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">):</span>
+        <span class="n">VaspGWTask</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">)</span>
+
+<div class="viewcode-block" id="VaspGWInputTask.run_task"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWtasks.VaspGWInputTask.run_task">[docs]</a>    <span class="k">def</span> <span class="nf">run_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fw_spec</span><span class="p">):</span>
+        <span class="n">task</span> <span class="o">=</span> <span class="n">SingleVaspGWWork</span><span class="p">(</span><span class="n">structure</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="n">job</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="p">,</span> <span class="n">spec</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="p">,</span> <span class="n">option</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">option</span><span class="p">)</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">create_input</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">FWAction</span><span class="p">()</span>
+
+</div></div>
+<div class="viewcode-block" id="VaspGWToDiagTask"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWtasks.VaspGWToDiagTask">[docs]</a><span class="k">class</span> <span class="nc">VaspGWToDiagTask</span><span class="p">(</span><span class="n">VaspGWTask</span><span class="p">):</span>
+    <span class="n">_fw_name</span> <span class="o">=</span> <span class="s">&#39;Vasp GW To Diag Task&#39;</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    class for copying the INCAR.DIAG to INCAR</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">):</span>
+        <span class="n">VaspGWTask</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">)</span>
+
+<div class="viewcode-block" id="VaspGWToDiagTask.run_task"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWtasks.VaspGWToDiagTask.run_task">[docs]</a>    <span class="k">def</span> <span class="nf">run_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fw_spec</span><span class="p">):</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">copy2</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_prep_dir</span><span class="p">(),</span> <span class="s">&#39;INCAR.DIAG&#39;</span><span class="p">),</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_prep_dir</span><span class="p">(),</span> <span class="s">&#39;INCAR&#39;</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">FWAction</span><span class="p">()</span>
+
+</div></div>
+<div class="viewcode-block" id="VaspGWGetPrepResTask"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWtasks.VaspGWGetPrepResTask">[docs]</a><span class="k">class</span> <span class="nc">VaspGWGetPrepResTask</span><span class="p">(</span><span class="n">VaspGWTask</span><span class="p">):</span>
+    <span class="n">_fw_name</span> <span class="o">=</span> <span class="s">&quot;Vasp GW Get Prep Res Task&quot;</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    class for copying the results of the preparation job, the dft calculation, to the GW work folder</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">):</span>
+        <span class="n">VaspGWTask</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">)</span>
+
+<div class="viewcode-block" id="VaspGWGetPrepResTask.run_task"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWtasks.VaspGWGetPrepResTask.run_task">[docs]</a>    <span class="k">def</span> <span class="nf">run_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fw_spec</span><span class="p">):</span>
+        <span class="n">output_files</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;CHGCAR&#39;</span><span class="p">,</span> <span class="s">&#39;WAVECAR&#39;</span><span class="p">,</span> <span class="s">&#39;WAVEDER&#39;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">output_file</span> <span class="ow">in</span> <span class="n">output_files</span><span class="p">:</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">copy2</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_prep_dir</span><span class="p">(),</span> <span class="n">output_file</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_launch_dir</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">FWAction</span><span class="p">()</span>
+
+</div></div>
+<div class="viewcode-block" id="VaspGWExecuteTask"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWtasks.VaspGWExecuteTask">[docs]</a><span class="k">class</span> <span class="nc">VaspGWExecuteTask</span><span class="p">(</span><span class="n">VaspGWTask</span><span class="p">):</span>
+    <span class="n">_fw_name</span> <span class="o">=</span> <span class="s">&#39;Vasp GW Execute Task&#39;</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    class for executing vasp</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">):</span>
+        <span class="n">VaspGWTask</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">)</span>
+
+<div class="viewcode-block" id="VaspGWExecuteTask.run_task"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWtasks.VaspGWExecuteTask.run_task">[docs]</a>    <span class="k">def</span> <span class="nf">run_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fw_spec</span><span class="p">):</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_system</span><span class="p">()</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">job</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_launch_dir</span><span class="p">(),</span> <span class="n">name</span> <span class="o">+</span> <span class="s">&#39;.log&#39;</span><span class="p">),</span> <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+        <span class="n">vasp_exe</span> <span class="o">=</span> <span class="n">get_vasp_environment</span><span class="p">()[</span><span class="s">&#39;vasp_exe&#39;</span><span class="p">]</span>
+        <span class="n">vasp_mpi_executer</span> <span class="o">=</span> <span class="n">get_vasp_environment</span><span class="p">()[</span><span class="s">&#39;vasp_mpi_executer&#39;</span><span class="p">]</span>
+        <span class="n">n_tasks</span> <span class="o">=</span> <span class="n">GWG0W0VaspInputSet</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="p">)</span><span class="o">.</span><span class="n">get_npar</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="p">)</span>
+
+        <span class="n">frontend_serial</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="n">custodian</span> <span class="o">=</span> <span class="bp">False</span>
+
+        <span class="k">if</span> <span class="n">frontend_serial</span><span class="p">:</span>
+            <span class="c">#fake run, no actual vasp execution</span>
+            <span class="n">base</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwdu</span><span class="p">()</span>
+            <span class="n">abs_work_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">base</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_launch_dir</span><span class="p">())</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">abs_work_dir</span><span class="p">)</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;/home/setten/scripts/vasp&quot;</span><span class="p">]</span>
+            <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">base</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">custodian</span><span class="p">:</span>
+            <span class="n">mpirunvasp</span> <span class="o">=</span> <span class="p">[</span><span class="n">vasp_mpi_executer</span><span class="p">,</span> <span class="s">&#39;-np&#39;</span><span class="p">,</span> <span class="n">n_tasks</span><span class="p">,</span> <span class="n">vasp_exe</span><span class="p">]</span>
+            <span class="k">pass</span>
+
+        <span class="k">return</span> <span class="n">FWAction</span><span class="p">()</span>
+
+</div></div>
+<div class="viewcode-block" id="VaspGWWriteConDatTask"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWtasks.VaspGWWriteConDatTask">[docs]</a><span class="k">class</span> <span class="nc">VaspGWWriteConDatTask</span><span class="p">(</span><span class="n">VaspGWTask</span><span class="p">):</span>
+    <span class="n">fw_name</span> <span class="o">=</span> <span class="s">&quot;Vasp GW Write Convergence Data&quot;</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Write the data needed to study the convergence</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">):</span>
+        <span class="n">VaspGWTask</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">)</span>
+
+<div class="viewcode-block" id="VaspGWWriteConDatTask.run_task"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWtasks.VaspGWWriteConDatTask.run_task">[docs]</a>    <span class="k">def</span> <span class="nf">run_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fw_spec</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">FWAction</span><span class="p">()</span>
+
+</div></div>
+<div class="viewcode-block" id="VaspGWTestConTask"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWtasks.VaspGWTestConTask">[docs]</a><span class="k">class</span> <span class="nc">VaspGWTestConTask</span><span class="p">(</span><span class="n">VaspGWTask</span><span class="p">):</span>
+    <span class="n">fw_name</span> <span class="o">=</span> <span class="s">&quot;Vasp GW Test converge&quot;</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    test if the current conv option is converged if not calculate the nex value</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">):</span>
+        <span class="n">VaspGWTask</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">)</span>
+
+<div class="viewcode-block" id="VaspGWTestConTask.get_n_pev_runs"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWtasks.VaspGWTestConTask.get_n_pev_runs">[docs]</a>    <span class="k">def</span> <span class="nf">get_n_pev_runs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        return the number of values that have already been calculated for this convergence parameter</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">return</span> <span class="n">n</span>
+</div>
+<div class="viewcode-block" id="VaspGWTestConTask.run_task"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.GWtasks.VaspGWTestConTask.run_task">[docs]</a>    <span class="k">def</span> <span class="nf">run_task</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fw_spec</span><span class="p">):</span>
+        <span class="n">task</span> <span class="o">=</span> <span class="n">SingleVaspGWWork</span><span class="p">(</span><span class="n">structure</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="n">job</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="p">,</span> <span class="n">spec</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="p">,</span> <span class="n">option</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">option</span><span class="p">)</span>
+        <span class="n">task</span><span class="o">.</span><span class="n">create_input</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">FWAction</span><span class="p">()</span>
+</pre></div></div></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.1 documentation</a> &raquo;</li>
+          <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+
+    <div class="footer">
+        &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Geoffroy Hautier, William Davidson Richard, Stephen Dacek, Sai Jayaraman, Michael Kocher, Dan Gunter, Shreyas Cholia, Vincent L Chevrier, Rickard Armiento.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+<script type="text/javascript">
+  (function() {
+    var ga = document.createElement('script');
+    ga.src = ('https:' == document.location.protocol ?
+              'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    ga.setAttribute('async', 'true');
+    document.documentElement.firstChild.appendChild(ga);
+  })();
+</script>
+</div>
+
+  </body>
+</html>

@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.abinitio.tasks &mdash; pymatgen 3.0.2 documentation</title>
+    <title>pymatgen.io.abinitio.tasks &mdash; pymatgen 3.0.3 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '3.0.2',
+        VERSION:     '3.0.3',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.0.2 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.3 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 3.0.2 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.3 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -57,12 +57,10 @@
             
   <h1>Source code for pymatgen.io.abinitio.tasks</h1><div class="highlight"><pre>
 <span class="c"># coding: utf-8</span>
-
-<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
-
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">Classes defining Abinit calculations and workflows</span>
 <span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
 
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">time</span>
@@ -76,23 +74,24 @@
 <span class="kn">import</span> <span class="nn">six</span>
 
 <span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="nb">map</span><span class="p">,</span> <span class="nb">zip</span><span class="p">,</span> <span class="n">StringIO</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio</span> <span class="kn">import</span> <span class="n">abiinspect</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio</span> <span class="kn">import</span> <span class="n">events</span> 
+<span class="kn">from</span> <span class="nn">monty.serialization</span> <span class="kn">import</span> <span class="n">loadfn</span>
+<span class="kn">from</span> <span class="nn">monty.string</span> <span class="kn">import</span> <span class="n">is_string</span><span class="p">,</span> <span class="n">list_strings</span>
+<span class="kn">from</span> <span class="nn">monty.io</span> <span class="kn">import</span> <span class="n">FileLock</span>
+<span class="kn">from</span> <span class="nn">monty.collections</span> <span class="kn">import</span> <span class="n">AttrDict</span>
+<span class="kn">from</span> <span class="nn">pymatgen.util.string_utils</span> <span class="kn">import</span> <span class="n">WildCard</span>
+<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">PMGSONable</span><span class="p">,</span> <span class="n">json_pretty_dump</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">File</span><span class="p">,</span> <span class="n">Directory</span><span class="p">,</span> <span class="n">irdvars_for_ext</span><span class="p">,</span> <span class="n">abi_splitext</span><span class="p">,</span> <span class="n">abi_extensions</span><span class="p">,</span> <span class="n">FilepathFixer</span><span class="p">,</span> <span class="n">Condition</span>
+<span class="kn">from</span> <span class="nn">.qadapters</span> <span class="kn">import</span> <span class="n">qadapter_class</span>
+<span class="kn">from</span> <span class="nn">.netcdf</span> <span class="kn">import</span> <span class="n">ETSF_Reader</span>
+<span class="kn">from</span> <span class="nn">.strategies</span> <span class="kn">import</span> <span class="n">StrategyWithInput</span><span class="p">,</span> <span class="n">OpticInput</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">abiinspect</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">events</span> 
 
 <span class="k">try</span><span class="p">:</span>
     <span class="kn">from</span> <span class="nn">pydispatch</span> <span class="kn">import</span> <span class="n">dispatcher</span>
 <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
     <span class="k">pass</span>
 
-<span class="kn">from</span> <span class="nn">monty.serialization</span> <span class="kn">import</span> <span class="n">loadfn</span>
-<span class="kn">from</span> <span class="nn">pymatgen.core.design_patterns</span> <span class="kn">import</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">AttrDict</span>
-<span class="kn">from</span> <span class="nn">pymatgen.util.io_utils</span> <span class="kn">import</span> <span class="n">FileLock</span>
-<span class="kn">from</span> <span class="nn">pymatgen.util.string_utils</span> <span class="kn">import</span> <span class="n">stream_has_colours</span><span class="p">,</span> <span class="n">is_string</span><span class="p">,</span> <span class="n">list_strings</span><span class="p">,</span> <span class="n">WildCard</span>
-<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">PMGSONable</span><span class="p">,</span> <span class="n">json_pretty_dump</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.utils</span> <span class="kn">import</span> <span class="n">File</span><span class="p">,</span> <span class="n">Directory</span><span class="p">,</span> <span class="n">irdvars_for_ext</span><span class="p">,</span> <span class="n">abi_splitext</span><span class="p">,</span> <span class="n">abi_extensions</span><span class="p">,</span> <span class="n">FilepathFixer</span><span class="p">,</span> <span class="n">Condition</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.qadapters</span> <span class="kn">import</span> <span class="n">qadapter_class</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.netcdf</span> <span class="kn">import</span> <span class="n">ETSF_Reader</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.strategies</span> <span class="kn">import</span> <span class="n">StrategyWithInput</span><span class="p">,</span> <span class="n">OpticInput</span>
 
 <span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Matteo Giantomassi&quot;</span>
 <span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot;Copyright 2013, The Materials Project&quot;</span>
@@ -2395,7 +2394,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">remove_extra_abivars</span><span class="p">(</span><span class="n">autoparal_vars</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
 
         <span class="c"># 2) Parse the autoparal configurations from the main output file.</span>
-        <span class="c">#print(&quot;parsing&quot;)</span>
         <span class="n">parser</span> <span class="o">=</span> <span class="n">ParalHintsParser</span><span class="p">()</span>
 
         <span class="k">try</span><span class="p">:</span>
@@ -2410,6 +2408,12 @@
         <span class="c"># 3) Select the optimal configuration according to policy</span>
         <span class="n">optimal</span> <span class="o">=</span> <span class="n">confs</span><span class="o">.</span><span class="n">select_optimal_conf</span><span class="p">(</span><span class="n">policy</span><span class="p">)</span>
         <span class="c">#print(&quot;optimal Autoparal conf:\n %s&quot; % optimal)</span>
+
+        <span class="c"># Write autoparal configurations to file.</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">,</span> <span class="s">&quot;autoparal.txt&quot;</span><span class="p">),</span> <span class="s">&quot;wt&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">confs</span><span class="p">)</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
+            <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;Optimal configuration:</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
+            <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">optimal</span><span class="p">)</span><span class="o">+</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
 
         <span class="c"># 4) Change the input file and/or the submission script</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">add_extra_abivars</span><span class="p">(</span><span class="n">optimal</span><span class="o">.</span><span class="n">vars</span><span class="p">)</span>
@@ -3038,7 +3042,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 3.0.2 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.3 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

@@ -1,0 +1,1030 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.io.gwwrapper.datastructures &mdash; pymatgen 3.0.3 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '3.0.3',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+    <link rel="top" title="pymatgen 3.0.3 documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" />
+ 
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-33990148-1']);
+  _gaq.push(['_trackPageview']);
+</script>
+
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.3 documentation</a> &raquo;</li>
+          <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for pymatgen.io.gwwrapper.datastructures</h1><div class="highlight"><pre>
+<span class="c"># coding: utf-8</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Classes for writing GW Input and analyzing GW data. The underlying classes can handle the use of VASP and ABINIT via the</span>
+<span class="sd">code interfaces provided in codeinterfaces.</span>
+<span class="sd">Reads the POSCAR_name in the the current folder and outputs GW input to subfolders name or lists of structures</span>
+<span class="sd">test 3</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Michiel van Setten&quot;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot; &quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;0.9&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s">&quot;Michiel van Setten&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s">&quot;mjvansetten@gmail.com&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span> <span class="s">&quot;May 2014&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">stat</span>
+<span class="kn">import</span> <span class="nn">os.path</span>
+<span class="kn">import</span> <span class="nn">ast</span>
+<span class="kn">import</span> <span class="nn">pymatgen</span> <span class="kn">as</span> <span class="nn">pmg</span>
+<span class="kn">import</span> <span class="nn">pymongo</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">gridfs</span>
+<span class="kn">import</span> <span class="nn">six</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">abstractproperty</span><span class="p">,</span> <span class="n">abstractmethod</span><span class="p">,</span> <span class="n">ABCMeta</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.vaspio.vasp_input</span> <span class="kn">import</span> <span class="n">Poscar</span>
+<span class="kn">from</span> <span class="nn">pymatgen.matproj.rest</span> <span class="kn">import</span> <span class="n">MPRester</span><span class="p">,</span> <span class="n">MPRestError</span>
+<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">MSONable</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.gwwrapper.convergence</span> <span class="kn">import</span> <span class="n">test_conv</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.gwwrapper.helpers</span> <span class="kn">import</span> <span class="n">print_gnuplot_header</span><span class="p">,</span> <span class="n">s_name</span><span class="p">,</span> <span class="n">add_gg_gap</span><span class="p">,</span> <span class="n">refine_structure</span><span class="p">,</span> <span class="n">now</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.gwwrapper.codeinterfaces</span> <span class="kn">import</span> <span class="n">get_code_interface</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="kn">import</span> <span class="n">Structure</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.units</span> <span class="kn">import</span> <span class="n">eV_to_Ha</span>
+
+<span class="n">MODULE_DIR</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">__file__</span><span class="p">))</span>
+
+
+<span class="nd">@six.add_metaclass</span><span class="p">(</span><span class="n">ABCMeta</span><span class="p">)</span>
+<div class="viewcode-block" id="AbstractAbinitioSpec"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.AbstractAbinitioSpec">[docs]</a><span class="k">class</span> <span class="nc">AbstractAbinitioSpec</span><span class="p">(</span><span class="n">MSONable</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Contains all non GW specific methods</span>
+<span class="sd">    todo for some reason I can not make this class have both a metaclass and subcalss from msonable ...</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;code&#39;</span><span class="p">:</span> <span class="s">&#39;ABINIT&#39;</span><span class="p">,</span>
+                     <span class="s">&#39;source&#39;</span><span class="p">:</span> <span class="s">&#39;mp-vasp&#39;</span><span class="p">,</span>
+                     <span class="s">&#39;mode&#39;</span><span class="p">:</span> <span class="s">&#39;ceci&#39;</span><span class="p">,</span>
+                     <span class="s">&#39;test&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+                     <span class="s">&#39;converge&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+                     <span class="s">&#39;functional&#39;</span><span class="p">:</span> <span class="s">&#39;PBE&#39;</span><span class="p">,</span>
+                     <span class="s">&#39;prec&#39;</span><span class="p">:</span> <span class="s">&#39;m&#39;</span><span class="p">,</span>
+                     <span class="s">&#39;kp_grid_dens&#39;</span><span class="p">:</span> <span class="mi">500</span><span class="p">,</span>
+                     <span class="s">&#39;tol&#39;</span><span class="p">:</span> <span class="mf">0.0001</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">warnings</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">errors</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_code_interface</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">item</span><span class="p">]</span>
+
+<div class="viewcode-block" id="AbstractAbinitioSpec.as_dict"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.AbstractAbinitioSpec.as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_dict</span>
+</div>
+    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="AbstractAbinitioSpec.to_dict"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.AbstractAbinitioSpec.to_dict">[docs]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        return a dictionary representation of self</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+</div>
+<div class="viewcode-block" id="AbstractAbinitioSpec.update_code_interface"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.AbstractAbinitioSpec.update_code_interface">[docs]</a>    <span class="k">def</span> <span class="nf">update_code_interface</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">code_interface</span> <span class="o">=</span> <span class="n">get_code_interface</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_code</span><span class="p">())</span>
+</div>
+<div class="viewcode-block" id="AbstractAbinitioSpec.get_code"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.AbstractAbinitioSpec.get_code">[docs]</a>    <span class="k">def</span> <span class="nf">get_code</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;code&#39;</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="AbstractAbinitioSpec.write_to_file"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.AbstractAbinitioSpec.write_to_file">[docs]</a>    <span class="k">def</span> <span class="nf">write_to_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&#39;w&#39;</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()))</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="AbstractAbinitioSpec.read_from_file"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.AbstractAbinitioSpec.read_from_file">[docs]</a>    <span class="k">def</span> <span class="nf">read_from_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&#39;r&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">ast</span><span class="o">.</span><span class="n">literal_eval</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;Inputfile &#39;</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="s">&#39; not found exiting.&#39;</span><span class="p">)</span>
+            <span class="nb">exit</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_code_interface</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="AbstractAbinitioSpec.update_interactive"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.AbstractAbinitioSpec.update_interactive">[docs]</a>    <span class="k">def</span> <span class="nf">update_interactive</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        method to make changes to the GW input setting interactively</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="s">&#39;tmp&#39;</span>
+        <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;Pseudos from: &#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">code_interface</span><span class="o">.</span><span class="n">read_ps_dir</span><span class="p">())</span>
+            <span class="k">print</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="nb">raw_input</span><span class="p">(</span><span class="s">&#39;enter key to change (h for help): &#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="nb">raw_input</span><span class="p">(</span><span class="s">&#39;enter new value: &#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>                        <span class="c"># list</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&#39;removed&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="nb">bool</span><span class="p">):</span>                      <span class="c"># logical</span>
+                    <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&#39;true&#39;</span><span class="p">,</span> <span class="s">&#39;t&#39;</span><span class="p">]:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+                    <span class="k">elif</span> <span class="n">value</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&#39;false&#39;</span><span class="p">,</span> <span class="s">&#39;f&#39;</span><span class="p">]:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="bp">False</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&#39;undefined value, should be True or False&#39;</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="nb">int</span><span class="p">):</span>                       <span class="c"># integer</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="nb">float</span><span class="p">):</span>                     <span class="c"># float</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>                       <span class="c"># string</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="k">elif</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&#39;help&#39;</span><span class="p">,</span> <span class="s">&#39;h&#39;</span><span class="p">]:</span>
+                <span class="k">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">help</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&#39;setup finished&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&#39;undefined key&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;functional&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;functional&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_code_interface</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="AbstractAbinitioSpec.loop_structures"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.AbstractAbinitioSpec.loop_structures">[docs]</a>    <span class="k">def</span> <span class="nf">loop_structures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&#39;i&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        reading the structures specified in spec, add special points, and excecute the specs</span>
+<span class="sd">        mode:</span>
+<span class="sd">        i: loop structures for input generation</span>
+<span class="sd">        o: loop structures for output parsing</span>
+<span class="sd">        w: print all results</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;loop structures mode &#39;</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+        <span class="n">mp_key</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;MP_KEY&#39;</span><span class="p">]</span>
+
+        <span class="n">mp_list_vasp</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;mp-149&#39;</span><span class="p">,</span> <span class="s">&#39;mp-2534&#39;</span><span class="p">,</span> <span class="s">&#39;mp-8062&#39;</span><span class="p">,</span> <span class="s">&#39;mp-2469&#39;</span><span class="p">,</span> <span class="s">&#39;mp-1550&#39;</span><span class="p">,</span> <span class="s">&#39;mp-830&#39;</span><span class="p">,</span> <span class="s">&#39;mp-1986&#39;</span><span class="p">,</span> <span class="s">&#39;mp-10695&#39;</span><span class="p">,</span> <span class="s">&#39;mp-66&#39;</span><span class="p">,</span>
+                        <span class="s">&#39;mp-1639&#39;</span><span class="p">,</span> <span class="s">&#39;mp-1265&#39;</span><span class="p">,</span> <span class="s">&#39;mp-1138&#39;</span><span class="p">,</span> <span class="s">&#39;mp-23155&#39;</span><span class="p">,</span> <span class="s">&#39;mp-111&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;source&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;mp-vasp&#39;</span><span class="p">:</span>
+            <span class="n">items_list</span> <span class="o">=</span> <span class="n">mp_list_vasp</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;source&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;poscar&#39;</span><span class="p">:</span>
+            <span class="n">files</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)</span>
+            <span class="n">items_list</span> <span class="o">=</span> <span class="n">files</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;source&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;mar_exp&#39;</span><span class="p">:</span>
+            <span class="n">items_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">local_serv</span> <span class="o">=</span> <span class="n">pymongo</span><span class="o">.</span><span class="n">Connection</span><span class="p">(</span><span class="s">&quot;marilyn.pcpm.ucl.ac.be&quot;</span><span class="p">)</span>
+            <span class="n">local_db_gaps</span> <span class="o">=</span> <span class="n">local_serv</span><span class="o">.</span><span class="n">band_gaps</span>
+            <span class="n">pwd</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;MAR_PAS&#39;</span><span class="p">]</span>
+            <span class="n">local_db_gaps</span><span class="o">.</span><span class="n">authenticate</span><span class="p">(</span><span class="s">&quot;setten&quot;</span><span class="p">,</span> <span class="n">pwd</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">local_db_gaps</span><span class="o">.</span><span class="n">exp</span><span class="o">.</span><span class="n">find</span><span class="p">():</span>
+                <span class="k">print</span><span class="p">(</span><span class="n">Structure</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="s">&#39;icsd_data&#39;</span><span class="p">][</span><span class="s">&#39;structure&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">reduced_formula</span><span class="p">,</span> <span class="n">c</span><span class="p">[</span><span class="s">&#39;icsd_id&#39;</span><span class="p">],</span>\
+                    <span class="n">c</span><span class="p">[</span><span class="s">&#39;MP_id&#39;</span><span class="p">])</span>
+                <span class="n">items_list</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s">&#39;name&#39;</span><span class="p">:</span> <span class="s">&#39;mp-&#39;</span> <span class="o">+</span> <span class="n">c</span><span class="p">[</span><span class="s">&#39;MP_id&#39;</span><span class="p">],</span> <span class="s">&#39;icsd&#39;</span><span class="p">:</span> <span class="n">c</span><span class="p">[</span><span class="s">&#39;icsd_id&#39;</span><span class="p">],</span> <span class="s">&#39;mp&#39;</span><span class="p">:</span> <span class="n">c</span><span class="p">[</span><span class="s">&#39;MP_id&#39;</span><span class="p">]})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">items_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;source&#39;</span><span class="p">])]</span>
+
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">items_list</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+            <span class="c"># special case, this should be encaptulated</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;source&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;mar_exp&#39;</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&#39;structure from marilyn&#39;</span><span class="p">,</span> <span class="n">item</span><span class="p">[</span><span class="s">&#39;name&#39;</span><span class="p">],</span> <span class="n">item</span><span class="p">[</span><span class="s">&#39;icsd&#39;</span><span class="p">],</span> <span class="n">item</span><span class="p">[</span><span class="s">&#39;mp&#39;</span><span class="p">])</span>
+                <span class="n">exp</span> <span class="o">=</span> <span class="n">local_db_gaps</span><span class="o">.</span><span class="n">exp</span><span class="o">.</span><span class="n">find</span><span class="p">({</span><span class="s">&#39;MP_id&#39;</span><span class="p">:</span> <span class="n">item</span><span class="p">[</span><span class="s">&#39;mp&#39;</span><span class="p">]})[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">structure</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">exp</span><span class="p">[</span><span class="s">&#39;icsd_data&#39;</span><span class="p">][</span><span class="s">&#39;structure&#39;</span><span class="p">])</span>
+                <span class="n">structure</span> <span class="o">=</span> <span class="n">refine_structure</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">kpts</span> <span class="o">=</span> <span class="n">local_db_gaps</span><span class="o">.</span><span class="n">GGA_BS</span><span class="o">.</span><span class="n">find</span><span class="p">({</span><span class="s">&#39;transformations.history.0.id&#39;</span><span class="p">:</span> <span class="n">item</span><span class="p">[</span><span class="s">&#39;icsd&#39;</span><span class="p">]})[</span><span class="mi">0</span><span class="p">][</span><span class="s">&#39;calculations&#39;</span><span class="p">]</span>\
+                    <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s">&#39;band_structure&#39;</span><span class="p">][</span><span class="s">&#39;kpoints&#39;</span><span class="p">]</span>
+                <span class="k">except</span> <span class="p">(</span><span class="ne">IndexError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">):</span>
+                    <span class="n">kpts</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]]</span>
+                <span class="n">structure</span><span class="o">.</span><span class="n">kpts</span> <span class="o">=</span> <span class="n">kpts</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&#39;kpoints:&#39;</span><span class="p">,</span> <span class="n">structure</span><span class="o">.</span><span class="n">kpts</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">structure</span><span class="o">.</span><span class="n">kpts</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="n">structure</span><span class="o">.</span><span class="n">item</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s">&#39;name&#39;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;POSCAR_&#39;</span><span class="p">):</span>
+                    <span class="n">structure</span> <span class="o">=</span> <span class="n">pmg</span><span class="o">.</span><span class="n">read_structure</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+                    <span class="n">comment</span> <span class="o">=</span> <span class="n">Poscar</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">item</span><span class="p">)</span><span class="o">.</span><span class="n">comment</span>
+                    <span class="c"># print comment</span>
+                    <span class="k">if</span> <span class="n">comment</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&quot;gap&quot;</span><span class="p">):</span>
+                        <span class="n">structure</span><span class="o">.</span><span class="n">vbm_l</span> <span class="o">=</span> <span class="n">comment</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="n">structure</span><span class="o">.</span><span class="n">vbm</span> <span class="o">=</span> <span class="p">(</span><span class="n">comment</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="p">)[</span><span class="mi">2</span><span class="p">],</span> <span class="n">comment</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="p">)[</span><span class="mi">3</span><span class="p">],</span> <span class="n">comment</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="p">)[</span><span class="mi">4</span><span class="p">])</span>
+                        <span class="n">structure</span><span class="o">.</span><span class="n">cbm_l</span> <span class="o">=</span> <span class="n">comment</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="p">)[</span><span class="mi">5</span><span class="p">]</span>
+                        <span class="n">structure</span><span class="o">.</span><span class="n">cbm</span> <span class="o">=</span> <span class="p">(</span><span class="n">comment</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="p">)[</span><span class="mi">6</span><span class="p">],</span> <span class="n">comment</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="p">)[</span><span class="mi">7</span><span class="p">],</span> <span class="n">comment</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="p">)[</span><span class="mi">8</span><span class="p">])</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c"># print &quot;no bandstructure information available, adding GG as &#39;gap&#39;&quot;</span>
+                        <span class="n">structure</span> <span class="o">=</span> <span class="n">add_gg_gap</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="s">&#39;xyz&#39;</span> <span class="ow">in</span> <span class="n">item</span><span class="p">:</span>
+                    <span class="n">structure</span> <span class="o">=</span> <span class="n">pmg</span><span class="o">.</span><span class="n">read_structure</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+                    <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+                <span class="k">elif</span> <span class="n">item</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;mp-&#39;</span><span class="p">):</span>
+                    <span class="k">with</span> <span class="n">MPRester</span><span class="p">(</span><span class="n">mp_key</span><span class="p">)</span> <span class="k">as</span> <span class="n">mp_database</span><span class="p">:</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&#39;structure from mp database&#39;</span><span class="p">,</span> <span class="n">item</span><span class="p">)</span>
+                        <span class="n">structure</span> <span class="o">=</span> <span class="n">mp_database</span><span class="o">.</span><span class="n">get_structure_by_material_id</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">final</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="n">bandstructure</span> <span class="o">=</span> <span class="n">mp_database</span><span class="o">.</span><span class="n">get_bandstructure_by_material_id</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+                            <span class="n">structure</span><span class="o">.</span><span class="n">vbm_l</span> <span class="o">=</span> <span class="n">bandstructure</span><span class="o">.</span><span class="n">kpoints</span><span class="p">[</span><span class="n">bandstructure</span><span class="o">.</span><span class="n">get_vbm</span><span class="p">()[</span><span class="s">&#39;kpoint_index&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">label</span>
+                            <span class="n">structure</span><span class="o">.</span><span class="n">cbm_l</span> <span class="o">=</span> <span class="n">bandstructure</span><span class="o">.</span><span class="n">kpoints</span><span class="p">[</span><span class="n">bandstructure</span><span class="o">.</span><span class="n">get_cbm</span><span class="p">()[</span><span class="s">&#39;kpoint_index&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">label</span>
+                            <span class="n">structure</span><span class="o">.</span><span class="n">cbm</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">bandstructure</span><span class="o">.</span><span class="n">kpoints</span><span class="p">[</span><span class="n">bandstructure</span><span class="o">.</span><span class="n">get_cbm</span><span class="p">()[</span><span class="s">&#39;kpoint_index&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">)</span>
+                            <span class="n">structure</span><span class="o">.</span><span class="n">vbm</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">bandstructure</span><span class="o">.</span><span class="n">kpoints</span><span class="p">[</span><span class="n">bandstructure</span><span class="o">.</span><span class="n">get_vbm</span><span class="p">()[</span><span class="s">&#39;kpoint_index&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">)</span>
+                        <span class="k">except</span> <span class="p">(</span><span class="n">MPRestError</span><span class="p">,</span> <span class="ne">IndexError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">)</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                            <span class="k">print</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
+                            <span class="n">structure</span> <span class="o">=</span> <span class="n">add_gg_gap</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">structure</span><span class="o">.</span><span class="n">kpts</span> <span class="o">=</span> <span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">structure</span><span class="o">.</span><span class="n">cbm</span><span class="p">),</span> <span class="nb">list</span><span class="p">(</span><span class="n">structure</span><span class="o">.</span><span class="n">vbm</span><span class="p">)]</span>
+                <span class="n">structure</span><span class="o">.</span><span class="n">item</span> <span class="o">=</span> <span class="n">item</span>
+            <span class="k">print</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s">&#39;i&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">excecute_flow</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s">&#39;w&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">print_results</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s">&#39;s&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">insert_in_database</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s">&#39;o&#39;</span><span class="p">:</span>
+                <span class="c"># if os.path.isdir(s_name(structure)) or os.path.isdir(s_name(structure)+&#39;.conv&#39;):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">process_data</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s">&#39;ceci&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;mode&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">mode</span> <span class="o">==</span> <span class="s">&#39;i&#39;</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">chmod</span><span class="p">(</span><span class="s">&quot;job_collection&quot;</span><span class="p">,</span> <span class="n">stat</span><span class="o">.</span><span class="n">S_IRWXU</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="AbstractAbinitioSpec.reset_job_collection"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.AbstractAbinitioSpec.reset_job_collection">[docs]</a>    <span class="k">def</span> <span class="nf">reset_job_collection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s">&#39;ceci&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;mode&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="s">&#39;job_collection&#39;</span><span class="p">):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s">&#39;job_collection&#39;</span><span class="p">)</span>
+</div>
+    <span class="nd">@abstractproperty</span>
+<div class="viewcode-block" id="AbstractAbinitioSpec.help"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.AbstractAbinitioSpec.help">[docs]</a>    <span class="k">def</span> <span class="nf">help</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        property containing a help string for the interactive update</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">str</span>
+</div>
+    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="AbstractAbinitioSpec.test"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.AbstractAbinitioSpec.test">[docs]</a>    <span class="k">def</span> <span class="nf">test</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        method to test the input for consistency. needs to be implemented by the concrete class</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+</div>
+    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="AbstractAbinitioSpec.print_results"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.AbstractAbinitioSpec.print_results">[docs]</a>    <span class="k">def</span> <span class="nf">print_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        method called in loopstructures in &#39;w&#39; write mode, this method should print final results</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+</div>
+    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="AbstractAbinitioSpec.excecute_flow"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.AbstractAbinitioSpec.excecute_flow">[docs]</a>    <span class="k">def</span> <span class="nf">excecute_flow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        method called in loopstructures in &#39;i&#39; input mode, this method should generate input, job script files etc</span>
+<span class="sd">         or create fire_work workflows and put them in a database</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+</div>
+    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="AbstractAbinitioSpec.process_data"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.AbstractAbinitioSpec.process_data">[docs]</a>    <span class="k">def</span> <span class="nf">process_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        method called in loopstructures in &#39;o&#39; output mode, this method should take the results from the calcultations</span>
+<span class="sd">        and perform analysis&#39;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+</div>
+    <span class="nd">@abstractmethod</span>
+<div class="viewcode-block" id="AbstractAbinitioSpec.insert_in_database"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.AbstractAbinitioSpec.insert_in_database">[docs]</a>    <span class="k">def</span> <span class="nf">insert_in_database</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        method called in loopstructures in &#39;s&#39; store mode, this method should take the results from the calcultations</span>
+<span class="sd">        and put them in a database&#39;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+</div></div>
+<div class="viewcode-block" id="GWSpecs"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWSpecs">[docs]</a><span class="k">class</span> <span class="nc">GWSpecs</span><span class="p">(</span><span class="n">AbstractAbinitioSpec</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for GW specifications.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">GWSpecs</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;jobs&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s">&#39;prep&#39;</span><span class="p">,</span> <span class="s">&#39;G0W0&#39;</span><span class="p">]})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fw_specs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_message</span> <span class="o">=</span> <span class="nb">str</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_message</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">  </span><span class="si">%s</span><span class="se">\n</span><span class="s">&#39;</span> \
+                        <span class="s">&#39;  code         : </span><span class="si">%s</span><span class="s"> </span><span class="se">\n</span><span class="s">&#39;</span> \
+                        <span class="s">&#39;  source       : </span><span class="si">%s</span><span class="s"> </span><span class="se">\n</span><span class="s">&#39;</span> \
+                        <span class="s">&#39;  jobs         : </span><span class="si">%s</span><span class="s"> </span><span class="se">\n</span><span class="s">&#39;</span> \
+                        <span class="s">&#39;  mode         : </span><span class="si">%s</span><span class="s"> </span><span class="se">\n</span><span class="s">&#39;</span> \
+                        <span class="s">&#39;  functional   : </span><span class="si">%s</span><span class="s"> </span><span class="se">\n</span><span class="s">&#39;</span> \
+                        <span class="s">&#39;  kp_grid_dens : </span><span class="si">%s</span><span class="s"> </span><span class="se">\n</span><span class="s">&#39;</span> \
+                        <span class="s">&#39;  prec         : </span><span class="si">%s</span><span class="s"> </span><span class="se">\n</span><span class="s">&#39;</span> \
+                        <span class="s">&#39;  tol          : </span><span class="si">%s</span><span class="s"> </span><span class="se">\n</span><span class="s">&#39;</span> \
+                        <span class="s">&#39;  test         : </span><span class="si">%s</span><span class="s"> </span><span class="se">\n</span><span class="s">&#39;</span> \
+                        <span class="s">&#39;  converge     : </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__doc__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_code</span><span class="p">(),</span>
+                                                 <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;source&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;jobs&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;mode&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;functional&#39;</span><span class="p">],</span>
+                                                 <span class="bp">self</span><span class="p">[</span><span class="s">&#39;kp_grid_dens&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;prec&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;tol&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;test&#39;</span><span class="p">],</span>
+                                                 <span class="bp">self</span><span class="p">[</span><span class="s">&#39;converge&#39;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_message</span>
+
+<div class="viewcode-block" id="GWSpecs.__hash__"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWSpecs.__hash__">[docs]</a>    <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        this will work as long a there are only hashable items in the data dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">tmp</span><span class="p">[</span><span class="s">&#39;jobs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">tmp</span><span class="p">[</span><span class="s">&#39;jobs&#39;</span><span class="p">])</span>
+        <span class="k">print</span><span class="p">(</span><span class="n">tmp</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="nb">frozenset</span><span class="p">(</span><span class="n">tmp</span><span class="o">.</span><span class="n">items</span><span class="p">()))</span>
+</div>
+<div class="viewcode-block" id="GWSpecs.hash_str"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWSpecs.hash_str">[docs]</a>    <span class="k">def</span> <span class="nf">hash_str</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        old fist attempt ...</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">hashstr</span> <span class="o">=</span> <span class="s">&#39;code:</span><span class="si">%s</span><span class="s">;source:</span><span class="si">%s</span><span class="s">jobs:</span><span class="si">%s</span><span class="s">;mode:</span><span class="si">%s</span><span class="s">;functional:</span><span class="si">%s</span><span class="s">;kp_grid_dens:</span><span class="si">%s</span><span class="s">prec:</span><span class="si">%s</span><span class="s">;tol:</span><span class="si">%s</span><span class="s">;test:</span><span class="si">%s</span><span class="s">;converge:</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> \
+                  <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_code</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;source&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;jobs&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;mode&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;functional&#39;</span><span class="p">],</span>
+                   <span class="bp">self</span><span class="p">[</span><span class="s">&#39;kp_grid_dens&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;prec&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;tol&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;test&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;converge&#39;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">hashstr</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="GWSpecs.help"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWSpecs.help">[docs]</a>    <span class="k">def</span> <span class="nf">help</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&quot;source:       poscar, mp-vasp, any other will be interpreted as a filename to read mp-id&#39;s from </span><span class="se">\n</span><span class="s">&quot;</span> \
+               <span class="s">&#39;              poscar will read files starting with POSCAR_ in the working folder </span><span class="se">\n</span><span class="s">&#39;</span> \
+               <span class="s">&#39;mode:         input, ceci, fw </span><span class="se">\n</span><span class="s">&#39;</span> \
+               <span class="s">&#39;functional:   PBE, LDA </span><span class="se">\n</span><span class="s">&#39;</span> \
+               <span class="s">&#39;jobs:         prep, G0W0, GW0, scGW0, no option, just enter, remove the last option </span><span class="se">\n</span><span class="s">&#39;</span> \
+               <span class="s">&#39;code:         VASP, ABINIT </span><span class="se">\n</span><span class="s">&#39;</span> \
+               <span class="s">&#39;kp_grid_dens: usually 500 - 1000, 1 gives gamma only, 2 gives a 2x2x2 mesh </span><span class="se">\n</span><span class="s">&#39;</span> \
+               <span class="s">&#39;tol:          tolerance for determining convergence d(gap)/d(encuteps) and d(gap)/d(nbands) &lt; tol </span><span class="se">\n</span><span class="s">&#39;</span> \
+               <span class="s">&#39;              for negative values the data is extra polated agains 1/n and covergence wrt the </span><span class="se">\n</span><span class="s">&#39;</span> \
+               <span class="s">&#39;              complete limit is tested </span><span class="se">\n</span><span class="s">&#39;</span> \
+               <span class="s">&#39;test:         run all settings defined in test the calculation specific tests </span><span class="se">\n</span><span class="s">&#39;</span> \
+               <span class="s">&#39;converge:     run all settings defined in convs at low kp mesh, determine converged values, </span><span class="se">\n</span><span class="s">&#39;</span> \
+               <span class="s">&#39;              rerun all test defined in tests relative to the converged valuues with provided </span><span class="se">\n</span><span class="s">&#39;</span> \
+               <span class="s">&#39;              kp_grid dens&#39;</span> \
+               <span class="s">&#39;prec:         m, h&#39;</span>
+</div>
+<div class="viewcode-block" id="GWSpecs.to_dict"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWSpecs.to_dict">[docs]</a>    <span class="k">def</span> <span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span>
+</div>
+<div class="viewcode-block" id="GWSpecs.from_dict"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWSpecs.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_code_interface</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">test</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="GWSpecs.test"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWSpecs.test">[docs]</a>    <span class="k">def</span> <span class="nf">test</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        test if there are inherent errors in the input</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">warnings</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">errors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">code_interface</span><span class="o">.</span><span class="n">test</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;mode&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&#39;input&#39;</span><span class="p">,</span> <span class="s">&#39;ceci&#39;</span><span class="p">,</span> <span class="s">&#39;fw&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;unspecified mode&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;source&quot;</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&#39;poscar&#39;</span><span class="p">,</span> <span class="s">&#39;mp-vasp&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;source&#39;</span><span class="p">]):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;no structures defined&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;test&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;converge&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;both &quot;test&quot; and &quot;converge&quot; are specified, only one can be done at the same time&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;converge&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;mode&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&#39;fw&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;only real converging in fw mode, for other modes ALL convergence steps are created&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">errors</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">errors</span><span class="p">))</span> <span class="o">+</span> <span class="s">&#39; error(s) found:&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">error</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">errors</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&#39; &gt; &#39;</span> <span class="o">+</span> <span class="n">error</span><span class="p">)</span>
+            <span class="nb">exit</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">warnings</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">warnings</span><span class="p">))</span> <span class="o">+</span> <span class="s">&#39; warning(s) found:&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">warning</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">warnings</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&#39; &gt; &#39;</span> <span class="o">+</span> <span class="n">warning</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset_job_collection</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="GWSpecs.excecute_flow"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWSpecs.excecute_flow">[docs]</a>    <span class="k">def</span> <span class="nf">excecute_flow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        excecute spec prepare input/jobfiles or submit to fw for a given structure and the given code interface</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># todo the mode should actually be handeled here... and not inside the code interface</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">code_interface</span><span class="o">.</span><span class="n">excecute_flow</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="GWSpecs.process_data"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWSpecs.process_data">[docs]</a>    <span class="k">def</span> <span class="nf">process_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Process the data of a set of GW calculations:</span>
+<span class="sd">        for &#39;single&#39; and &#39;test&#39; calculations the data is read and outputted</span>
+<span class="sd">        for the parameter scanning part of a convergence calculation the data is read and parameters that provide</span>
+<span class="sd">        converged results are determined</span>
+<span class="sd">        for the &#39;full&#39; part of a convergence calculation the data is read and it is tested if the slopes are in</span>
+<span class="sd">        agreement with the scanning part</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">GWConvergenceData</span><span class="p">(</span><span class="n">spec</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="o">=</span><span class="n">structure</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;converge&#39;</span><span class="p">]:</span>
+            <span class="n">done</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">data</span><span class="o">.</span><span class="n">read_full_res_from_file</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">full_res</span><span class="p">[</span><span class="s">&#39;all_done&#39;</span><span class="p">]:</span>
+                    <span class="n">done</span> <span class="o">=</span> <span class="bp">True</span>
+                    <span class="k">print</span><span class="p">(</span><span class="s">&#39;| no action needed al is done already&#39;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">IOError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">,</span> <span class="ne">SyntaxError</span><span class="p">):</span>
+                <span class="k">pass</span>
+
+            <span class="n">data</span><span class="o">.</span><span class="n">set_type</span><span class="p">()</span>
+            <span class="k">while</span> <span class="ow">not</span> <span class="n">done</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">type</span><span class="p">[</span><span class="s">&#39;parm_scr&#39;</span><span class="p">]:</span>
+                    <span class="n">data</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+                    <span class="c">#print data.data</span>
+                    <span class="c"># determine the parameters that give converged results</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&#39;| parm_scr type calculation but no data found.&#39;</span><span class="p">)</span>
+                        <span class="k">break</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">24</span><span class="p">:</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&#39;| parm_scr type calculation but no complete data found,&#39;</span> \
+                              <span class="s">&#39; check is all calculations are done.&#39;</span><span class="p">)</span>
+                        <span class="k">break</span>
+
+                    <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">find_conv_pars_scf</span><span class="p">(</span><span class="s">&#39;ecut&#39;</span><span class="p">,</span> <span class="s">&#39;full_width&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="p">[</span><span class="s">&#39;tol&#39;</span><span class="p">])[</span><span class="mi">0</span><span class="p">]:</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&#39;| parm_scr type calculation, converged scf values found&#39;</span><span class="p">)</span>
+                        <span class="c">#print data.conv_res</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&#39;| parm_scr type calculation, no converged scf values found&#39;</span><span class="p">)</span>
+                        <span class="n">data</span><span class="o">.</span><span class="n">full_res</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;remark&#39;</span><span class="p">:</span> <span class="s">&#39;No converged SCf parameter found. &#39;</span>
+                                                                             <span class="s">&#39;Solution not implemented.&#39;</span><span class="p">})</span>
+                        <span class="n">data</span><span class="o">.</span><span class="n">print_full_res</span><span class="p">()</span>
+                        <span class="n">data</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;values&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;ecut&#39;</span><span class="p">:</span> <span class="mi">40</span><span class="o">*</span><span class="n">eV_to_Ha</span><span class="p">})</span>
+                        <span class="n">data</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;control&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;ecut&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">})</span>
+                        <span class="n">done</span> <span class="o">=</span> <span class="bp">True</span>
+                    <span class="c"># if converged ok, if not increase the grid parameter of the next set of calculations</span>
+                    <span class="n">extrapolated</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">find_conv_pars</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s">&#39;tol&#39;</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;control&#39;</span><span class="p">][</span><span class="s">&#39;nbands&#39;</span><span class="p">]:</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&#39;| parm_scr type calculation, converged values found, extrapolated value: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span>\
+                              <span class="n">extrapolated</span><span class="p">[</span><span class="mi">4</span><span class="p">])</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&#39;| parm_scr type calculation, no converged values found, increasing grid&#39;</span><span class="p">)</span>
+                        <span class="n">data</span><span class="o">.</span><span class="n">full_res</span><span class="p">[</span><span class="s">&#39;grid&#39;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">data</span><span class="o">.</span><span class="n">print_full_res</span><span class="p">()</span>
+                    <span class="n">data</span><span class="o">.</span><span class="n">print_conv_res</span><span class="p">()</span>
+                    <span class="c"># plot data:</span>
+                    <span class="n">print_gnuplot_header</span><span class="p">(</span><span class="s">&#39;plots&#39;</span><span class="p">,</span> <span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span><span class="o">+</span><span class="s">&#39; tol = &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s">&#39;tol&#39;</span><span class="p">]),</span> <span class="n">filetype</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+                    <span class="n">data</span><span class="o">.</span><span class="n">print_gnuplot_line</span><span class="p">(</span><span class="s">&#39;plots&#39;</span><span class="p">)</span>
+                    <span class="n">data</span><span class="o">.</span><span class="n">print_plot_data</span><span class="p">()</span>
+                    <span class="n">done</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="k">elif</span> <span class="n">data</span><span class="o">.</span><span class="n">type</span><span class="p">[</span><span class="s">&#39;full&#39;</span><span class="p">]:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="o">.</span><span class="n">read_conv_res_from_file</span><span class="p">(</span><span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.conv_res&#39;</span><span class="p">):</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&#39;| Full type calculation but the conv_res file is not available, trying to reconstruct&#39;</span><span class="p">)</span>
+                        <span class="n">data</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+                        <span class="n">data</span><span class="o">.</span><span class="n">find_conv_pars</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s">&#39;tol&#39;</span><span class="p">])</span>
+                        <span class="n">data</span><span class="o">.</span><span class="n">print_conv_res</span><span class="p">()</span>
+                    <span class="n">data</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="s">&#39;.conv&#39;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&#39;| Full type calculation but no data found.&#39;</span><span class="p">)</span>
+                        <span class="n">done</span> <span class="o">=</span> <span class="bp">True</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&#39;| Full type calculation but no complete data found.&#39;</span><span class="p">)</span>
+                        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="p">:</span>
+                            <span class="k">print</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+                        <span class="n">done</span> <span class="o">=</span> <span class="bp">True</span>
+                    <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">test_full_kp_results</span><span class="p">(</span><span class="n">tol_rel</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">tol_abs</span><span class="o">=</span><span class="mf">0.001</span><span class="p">):</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&#39;| Full type calculation and the full results agree with the parm_scr.&#39;</span> \
+                              <span class="s">&#39; All_done for this compound.&#39;</span><span class="p">)</span>
+                        <span class="n">data</span><span class="o">.</span><span class="n">full_res</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;all_done&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">})</span>
+                        <span class="n">data</span><span class="o">.</span><span class="n">print_full_res</span><span class="p">()</span>
+                        <span class="n">done</span> <span class="o">=</span> <span class="bp">True</span>
+                        <span class="c">#data.print_plot_data()</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">code_interface</span><span class="o">.</span><span class="n">store_results</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&#39;| Full type calculation but the full results do not agree with the parm_scr.&#39;</span><span class="p">)</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&#39;|   Increase the tol to find beter converged parameters and test the full grid again.&#39;</span><span class="p">)</span>
+                        <span class="k">print</span><span class="p">(</span><span class="s">&#39;|   TODO&#39;</span><span class="p">)</span>
+                        <span class="c"># read the system specific tol for System.conv_res</span>
+                        <span class="c"># if it&#39;s not there create it from the global tol</span>
+                        <span class="c"># reduce tol</span>
+                        <span class="c"># set data.type to convergence</span>
+                        <span class="c"># loop</span>
+                        <span class="n">done</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&#39;test&#39;</span><span class="p">]:</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">set_type</span><span class="p">()</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">print_plot_data</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">set_type</span><span class="p">()</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">print_plot_data</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="GWSpecs.print_results"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWSpecs.print_results">[docs]</a>    <span class="k">def</span> <span class="nf">print_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">file_name</span><span class="o">=</span><span class="s">&#39;convergence_results&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">GWConvergenceData</span><span class="p">(</span><span class="n">spec</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="o">=</span><span class="n">structure</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">read_conv_res_from_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.res&#39;</span><span class="p">,</span> <span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.conv_res&#39;</span><span class="p">)):</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s"> </span><span class="si">%s</span><span class="s"> &#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;values&#39;</span><span class="p">][</span><span class="s">&#39;ecuteps&#39;</span><span class="p">]),</span> <span class="nb">str</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;values&#39;</span><span class="p">][</span><span class="s">&#39;nscf_nbands&#39;</span><span class="p">]))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s"> 0.0 0.0 &#39;</span> <span class="o">%</span> <span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
+        <span class="n">con_dat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">code_interface</span><span class="o">.</span><span class="n">read_convergence_data</span><span class="p">(</span><span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.res&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">con_dat</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">+=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s"> &#39;</span> <span class="o">%</span> <span class="n">con_dat</span><span class="p">[</span><span class="s">&#39;gwgap&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">+=</span> <span class="s">&#39;0.0 &#39;</span>
+        <span class="n">s</span> <span class="o">+=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="s">&#39;a&#39;</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="GWSpecs.insert_in_database"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWSpecs.insert_in_database">[docs]</a>    <span class="k">def</span> <span class="nf">insert_in_database</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">clean_on_ok</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">db_name</span><span class="o">=</span><span class="s">&#39;GW_results&#39;</span><span class="p">,</span> <span class="n">collection</span><span class="o">=</span><span class="s">&#39;general&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        insert the convergence data and the &#39;sigres&#39; in a database</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">GWConvergenceData</span><span class="p">(</span><span class="n">spec</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="o">=</span><span class="n">structure</span><span class="p">)</span>
+        <span class="n">success</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">read_conv_res_from_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.res&#39;</span><span class="p">,</span> <span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.conv_res&#39;</span><span class="p">))</span>
+        <span class="n">con_dat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">code_interface</span><span class="o">.</span><span class="n">read_convergence_data</span><span class="p">(</span><span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.res&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s">&#39;extra_abivars&#39;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&#39;r&#39;</span><span class="p">)</span>
+            <span class="n">extra</span> <span class="o">=</span> <span class="n">ast</span><span class="o">.</span><span class="n">literal_eval</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">IOError</span><span class="p">):</span>
+            <span class="n">extra</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">ps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">code_interface</span><span class="o">.</span><span class="n">read_ps_dir</span><span class="p">()</span>
+        <span class="n">results_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.res&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">code_interface</span><span class="o">.</span><span class="n">gw_data_file</span><span class="p">)</span>
+        <span class="n">data_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.res&#39;</span><span class="p">,</span> <span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span><span class="o">+</span><span class="s">&#39;.data&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">success</span> <span class="ow">and</span> <span class="n">con_dat</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;system&#39;</span><span class="p">:</span> <span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">),</span>
+                     <span class="s">&#39;item&#39;</span><span class="p">:</span> <span class="n">structure</span><span class="o">.</span><span class="n">item</span><span class="p">,</span>
+                     <span class="s">&#39;spec_hash&#39;</span><span class="p">:</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span>
+                     <span class="s">&#39;extra_vars_hash&#39;</span><span class="p">:</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span> <span class="k">if</span> <span class="n">extra</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="nb">hash</span><span class="p">(</span><span class="nb">frozenset</span><span class="p">(</span><span class="n">extra</span><span class="o">.</span><span class="n">items</span><span class="p">())),</span>
+                     <span class="s">&#39;ps&#39;</span><span class="p">:</span> <span class="n">ps</span><span class="p">}</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;query:&#39;</span><span class="p">,</span> <span class="n">query</span><span class="p">)</span>
+            <span class="n">entry</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+            <span class="n">entry</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;conv_res&#39;</span><span class="p">:</span> <span class="n">data</span><span class="o">.</span><span class="n">conv_res</span><span class="p">,</span>
+                          <span class="s">&#39;spec&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),</span>
+                          <span class="s">&#39;extra_vars&#39;</span><span class="p">:</span> <span class="n">extra</span><span class="p">,</span>
+                          <span class="s">&#39;structure&#39;</span><span class="p">:</span> <span class="n">structure</span><span class="o">.</span><span class="n">to_dict</span><span class="p">,</span>
+                          <span class="s">&#39;gw_results&#39;</span><span class="p">:</span> <span class="n">con_dat</span><span class="p">,</span>
+                          <span class="s">&#39;results_file&#39;</span><span class="p">:</span> <span class="n">results_file</span><span class="p">,</span>
+                          <span class="s">&#39;data_file&#39;</span><span class="p">:</span> <span class="n">data_file</span><span class="p">})</span>
+
+            <span class="c"># generic section that should go into the base class like</span>
+            <span class="c">#   insert_in_database(query, entry, db_name, collection, server=&quot;marilyn.pcpm.ucl.ac.be&quot;)</span>
+            <span class="n">local_serv</span> <span class="o">=</span> <span class="n">pymongo</span><span class="o">.</span><span class="n">Connection</span><span class="p">(</span><span class="s">&quot;marilyn.pcpm.ucl.ac.be&quot;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">user</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;MAR_USER&#39;</span><span class="p">]</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="n">user</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s">&#39;DataBase user name: &#39;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">pwd</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;MAR_PAS&#39;</span><span class="p">]</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="n">pwd</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s">&#39;DataBase pwd: &#39;</span><span class="p">)</span>
+            <span class="n">db</span> <span class="o">=</span> <span class="n">local_serv</span><span class="p">[</span><span class="n">db_name</span><span class="p">]</span>
+            <span class="n">db</span><span class="o">.</span><span class="n">authenticate</span><span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">pwd</span><span class="p">)</span>
+            <span class="n">col</span> <span class="o">=</span> <span class="n">db</span><span class="p">[</span><span class="n">collection</span><span class="p">]</span>
+            <span class="k">print</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+            <span class="n">gfs</span> <span class="o">=</span> <span class="n">gridfs</span><span class="o">.</span><span class="n">GridFS</span><span class="p">(</span><span class="n">db</span><span class="p">)</span>
+            <span class="n">count</span> <span class="o">=</span> <span class="n">col</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">query</span><span class="p">)</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">count</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">entry</span><span class="p">[</span><span class="s">&#39;results_file&#39;</span><span class="p">],</span> <span class="s">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                        <span class="n">entry</span><span class="p">[</span><span class="s">&#39;results_file&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">gfs</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+                <span class="k">except</span> <span class="ne">IOError</span><span class="p">:</span>
+                    <span class="k">print</span><span class="p">(</span><span class="n">entry</span><span class="p">[</span><span class="s">&#39;results_file&#39;</span><span class="p">],</span> <span class="s">&#39;not found&#39;</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">entry</span><span class="p">[</span><span class="s">&#39;data_file&#39;</span><span class="p">],</span> <span class="s">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                        <span class="n">entry</span><span class="p">[</span><span class="s">&#39;data_file&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">gfs</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+                <span class="k">except</span> <span class="ne">IOError</span><span class="p">:</span>
+                    <span class="k">print</span><span class="p">(</span><span class="n">entry</span><span class="p">[</span><span class="s">&#39;data_file&#39;</span><span class="p">],</span> <span class="s">&#39;not found&#39;</span><span class="p">)</span>
+                <span class="n">col</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">entry</span><span class="p">)</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&#39;inserted&#39;</span><span class="p">,</span> <span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="n">count</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">new_entry</span> <span class="o">=</span> <span class="n">col</span><span class="o">.</span><span class="n">find_one</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">print</span><span class="p">(</span><span class="s">&#39;removing file &#39;</span><span class="p">,</span> <span class="n">new_entry</span><span class="p">[</span><span class="s">&#39;results_file&#39;</span><span class="p">],</span> <span class="s">&#39;from db&#39;</span><span class="p">)</span>
+                    <span class="n">gfs</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">new_entry</span><span class="p">[</span><span class="s">&#39;results_file&#39;</span><span class="p">])</span>
+                <span class="k">except</span><span class="p">:</span>
+                    <span class="k">print</span><span class="p">(</span><span class="s">&#39;remove failed&#39;</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">print</span><span class="p">(</span><span class="s">&#39;removing file &#39;</span><span class="p">,</span> <span class="n">new_entry</span><span class="p">[</span><span class="s">&#39;data_file&#39;</span><span class="p">],</span> <span class="s">&#39;from db&#39;</span><span class="p">)</span>
+                    <span class="n">gfs</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">new_entry</span><span class="p">[</span><span class="s">&#39;data_file&#39;</span><span class="p">])</span>
+                <span class="k">except</span><span class="p">:</span>
+                    <span class="k">print</span><span class="p">(</span><span class="s">&#39;remove failed&#39;</span><span class="p">)</span>
+                <span class="n">new_entry</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">entry</span><span class="p">)</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&#39;adding&#39;</span><span class="p">,</span> <span class="n">new_entry</span><span class="p">[</span><span class="s">&#39;results_file&#39;</span><span class="p">],</span> <span class="n">new_entry</span><span class="p">[</span><span class="s">&#39;data_file&#39;</span><span class="p">])</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">new_entry</span><span class="p">[</span><span class="s">&#39;results_file&#39;</span><span class="p">],</span> <span class="s">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                        <span class="n">new_entry</span><span class="p">[</span><span class="s">&#39;results_file&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">gfs</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+                <span class="k">except</span> <span class="ne">IOError</span><span class="p">:</span>
+                    <span class="k">print</span><span class="p">(</span><span class="n">new_entry</span><span class="p">[</span><span class="s">&#39;results_file&#39;</span><span class="p">],</span> <span class="s">&#39;not found&#39;</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">new_entry</span><span class="p">[</span><span class="s">&#39;data_file&#39;</span><span class="p">],</span> <span class="s">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                        <span class="n">new_entry</span><span class="p">[</span><span class="s">&#39;data_file&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">gfs</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+                <span class="k">except</span> <span class="ne">IOError</span><span class="p">:</span>
+                    <span class="k">print</span><span class="p">(</span><span class="n">new_entry</span><span class="p">[</span><span class="s">&#39;data_file&#39;</span><span class="p">],</span> <span class="s">&#39;not found&#39;</span><span class="p">)</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&#39;as &#39;</span><span class="p">,</span> <span class="n">new_entry</span><span class="p">[</span><span class="s">&#39;results_file&#39;</span><span class="p">],</span> <span class="n">new_entry</span><span class="p">[</span><span class="s">&#39;data_file&#39;</span><span class="p">])</span>
+                <span class="n">col</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">new_entry</span><span class="p">)</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&#39;updated&#39;</span><span class="p">,</span> <span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&#39;duplicate entry ... &#39;</span><span class="p">)</span>
+            <span class="n">local_serv</span><span class="o">.</span><span class="n">disconnect</span><span class="p">()</span>
+            <span class="c"># end generic section</span>
+
+            <span class="c">#todo remove the workfolders</span>
+
+</div></div>
+<div class="viewcode-block" id="GWConvergenceData"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWConvergenceData">[docs]</a><span class="k">class</span> <span class="nc">GWConvergenceData</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for GW data, reading, plotting and testing for convergence</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">spec</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">structure</span> <span class="o">=</span> <span class="n">structure</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spec</span> <span class="o">=</span> <span class="n">spec</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">code_interface</span> <span class="o">=</span> <span class="n">get_code_interface</span><span class="p">(</span><span class="n">spec</span><span class="p">[</span><span class="s">&#39;code&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;control&#39;</span><span class="p">:</span> <span class="p">{},</span> <span class="s">&#39;values&#39;</span><span class="p">:</span> <span class="p">{},</span> <span class="s">&#39;derivatives&#39;</span><span class="p">:</span> <span class="p">{}}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">full_res</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;all_done&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span> <span class="s">&#39;grid&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">s_name</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;parm_scr&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span> <span class="s">&#39;full&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span> <span class="s">&#39;single&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">,</span> <span class="s">&#39;test&#39;</span><span class="p">:</span> <span class="bp">False</span><span class="p">}</span>
+
+<div class="viewcode-block" id="GWConvergenceData.read_conv_res_from_file"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWConvergenceData.read_conv_res_from_file">[docs]</a>    <span class="k">def</span> <span class="nf">read_conv_res_from_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read the results of a previous parameter screening set of calculations from file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;reading&#39;</span><span class="p">)</span>
+        <span class="n">success</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&#39;r&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span> <span class="o">=</span> <span class="n">ast</span><span class="o">.</span><span class="n">literal_eval</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">success</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">SyntaxError</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;Problems reading &#39;</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">IOError</span><span class="p">):</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;Inputfile &#39;</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="s">&#39; not found.&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">success</span>
+</div>
+<div class="viewcode-block" id="GWConvergenceData.read_full_res_from_file"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWConvergenceData.read_full_res_from_file">[docs]</a>    <span class="k">def</span> <span class="nf">read_full_res_from_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read the results of a full set of calculations from file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;.full_res&#39;</span>
+        <span class="n">success</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&#39;r&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">full_res</span> <span class="o">=</span> <span class="n">ast</span><span class="o">.</span><span class="n">literal_eval</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">success</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">except</span> <span class="ne">SyntaxError</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;Problems reading &#39;</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">IOError</span><span class="p">):</span>
+            <span class="k">print</span><span class="p">(</span><span class="s">&#39;Inputfile &#39;</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="s">&#39; not found.&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">success</span>
+</div>
+<div class="viewcode-block" id="GWConvergenceData.read"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWConvergenceData.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subset</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read the G-G gaps from a GW calculation ABINIT / VASP.</span>
+<span class="sd">        subset: read from System.subset (the . &#39;dot&#39; should be included in subset)</span>
+<span class="sd">        Data is placed in self.data, combined with the values of key parameters</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">tree</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="n">subset</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">dirs</span> <span class="ow">in</span> <span class="n">tree</span><span class="p">:</span>
+            <span class="n">read</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">code_interface</span><span class="o">.</span><span class="n">read_convergence_data</span><span class="p">(</span><span class="n">dirs</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">read</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">n</span><span class="p">:</span> <span class="n">read</span><span class="p">})</span>
+                <span class="n">n</span> <span class="o">+=</span> <span class="mi">1</span>
+</div>
+<div class="viewcode-block" id="GWConvergenceData.set_type"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWConvergenceData.set_type">[docs]</a>    <span class="k">def</span> <span class="nf">set_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        determine the type of data we are looking at.</span>
+<span class="sd">        single   : Single calculation with standard parameters</span>
+<span class="sd">        test     : Test calculation, results of a set of calculations specified in TESTS</span>
+<span class="sd">        parm_scr : Convergence calculation first part, screening the parameters nbands and ecuteps at a low kp density</span>
+<span class="sd">        full     : Convergence calculation second part, testing the obtained parameters values at the provided kp density</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="p">[</span><span class="s">&#39;converge&#39;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;.conv&#39;</span><span class="p">):</span>
+                <span class="c"># convergence setting in spec, but only the low grid dirs exist</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">[</span><span class="s">&#39;parm_scr&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;.conv&#39;</span><span class="p">):</span>
+                <span class="c"># test case, separate folder was made for the .conv caluclations</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">[</span><span class="s">&#39;full&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;.conv&#39;</span><span class="p">):</span>
+                <span class="c"># both convergence and full dirs exists</span>
+                <span class="n">a</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getatime</span><span class="p">(</span><span class="n">name</span><span class="p">),</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getctime</span><span class="p">(</span><span class="n">name</span><span class="p">),</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getmtime</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+                <span class="n">b</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getatime</span><span class="p">(</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;.conv&#39;</span><span class="p">),</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getctime</span><span class="p">(</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;.conv&#39;</span><span class="p">),</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getmtime</span><span class="p">(</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;.conv&#39;</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">b</span> <span class="o">&gt;</span> <span class="n">a</span><span class="p">:</span>
+                    <span class="c"># full is newer</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">[</span><span class="s">&#39;full&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="k">elif</span> <span class="n">a</span> <span class="o">&gt;</span> <span class="n">b</span><span class="p">:</span>
+                    <span class="c"># convergence on low grid is newer</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">[</span><span class="s">&#39;parm_scr&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec</span><span class="p">[</span><span class="s">&#39;test&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">[</span><span class="s">&#39;test&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">[</span><span class="s">&#39;single&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="GWConvergenceData.find_conv_pars"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWConvergenceData.find_conv_pars">[docs]</a>    <span class="k">def</span> <span class="nf">find_conv_pars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.0001</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        find the pair of smallest values of ecuteps and nbands that give a gamma - gamma gap converged within tol</span>
+<span class="sd">        positive tol ensures the dirivative is smaller than tol</span>
+<span class="sd">        negative tol ensures the value is closer than -tol to the assymtotic limmit of a &#39;A + B / x ^ N&#39; fit</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ecuteps_l</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">nbands_l</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">ecuteps_c</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">nbands_c</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">ecuteps_d</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">nbands_d</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">gap</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">y_conv</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">z_conv</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">y_conv_der</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">extrapolated</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">xs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_var_range</span><span class="p">(</span><span class="s">&#39;nbands&#39;</span><span class="p">)</span>
+        <span class="n">ys</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_var_range</span><span class="p">(</span><span class="s">&#39;ecuteps&#39;</span><span class="p">)</span>
+        <span class="n">zd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_data_array</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="n">zd</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+        <span class="c"># print &#39;plot &quot;&#39;+self.name+&#39;condat&#39;+&#39;&quot;&#39;</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">xs</span><span class="p">:</span>
+            <span class="n">zs</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="n">ys</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">zs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">zd</span><span class="p">[</span><span class="n">x</span><span class="p">][</span><span class="n">y</span><span class="p">])</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                    <span class="k">pass</span>
+            <span class="n">conv_data</span> <span class="o">=</span> <span class="n">test_conv</span><span class="p">(</span><span class="n">ys</span><span class="p">,</span> <span class="n">zs</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="n">tol</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="s">&#39;ecuteps at &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+            <span class="n">extrapolated</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">conv_data</span><span class="p">[</span><span class="mi">4</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">conv_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">y_conv</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">conv_data</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="n">y_conv_der</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">conv_data</span><span class="p">[</span><span class="mi">5</span><span class="p">])</span>
+                <span class="n">z_conv</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">conv_data</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+                <span class="n">ecuteps_l</span> <span class="o">=</span> <span class="n">conv_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">y_conv</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
+                <span class="n">z_conv</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ecuteps_l</span><span class="p">:</span>
+            <span class="n">conv_data</span> <span class="o">=</span> <span class="n">test_conv</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">z_conv</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="n">tol</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="s">&#39;nbands&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">conv_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">nbands_l</span> <span class="o">=</span> <span class="n">conv_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">nbands_c</span> <span class="o">=</span> <span class="n">conv_data</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">gap</span> <span class="o">=</span> <span class="n">conv_data</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+                <span class="n">ecuteps_c</span> <span class="o">=</span> <span class="n">y_conv</span><span class="p">[</span><span class="n">conv_data</span><span class="p">[</span><span class="mi">3</span><span class="p">]]</span>
+                <span class="n">nbands_d</span> <span class="o">=</span> <span class="n">conv_data</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span>
+                <span class="n">ecuteps_d</span> <span class="o">=</span> <span class="n">y_conv_der</span><span class="p">[</span><span class="n">conv_data</span><span class="p">[</span><span class="mi">3</span><span class="p">]]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;control&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;ecuteps&#39;</span><span class="p">:</span> <span class="n">ecuteps_l</span><span class="p">,</span> <span class="s">&#39;nbands&#39;</span><span class="p">:</span> <span class="n">nbands_l</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;values&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;ecuteps&#39;</span><span class="p">:</span> <span class="n">ecuteps_c</span><span class="p">,</span> <span class="s">&#39;nbands&#39;</span><span class="p">:</span> <span class="n">nbands_c</span><span class="p">,</span> <span class="s">&#39;gap&#39;</span><span class="p">:</span> <span class="n">gap</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;derivatives&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&#39;ecuteps&#39;</span><span class="p">:</span> <span class="n">ecuteps_d</span><span class="p">,</span> <span class="s">&#39;nbands&#39;</span><span class="p">:</span> <span class="n">nbands_d</span><span class="p">})</span>
+        <span class="k">return</span> <span class="n">test_conv</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">extrapolated</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">tol</span><span class="o">=-</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="s">&#39;nbands at extrapolated ecuteps&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="GWConvergenceData.find_conv_pars_scf"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWConvergenceData.find_conv_pars_scf">[docs]</a>    <span class="k">def</span> <span class="nf">find_conv_pars_scf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x_name</span><span class="p">,</span> <span class="n">y_name</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.0001</span><span class="p">):</span>
+        <span class="n">xs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_var_range</span><span class="p">(</span><span class="n">x_name</span><span class="p">)</span>
+        <span class="n">ys</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c">#print self.get_data_array_2d(x_name, y_name)</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">xs</span><span class="p">:</span>
+            <span class="n">ys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_data_array_2d</span><span class="p">(</span><span class="n">x_name</span><span class="p">,</span> <span class="n">y_name</span><span class="p">)[</span><span class="n">x</span><span class="p">])</span>
+        <span class="n">conv_data</span> <span class="o">=</span> <span class="n">test_conv</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">ys</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="n">tol</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="n">x_name</span><span class="p">)</span>
+        <span class="c">#print conv_data, {x_name: conv_data[0]}, {x_name: conv_data[1]}, {x_name: conv_data[5]}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;control&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">x_name</span><span class="p">:</span> <span class="n">conv_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;values&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">x_name</span><span class="p">:</span> <span class="n">conv_data</span><span class="p">[</span><span class="mi">1</span><span class="p">]})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;derivatives&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">x_name</span><span class="p">:</span> <span class="n">conv_data</span><span class="p">[</span><span class="mi">5</span><span class="p">]})</span>
+        <span class="k">return</span> <span class="n">conv_data</span>
+</div>
+<div class="viewcode-block" id="GWConvergenceData.test_full_kp_results"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWConvergenceData.test_full_kp_results">[docs]</a>    <span class="k">def</span> <span class="nf">test_full_kp_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tol_rel</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">tol_abs</span><span class="o">=</span><span class="mf">0.0001</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        test if the slopes of the gap data at the full kp mesh are &#39;comparable&#39; to those of the low kp mesh</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;test full kp results&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">read_conv_res_from_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">+</span><span class="s">&#39;.conv_res&#39;</span><span class="p">)</span>
+        <span class="n">nbs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_var_range</span><span class="p">(</span><span class="s">&#39;nbands&#39;</span><span class="p">)</span>
+        <span class="n">ecs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_var_range</span><span class="p">(</span><span class="s">&#39;ecuteps&#39;</span><span class="p">)</span>
+        <span class="n">zd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_data_array</span><span class="p">()</span>
+        <span class="n">nb_slope</span> <span class="o">=</span> <span class="p">(</span><span class="n">zd</span><span class="p">[</span><span class="n">nbs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]][</span><span class="n">ecs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span> <span class="o">-</span> <span class="n">zd</span><span class="p">[</span><span class="n">nbs</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="n">ecs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]])</span> <span class="o">/</span> <span class="p">(</span><span class="n">nbs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">nbs</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">ec_slope</span> <span class="o">=</span> <span class="p">(</span><span class="n">zd</span><span class="p">[</span><span class="n">nbs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]][</span><span class="n">ecs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span> <span class="o">-</span> <span class="n">zd</span><span class="p">[</span><span class="n">nbs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]][</span><span class="n">ecs</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span> <span class="o">/</span> <span class="p">(</span><span class="n">ecs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">ecs</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;        parm_scan   full&#39;</span><span class="p">)</span>
+        <span class="n">lnb</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">nb_slope</span><span class="p">)</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">tol_rel</span><span class="p">)</span> <span class="o">*</span> <span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;derivatives&#39;</span><span class="p">][</span><span class="s">&#39;nbands&#39;</span><span class="p">])</span> <span class="ow">or</span> <span class="nb">abs</span><span class="p">(</span><span class="n">nb_slope</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">tol_abs</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;nbands  </span><span class="si">%0.5f</span><span class="s">     </span><span class="si">%0.5f</span><span class="s"> </span><span class="si">%r</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;derivatives&#39;</span><span class="p">][</span><span class="s">&#39;nbands&#39;</span><span class="p">]),</span> <span class="nb">abs</span><span class="p">(</span><span class="n">nb_slope</span><span class="p">),</span> <span class="n">lnb</span><span class="p">))</span>
+        <span class="n">lec</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">ec_slope</span><span class="p">)</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">tol_rel</span><span class="p">)</span> <span class="o">*</span> <span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;derivatives&#39;</span><span class="p">][</span><span class="s">&#39;ecuteps&#39;</span><span class="p">])</span> <span class="ow">or</span> <span class="nb">abs</span><span class="p">(</span><span class="n">ec_slope</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">tol_abs</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;ecuteps </span><span class="si">%0.5f</span><span class="s">     </span><span class="si">%0.5f</span><span class="s"> </span><span class="si">%r</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;derivatives&#39;</span><span class="p">][</span><span class="s">&#39;ecuteps&#39;</span><span class="p">]),</span> <span class="nb">abs</span><span class="p">(</span><span class="n">ec_slope</span><span class="p">),</span> <span class="n">lec</span><span class="p">))</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">&#39;values: (nb, ec, gap)&#39;</span><span class="p">,</span> <span class="n">nbs</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ecs</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">zd</span><span class="p">[</span><span class="n">nbs</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="n">ecs</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+        <span class="k">if</span> <span class="n">lnb</span> <span class="ow">and</span> <span class="n">lec</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">False</span>
+</div>
+<div class="viewcode-block" id="GWConvergenceData.get_sorted_data_list"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWConvergenceData.get_sorted_data_list">[docs]</a>    <span class="k">def</span> <span class="nf">get_sorted_data_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_type</span><span class="o">=</span><span class="s">&#39;gw_gap&#39;</span><span class="p">):</span>
+        <span class="n">data_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">data_type</span> <span class="o">==</span> <span class="s">&#39;gw_gap&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="s">&#39;gwgap&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">data_list</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s">&#39;nbands&#39;</span><span class="p">],</span>
+                                          <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s">&#39;ecuteps&#39;</span><span class="p">],</span>
+                                          <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s">&#39;gwgap&#39;</span><span class="p">],</span>
+                                          <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s">&#39;nomega&#39;</span><span class="p">]])</span>
+                    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                        <span class="n">data_list</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s">&#39;nbands&#39;</span><span class="p">],</span>
+                                          <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s">&#39;ecuteps&#39;</span><span class="p">],</span>
+                                          <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s">&#39;gwgap&#39;</span><span class="p">]])</span>
+            <span class="k">elif</span> <span class="n">data_type</span> <span class="o">==</span> <span class="s">&#39;ks_width&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="s">&#39;ecut&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="n">data_list</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s">&#39;ecut&#39;</span><span class="p">],</span>
+                                      <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s">&#39;min&#39;</span><span class="p">],</span>
+                                      <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s">&#39;max&#39;</span><span class="p">]])</span>
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">data_list</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="GWConvergenceData.get_data_array"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWConvergenceData.get_data_array">[docs]</a>    <span class="k">def</span> <span class="nf">get_data_array</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data_array</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">data_array</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s">&#39;nbands&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s">&#39;ecuteps&#39;</span><span class="p">]:</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s">&#39;gwgap&#39;</span><span class="p">]})</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                    <span class="n">data_array</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s">&#39;nbands&#39;</span><span class="p">]:</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s">&#39;ecuteps&#39;</span><span class="p">]:</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s">&#39;gwgap&#39;</span><span class="p">]}})</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">pass</span>
+        <span class="k">return</span> <span class="n">data_array</span>
+</div>
+<div class="viewcode-block" id="GWConvergenceData.get_data_array_2d"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWConvergenceData.get_data_array_2d">[docs]</a>    <span class="k">def</span> <span class="nf">get_data_array_2d</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x_name</span><span class="p">,</span> <span class="n">y_name</span><span class="p">):</span>
+        <span class="n">data_array</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">data_array</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">x_name</span><span class="p">]:</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="n">y_name</span><span class="p">]})</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">pass</span>
+        <span class="k">return</span> <span class="n">data_array</span>
+</div>
+<div class="viewcode-block" id="GWConvergenceData.get_var_range"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWConvergenceData.get_var_range">[docs]</a>    <span class="k">def</span> <span class="nf">get_var_range</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">var</span><span class="p">):</span>
+        <span class="n">var_range</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">data_point</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">data_point</span><span class="p">[</span><span class="n">var</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">var_range</span><span class="p">:</span>
+                        <span class="n">var_range</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data_point</span><span class="p">[</span><span class="n">var</span><span class="p">])</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                    <span class="k">pass</span>
+            <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">var_range</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="GWConvergenceData.print_gnuplot_line"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWConvergenceData.print_gnuplot_line">[docs]</a>    <span class="k">def</span> <span class="nf">print_gnuplot_line</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        print plotting instructions for plotting the G-G gap data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">string1</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s%s%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="s">&quot;set output &#39;&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&quot;.jpeg&#39;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;control&#39;</span><span class="p">][</span><span class="s">&#39;nbands&#39;</span><span class="p">]:</span>
+            <span class="n">string2</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s%s%s%s%s%s%s%s%s%s%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="s">&quot;splot &#39;&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&quot;.data&#39; u 1:2:3 w pm3d, &#39;&lt; echo &quot;</span><span class="p">,</span> <span class="s">&#39;&quot; &#39;</span><span class="p">,</span>
+                       <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;values&#39;</span><span class="p">][</span><span class="s">&#39;nbands&#39;</span><span class="p">]),</span> <span class="s">&#39; &#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;values&#39;</span><span class="p">][</span><span class="s">&#39;ecuteps&#39;</span><span class="p">]),</span> <span class="s">&#39; &#39;</span><span class="p">,</span>
+                       <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;values&#39;</span><span class="p">][</span><span class="s">&#39;gap&#39;</span><span class="p">]),</span> <span class="s">&#39; &quot;&#39;</span><span class="p">,</span> <span class="s">&quot;&#39; w p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">string2</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s%s%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="s">&quot;splot &#39;&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s">&quot;.data&#39; u 1:2:3 w pm3d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&#39;a&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">string1</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">string2</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="GWConvergenceData.print_plot_data"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWConvergenceData.print_plot_data">[docs]</a>    <span class="k">def</span> <span class="nf">print_plot_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        print the gap data in a way for 3d plotting using gnuplot to file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">data_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s">&#39;.data&#39;</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">data_file</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&#39;w&#39;</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_sorted_data_list</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">pass</span>
+        <span class="k">for</span> <span class="n">data</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_sorted_data_list</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">tmp</span> <span class="o">!=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%10.5f</span><span class="s"> </span><span class="si">%10.5f</span><span class="s"> </span><span class="si">%10.5f</span><span class="s"> </span><span class="si">%10.5f</span><span class="s"> </span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="mi">3</span><span class="p">]))</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">KeyError</span><span class="p">,</span> <span class="ne">IndexError</span><span class="p">):</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%10.5f</span><span class="s"> </span><span class="si">%10.5f</span><span class="s"> </span><span class="si">%10.5f</span><span class="s"> </span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="GWConvergenceData.print_conv_res"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWConvergenceData.print_conv_res">[docs]</a>    <span class="k">def</span> <span class="nf">print_conv_res</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        print the results of a parameter screening calculation to file</span>
+<span class="sd">        this file is later used in a subsequent &#39;full&#39; calculation to perform the calculations at a higher kp-mesh</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;control&#39;</span><span class="p">][</span><span class="s">&#39;nbands&#39;</span><span class="p">]</span> <span class="ow">or</span> <span class="bp">True</span><span class="p">:</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s">&#39;.conv_res&#39;</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&#39;w&#39;</span><span class="p">)</span>
+            <span class="n">string</span> <span class="o">=</span> <span class="s">&quot;{&#39;control&#39;: &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;control&#39;</span><span class="p">])</span><span class="o">+</span><span class="s">&quot;, &#39;values&#39;: &quot;</span>
+            <span class="n">string</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">code_interface</span><span class="o">.</span><span class="n">conv_res_string</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span><span class="p">)</span>
+            <span class="n">string</span> <span class="o">+=</span> <span class="s">&quot;, &#39;derivatives&#39;: &quot;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv_res</span><span class="p">[</span><span class="s">&#39;derivatives&#39;</span><span class="p">])</span>
+            <span class="n">string</span> <span class="o">+=</span> <span class="s">&#39;}&#39;</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">string</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="GWConvergenceData.print_full_res"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.GWConvergenceData.print_full_res">[docs]</a>    <span class="k">def</span> <span class="nf">print_full_res</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        print the results of full calculation to fiule</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">full_res</span><span class="p">)</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s">&#39;.full_res&#39;</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&#39;w&#39;</span><span class="p">)</span>
+        <span class="n">string</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">full_res</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">string</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+
+<span class="c"># API :</span>
+
+</div></div>
+<div class="viewcode-block" id="get_spec"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.get_spec">[docs]</a><span class="k">def</span> <span class="nf">get_spec</span><span class="p">(</span><span class="n">comp_type</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Main entry point</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s">&#39;GW&#39;</span><span class="p">:</span> <span class="n">GWSpecs</span><span class="p">()}[</span><span class="n">comp_type</span><span class="p">]</span>
+
+</div>
+<div class="viewcode-block" id="get_convergence_data_structure"><a class="viewcode-back" href="../../../../pymatgen.io.gwwrapper.html#pymatgen.io.gwwrapper.datastructures.get_convergence_data_structure">[docs]</a><span class="k">def</span> <span class="nf">get_convergence_data_structure</span><span class="p">(</span><span class="n">comp_type</span><span class="p">,</span> <span class="n">spec</span><span class="p">,</span> <span class="n">structure</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Main entry point</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s">&#39;GW&#39;</span><span class="p">:</span> <span class="n">GWConvergenceData</span><span class="p">(</span><span class="n">spec</span><span class="o">=</span><span class="n">spec</span><span class="p">,</span> <span class="n">structure</span><span class="o">=</span><span class="n">structure</span><span class="p">)}[</span><span class="n">comp_type</span><span class="p">]</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.3 documentation</a> &raquo;</li>
+          <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+
+    <div class="footer">
+        &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Geoffroy Hautier, William Davidson Richard, Stephen Dacek, Sai Jayaraman, Michael Kocher, Dan Gunter, Shreyas Cholia, Vincent L Chevrier, Rickard Armiento.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+<script type="text/javascript">
+  (function() {
+    var ga = document.createElement('script');
+    ga.src = ('https:' == document.location.protocol ?
+              'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    ga.setAttribute('async', 'true');
+    document.documentElement.firstChild.appendChild(ga);
+  })();
+</script>
+</div>
+
+  </body>
+</html>

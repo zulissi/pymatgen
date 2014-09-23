@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.optimization.linear_assignment &mdash; pymatgen 3.0.2 documentation</title>
+    <title>pymatgen.optimization.linear_assignment &mdash; pymatgen 3.0.3 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '3.0.2',
+        VERSION:     '3.0.3',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.0.2 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.3 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 3.0.2 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 3.0.3 documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -74,6 +74,7 @@
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 
+<span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="nb">range</span>
 
 <div class="viewcode-block" id="LinearAssignment"><a class="viewcode-back" href="../../../pymatgen.optimization.html#pymatgen.optimization.linear_assignment.LinearAssignment">[docs]</a><span class="k">class</span> <span class="nc">LinearAssignment</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -178,8 +179,12 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">unassigned</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_x</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">unassigned</span><span class="p">:</span>
-            <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
-                <span class="c">#find smallest 2 values and indices</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="o">.</span><span class="n">size</span><span class="p">):</span>
+                <span class="c"># Time in this loop can be proportional to 1/epsilon</span>
+                <span class="c"># This step is not strictly necessary, so cutoff early</span>
+                <span class="c"># to avoid near-infinite loops</span>
+
+                <span class="c"># find smallest 2 values and indices</span>
                 <span class="n">temp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">c</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_v</span>
                 <span class="n">j1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">temp</span><span class="p">)</span>
                 <span class="n">u1</span> <span class="o">=</span> <span class="n">temp</span><span class="p">[</span><span class="n">j1</span><span class="p">]</span>
@@ -213,7 +218,7 @@
 <span class="sd">        Finds a minimum cost path and adds it to the matching</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c">#build a minimum cost tree</span>
-        <span class="n">mu</span><span class="p">,</span> <span class="n">istar</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">_ready</span><span class="p">,</span> <span class="n">_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_tree</span><span class="p">()</span>
+        <span class="n">_pred</span><span class="p">,</span> <span class="n">_ready</span><span class="p">,</span> <span class="n">istar</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">mu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_tree</span><span class="p">()</span>
 
         <span class="c">#update prices</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_v</span><span class="p">[</span><span class="n">_ready</span><span class="p">]</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_d</span><span class="p">[</span><span class="n">_ready</span><span class="p">]</span> <span class="o">-</span> <span class="n">mu</span>
@@ -251,19 +256,19 @@
         <span class="c">#SCAN: set of nodes at the bottom of the tree, which we need to</span>
         <span class="c">#look at</span>
         <span class="c">#T0DO: unvisited nodes</span>
+        <span class="n">_ready</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool</span><span class="p">)</span>
         <span class="n">_scan</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool</span><span class="p">)</span>
-        <span class="n">_todo</span> <span class="o">=</span> <span class="n">_scan</span> <span class="o">+</span> <span class="bp">True</span>
-        <span class="n">_ready</span> <span class="o">=</span> <span class="n">_scan</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">_todo</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool</span><span class="p">)</span> <span class="o">+</span> <span class="bp">True</span>
 
         <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
             <span class="c">#populate scan with minimum reduced distances</span>
             <span class="k">if</span> <span class="bp">True</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_scan</span><span class="p">:</span>
                 <span class="n">mu</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_d</span><span class="p">[</span><span class="n">_todo</span><span class="p">])</span>
-                <span class="n">_scan</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_d</span> <span class="o">==</span> <span class="n">mu</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">True_</span>
-                <span class="n">_todo</span><span class="p">[</span><span class="n">_scan</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">False_</span>
+                <span class="n">_scan</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_d</span> <span class="o">==</span> <span class="n">mu</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="n">_todo</span><span class="p">[</span><span class="n">_scan</span><span class="p">]</span> <span class="o">=</span> <span class="bp">False</span>
                 <span class="n">j</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_y</span> <span class="o">*</span> <span class="n">_scan</span><span class="p">)</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
-                    <span class="k">return</span> <span class="n">mu</span><span class="p">,</span> <span class="n">istar</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">_ready</span><span class="p">,</span> <span class="n">_pred</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span> <span class="ow">and</span> <span class="n">_scan</span><span class="p">[</span><span class="n">j</span><span class="p">]:</span>
+                    <span class="k">return</span> <span class="n">_pred</span><span class="p">,</span> <span class="n">_ready</span><span class="p">,</span> <span class="n">istar</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">mu</span>
 
             <span class="c">#pick jstar from scan (scan always has at least 1)</span>
             <span class="n">_jstar</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">_scan</span><span class="p">)</span>
@@ -271,8 +276,8 @@
             <span class="c">#pick i associated with jstar</span>
             <span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y</span><span class="p">[</span><span class="n">_jstar</span><span class="p">]</span>
 
-            <span class="n">_scan</span><span class="p">[</span><span class="n">_jstar</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">False_</span>
-            <span class="n">_ready</span><span class="p">[</span><span class="n">_jstar</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">True_</span>
+            <span class="n">_scan</span><span class="p">[</span><span class="n">_jstar</span><span class="p">]</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="n">_ready</span><span class="p">[</span><span class="n">_jstar</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
 
             <span class="c">#find shorter distances</span>
             <span class="n">newdists</span> <span class="o">=</span> <span class="n">mu</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">cred</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:]</span>
@@ -283,12 +288,12 @@
 
             <span class="c">#update predecessors</span>
             <span class="n">_pred</span><span class="p">[</span><span class="n">shorter</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
-            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">argwhere</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_d</span> <span class="o">==</span> <span class="n">mu</span><span class="p">,</span>
-                                       <span class="n">_todo</span><span class="p">))</span><span class="o">.</span><span class="n">flatten</span><span class="p">():</span>
+
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_d</span> <span class="o">==</span> <span class="n">mu</span><span class="p">,</span> <span class="n">_todo</span><span class="p">))[</span><span class="mi">0</span><span class="p">]:</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
-                    <span class="k">return</span> <span class="n">mu</span><span class="p">,</span> <span class="n">istar</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">_ready</span><span class="p">,</span> <span class="n">_pred</span>
-                <span class="n">_scan</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">True_</span>
-                <span class="n">_todo</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">False_</span></div>
+                    <span class="k">return</span> <span class="n">_pred</span><span class="p">,</span> <span class="n">_ready</span><span class="p">,</span> <span class="n">istar</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">mu</span>
+                <span class="n">_scan</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="n">_todo</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="bp">False</span></div>
 </pre></div>
 
           </div>
@@ -322,7 +327,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 3.0.2 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 3.0.3 documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

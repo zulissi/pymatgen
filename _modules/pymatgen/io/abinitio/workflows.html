@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.abinitio.workflows &mdash; pymatgen 3.0.2 documentation</title>
+    <title>pymatgen.io.abinitio.workflows &mdash; pymatgen 3.0.3 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '3.0.2',
+        VERSION:     '3.0.3',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.0.2 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.3 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 3.0.2 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.3 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -57,14 +57,9 @@
             
   <h1>Source code for pymatgen.io.abinitio.workflows</h1><div class="highlight"><pre>
 <span class="c"># coding: utf-8</span>
-
+<span class="sd">&quot;&quot;&quot;Abinit Workflows&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
 
-<span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Abinit Workflows</span>
-<span class="sd">&quot;&quot;&quot;</span>
-
-<span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">shutil</span>
 <span class="kn">import</span> <span class="nn">time</span>
@@ -72,32 +67,25 @@
 <span class="kn">import</span> <span class="nn">collections</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">six</span>
+
 <span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="nb">filter</span>
-<span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="nb">zip</span>
+<span class="kn">from</span> <span class="nn">monty.collections</span> <span class="kn">import</span> <span class="n">AttrDict</span>
+<span class="kn">from</span> <span class="nn">monty.itertools</span> <span class="kn">import</span> <span class="n">chunks</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.units</span> <span class="kn">import</span> <span class="n">ArrayWithUnit</span>
+<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">PMGSONable</span><span class="p">,</span> <span class="n">json_pretty_dump</span>
+<span class="kn">from</span> <span class="nn">pymatgen.util.string_utils</span> <span class="kn">import</span> <span class="n">pprint_table</span><span class="p">,</span> <span class="n">WildCard</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">wrappers</span>
+<span class="kn">from</span> <span class="nn">.tasks</span> <span class="kn">import</span> <span class="p">(</span><span class="n">Task</span><span class="p">,</span> <span class="n">AbinitTask</span><span class="p">,</span> <span class="n">Dependency</span><span class="p">,</span> <span class="n">Node</span><span class="p">,</span> <span class="n">ScfTask</span><span class="p">,</span> <span class="n">NscfTask</span><span class="p">,</span> <span class="n">DdkTask</span><span class="p">,</span> <span class="n">BseTask</span><span class="p">,</span> <span class="n">RelaxTask</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">.strategies</span> <span class="kn">import</span> <span class="n">HtcStrategy</span> <span class="c"># ScfStrategy, RelaxStrategy</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">Directory</span>
+<span class="kn">from</span> <span class="nn">.netcdf</span> <span class="kn">import</span> <span class="n">ETSF_Reader</span>
+<span class="kn">from</span> <span class="nn">.abitimer</span> <span class="kn">import</span> <span class="n">AbinitTimerParser</span>
+<span class="kn">from</span> <span class="nn">.abiinspect</span> <span class="kn">import</span> <span class="n">yaml_read_kpoints</span>
 
 <span class="k">try</span><span class="p">:</span>
     <span class="kn">from</span> <span class="nn">pydispatch</span> <span class="kn">import</span> <span class="n">dispatcher</span>
 <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
     <span class="k">pass</span>
-
-<span class="kn">from</span> <span class="nn">pymatgen.core.units</span> <span class="kn">import</span> <span class="n">ArrayWithUnit</span><span class="p">,</span> <span class="n">Ha_to_eV</span>
-<span class="kn">from</span> <span class="nn">pymatgen.core.lattice</span> <span class="kn">import</span> <span class="n">Lattice</span>
-<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="kn">import</span> <span class="n">Structure</span>
-<span class="kn">from</span> <span class="nn">pymatgen.core.design_patterns</span> <span class="kn">import</span> <span class="n">Enum</span><span class="p">,</span> <span class="n">AttrDict</span>
-<span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">PMGSONable</span><span class="p">,</span> <span class="n">json_pretty_dump</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.smartio</span> <span class="kn">import</span> <span class="n">read_structure</span>
-<span class="kn">from</span> <span class="nn">pymatgen.util.num_utils</span> <span class="kn">import</span> <span class="n">iterator_from_slice</span><span class="p">,</span> <span class="n">chunks</span><span class="p">,</span> <span class="n">monotonic</span>
-<span class="kn">from</span> <span class="nn">pymatgen.util.string_utils</span> <span class="kn">import</span> <span class="n">pprint_table</span><span class="p">,</span> <span class="n">WildCard</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio</span> <span class="kn">import</span> <span class="n">wrappers</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.tasks</span> <span class="kn">import</span> <span class="p">(</span><span class="n">Task</span><span class="p">,</span> <span class="n">AbinitTask</span><span class="p">,</span> <span class="n">Dependency</span><span class="p">,</span> <span class="n">Node</span><span class="p">,</span> <span class="n">ScfTask</span><span class="p">,</span> <span class="n">NscfTask</span><span class="p">,</span> <span class="n">DdkTask</span><span class="p">,</span> <span class="n">BseTask</span><span class="p">,</span> <span class="n">RelaxTask</span><span class="p">)</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.strategies</span> <span class="kn">import</span> <span class="n">HtcStrategy</span><span class="p">,</span> <span class="n">ScfStrategy</span> <span class="c">#, RelaxStrategy</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.utils</span> <span class="kn">import</span> <span class="n">Directory</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.netcdf</span> <span class="kn">import</span> <span class="n">ETSF_Reader</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.abiobjects</span> <span class="kn">import</span> <span class="n">Smearing</span><span class="p">,</span> <span class="n">AbiStructure</span><span class="p">,</span> <span class="n">KSampling</span><span class="p">,</span> <span class="n">Electrons</span>  <span class="c">#, RelaxationMethod</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.pseudos</span> <span class="kn">import</span> <span class="n">Pseudo</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.abitimer</span> <span class="kn">import</span> <span class="n">AbinitTimerParser</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.abinitio.abiinspect</span> <span class="kn">import</span> <span class="n">yaml_read_kpoints</span>
-
 
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
@@ -1215,7 +1203,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 3.0.2 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.3 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

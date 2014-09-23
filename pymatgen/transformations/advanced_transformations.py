@@ -1,10 +1,11 @@
-#!/usr/bin/env python
+# coding: utf-8
+
+from __future__ import division, unicode_literals
 
 """
 This module implements more advanced transformations.
 """
 
-from __future__ import division
 
 __author__ = "Shyue Ping Ong, Stephen Dacek"
 __copyright__ = "Copyright 2012, The Materials Project"
@@ -15,6 +16,9 @@ __date__ = "Jul 24, 2012"
 
 import numpy as np
 from fractions import gcd, Fraction
+from itertools import groupby
+
+import six
 
 from pymatgen.core.structure import Specie, Composition
 from pymatgen.core.periodic_table import get_el_sp
@@ -30,7 +34,7 @@ from pymatgen.structure_prediction.substitution_probability import \
 from pymatgen.analysis.structure_matcher import StructureMatcher, \
     SpinComparator
 from pymatgen.analysis.energy_models import SymmetryModel
-from pymatgen.serializers.json_coders import PMGJSONDecoder
+from monty.json import MontyDecoder
 
 
 class ChargeBalanceTransformation(AbstractTransformation):
@@ -74,8 +78,7 @@ class ChargeBalanceTransformation(AbstractTransformation):
     def is_one_to_many(self):
         return False
 
-    @property
-    def to_dict(self):
+    def as_dict(self):
         return {"name": self.__class__.__name__, "version": __version__,
                 "init_args": {"charge_balance_sp": self._charge_balance_sp},
                 "@module": self.__class__.__module__,
@@ -90,12 +93,17 @@ class SuperTransformation(AbstractTransformation):
     object.
 
     Args:
-        transformations: List of transformations to apply to a structure.
-            One transformation is applied to each output structure.
+        transformations ([transformations]): List of transformations to apply
+            to a structure. One transformation is applied to each output
+            structure.
+        nstructures_per_trans (int): If the transformations are one-to-many and,
+            nstructures_per_trans structures from each transformation are
+            added to the full list. Defaults to 1, i.e., only best structure.
     """
 
-    def __init__(self, transformations):
+    def __init__(self, transformations, nstructures_per_trans=1):
         self._transformations = transformations
+        self.nstructures_per_trans = nstructures_per_trans
 
     def apply_transformation(self, structure, return_ranked_list=False):
         if not return_ranked_list:
@@ -103,9 +111,16 @@ class SuperTransformation(AbstractTransformation):
                              " output. Must use return_ranked_list")
         structures = []
         for t in self._transformations:
-            structures.append(
-                {"transformation": t,
-                 "structure": t.apply_transformation(structure)})
+            if t.is_one_to_many:
+                for d in t.apply_transformation(
+                        structure,
+                        return_ranked_list=self.nstructures_per_trans):
+                    d["transformation"] = t
+                    structures.append(d)
+            else:
+                structures.append(
+                    {"transformation": t,
+                     "structure": t.apply_transformation(structure)})
         return structures
 
     def __str__(self):
@@ -123,10 +138,11 @@ class SuperTransformation(AbstractTransformation):
     def is_one_to_many(self):
         return True
 
-    @property
-    def to_dict(self):
+    def as_dict(self):
         return {"name": self.__class__.__name__, "version": __version__,
-                "init_args": {"transformations": self._transformations},
+                "init_args": {
+                    "transformations": self._transformations,
+                    "nstructures_per_trans": self.nstructures_per_trans},
                 "@module": self.__class__.__module__,
                 "@class": self.__class__.__name__}
 
@@ -222,8 +238,7 @@ class MultipleSubstitutionTransformation(object):
     def is_one_to_many(self):
         return True
 
-    @property
-    def to_dict(self):
+    def as_dict(self):
         return {"name": self.__class__.__name__, "version": __version__,
                 "init_args": {
                     "sp_to_replace": self._sp_to_replace,
@@ -362,8 +377,7 @@ class EnumerateStructureTransformation(AbstractTransformation):
     def is_one_to_many(self):
         return True
 
-    @property
-    def to_dict(self):
+    def as_dict(self):
         return {"name": self.__class__.__name__, "version": __version__,
                 "init_args": {"symm_prec": self.symm_prec,
                               "min_cell_size": self.min_cell_size,
@@ -424,8 +438,7 @@ class SubstitutionPredictorTransformation(AbstractTransformation):
     def is_one_to_many(self):
         return True
 
-    @property
-    def to_dict(self):
+    def as_dict(self):
         d = {"name": self.__class__.__name__, "version": __version__,
              "init_args": self._kwargs, "@module": self.__class__.__module__,
              "@class": self.__class__.__name__}
@@ -481,7 +494,7 @@ class MagOrderingTransformation(AbstractTransformation):
         atom_per_specie = [structure.composition.get(m)
                            for m in mag_species_spin.keys()]
 
-        n_gcd = reduce(gcd, atom_per_specie)
+        n_gcd = six.moves.reduce(gcd, atom_per_specie)
 
         if not n_gcd:
             raise ValueError(
@@ -496,11 +509,18 @@ class MagOrderingTransformation(AbstractTransformation):
         for sp, spin in self.mag_species_spin.items():
             sp = get_el_sp(sp)
             oxi_state = getattr(sp, "oxi_state", 0)
-            up = Specie(sp.symbol, oxi_state, {"spin": abs(spin)})
-            down = Specie(sp.symbol, oxi_state, {"spin": -abs(spin)})
-            mods.replace_species(
-                {sp: Composition({up: self.order_parameter,
-                                  down: 1 - self.order_parameter})})
+            if spin:
+                up = Specie(sp.symbol, oxi_state, {"spin": abs(spin)})
+                down = Specie(sp.symbol, oxi_state, {"spin": -abs(spin)})
+                mods.replace_species(
+                    {sp: Composition({up: self.order_parameter,
+                                      down: 1 - self.order_parameter})})
+            else:
+                mods.replace_species(
+                    {sp: Specie(sp.symbol, oxi_state, {"spin": spin})})
+
+        if mods.is_ordered:
+            return [mods] if return_ranked_list > 1 else mods
 
         enum_args = self.enum_kwargs
 
@@ -508,7 +528,7 @@ class MagOrderingTransformation(AbstractTransformation):
             MagOrderingTransformation.determine_min_cell(
                 structure, self.mag_species_spin,
                 self.order_parameter)),
-            enum_args.get("min_cell_size"))
+            enum_args.get("min_cell_size", 1))
 
         max_cell = self.enum_kwargs.get('max_cell_size')
         if max_cell:
@@ -528,17 +548,20 @@ class MagOrderingTransformation(AbstractTransformation):
         except ValueError:
             num_to_return = 1
 
-        if num_to_return == 1:
-            return alls[0]["structure"]
+        if num_to_return == 1 or not return_ranked_list:
+            return alls[0]["structure"] if num_to_return else alls
 
         m = StructureMatcher(comparator=SpinComparator())
+        key = lambda x: SymmetryFinder(x, 0.1).get_spacegroup_number()
+        out = []
+        for _, g in groupby(sorted([d["structure"] for d in alls],
+                                   key=key), key):
+            grouped = m.group_structures(g)
+            out.extend([{"structure": g[0],
+                         "energy": self.emodel.get_energy(g[0])}
+                        for g in grouped])
 
-        grouped = m.group_structures([d["structure"] for d in alls])
-
-        alls = [{"structure": g[0], "energy": self.emodel.get_energy(g[0])}
-                for g in grouped]
-
-        self._all_structures = sorted(alls, key=lambda d: d["energy"])
+        self._all_structures = sorted(out, key=lambda d: d["energy"])
 
         return self._all_structures[0:num_to_return]
 
@@ -556,13 +579,12 @@ class MagOrderingTransformation(AbstractTransformation):
     def is_one_to_many(self):
         return True
 
-    @property
-    def to_dict(self):
+    def as_dict(self):
         return {
             "name": self.__class__.__name__, "version": __version__,
             "init_args": {"mag_species_spin": self.mag_species_spin,
                           "order_parameter": self.order_parameter,
-                          "energy_model": self.emodel.to_dict,
+                          "energy_model": self.emodel.as_dict(),
                           "enum_kwargs": self.enum_kwargs},
             "@module": self.__class__.__module__,
             "@class": self.__class__.__name__}
@@ -572,6 +594,6 @@ class MagOrderingTransformation(AbstractTransformation):
         init = d["init_args"]
         return MagOrderingTransformation(
             init["mag_species_spin"], init["order_parameter"],
-            energy_model=PMGJSONDecoder().process_decoded(
+            energy_model=MontyDecoder().process_decoded(
                 init["energy_model"]),
             **init["enum_kwargs"])

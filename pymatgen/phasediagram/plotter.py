@@ -1,10 +1,12 @@
-#!/usr/bin/env python
+# coding: utf-8
+
+from __future__ import division, unicode_literals
 
 """
 This module provides classes for plotting PhaseDiagram objects.
 """
 
-from __future__ import division
+from six.moves import zip
 
 __author__ = "Shyue Ping Ong"
 __copyright__ = "Copyright 2011, The Materials Project"
@@ -85,7 +87,7 @@ class PDPlotter(object):
         all_data = np.array(pd.all_entries_hulldata)
         unstable_entries = dict()
         stable = pd.stable_entries
-        for i in xrange(0, len(all_entries)):
+        for i in range(0, len(all_entries)):
             entry = all_entries[i]
             if entry not in stable:
                 if self._dim < 3:
@@ -104,18 +106,25 @@ class PDPlotter(object):
 
         return lines, stable_entries, unstable_entries
 
-    def show(self, label_stable=True, label_unstable=True, ordering=None,
-             energy_colormap=None, process_attributes=False):
-        """
-        Draws the phase diagram using Matplotlib and show it.
-        """
+    def get_plot(self, label_stable=True, label_unstable=True, ordering=None,
+                 energy_colormap=None, process_attributes=False):
         if self._dim < 4:
             plt = self._get_2d_plot(label_stable, label_unstable, ordering,
                                     energy_colormap,
                                     process_attributes=process_attributes)
         elif self._dim == 4:
             plt = self._get_3d_plot(label_stable)
-        plt.show()
+
+        return plt
+
+    def show(self, label_stable=True, label_unstable=True, ordering=None,
+             energy_colormap=None, process_attributes=False):
+        """
+        Draws the phase diagram using Matplotlib and show it.
+        """
+        self.get_plot(label_stable=label_stable, label_unstable=label_unstable,
+                      ordering=ordering, energy_colormap=energy_colormap,
+                      process_attributes=process_attributes).show()
 
     def _get_2d_plot(self, label_stable=True, label_unstable=True,
                      ordering=None, energy_colormap=None, vmin_mev=-60.0,
@@ -144,7 +153,7 @@ class PDPlotter(object):
                 #  logic. At this moment, I just use the attributes to know
                 # whether an entry is a new compound or an existing (from the
                 #  ICSD or from the MP) one.
-                for x, y in labels.iterkeys():
+                for x, y in labels.keys():
                     if labels[(x, y)].attribute is None or \
                             labels[(x, y)].attribute == "existing":
                         plt.plot(x, y, "ko", linewidth=3, markeredgecolor="k",
@@ -174,12 +183,12 @@ class PDPlotter(object):
             norm = Normalize(vmin=vmin, vmax=vmax)
             _map = ScalarMappable(norm=norm, cmap=cmap)
             _energies = [pda.get_equilibrium_reaction_energy(entry)
-                         for coord, entry in labels.iteritems()]
+                         for coord, entry in labels.items()]
             energies = [en if en < 0.0 else -0.00000001 for en in _energies]
             vals_stable = _map.to_rgba(energies)
             ii = 0
             if process_attributes:
-                for x, y in labels.iterkeys():
+                for x, y in labels.keys():
                     if labels[(x, y)].attribute is None or \
                             labels[(x, y)].attribute == "existing":
                         plt.plot(x, y, "o", markerfacecolor=vals_stable[ii],
@@ -189,7 +198,7 @@ class PDPlotter(object):
                                  markersize=18)
                     ii += 1
             else:
-                for x, y in labels.iterkeys():
+                for x, y in labels.keys():
                     plt.plot(x, y, "o", markerfacecolor=vals_stable[ii],
                              markersize=15)
                     ii += 1
@@ -255,7 +264,7 @@ class PDPlotter(object):
             font.set_size(16)
             pda = PDAnalyzer(self._pd)
             energies_unstable = [pda.get_e_above_hull(entry)
-                                 for entry, coord in unstable.iteritems()]
+                                 for entry, coord in unstable.items()]
             if energy_colormap is not None:
                 energies.extend(energies_unstable)
                 vals_unstable = _map.to_rgba(energies_unstable)
@@ -330,7 +339,8 @@ class PDPlotter(object):
         ax.axis("off")
         return plt
 
-    def write_image(self, stream, image_format="svg", ordering=None,
+    def write_image(self, stream, image_format="svg", label_stable=True,
+                    label_unstable=True, ordering=None,
                     energy_colormap=None, process_attributes=False):
         """
         Writes the phase diagram to an image in a stream.
@@ -342,11 +352,10 @@ class PDPlotter(object):
                 format for image. Can be any of matplotlib supported formats.
                 Defaults to svg for best results for vector graphics.
         """
-        if self._dim < 4:
-            plt = self._get_2d_plot(ordering=ordering, energy_colormap=energy_colormap,
-                                    process_attributes=process_attributes)
-        elif self._dim == 4:
-            plt = self._get_3d_plot()
+        plt = self.get_plot(
+            label_stable=label_stable, label_unstable=label_unstable,
+            ordering=ordering, energy_colormap=energy_colormap,
+            process_attributes=process_attributes)
 
         f = plt.gcf()
         f.set_size_inches((12, 10))
@@ -643,11 +652,11 @@ def order_phase_diagram(lines, stable_entries, unstable_entries, ordering):
             newstable_entries = {
                 (c120 * (c[0] - cc[0]) - s120 * (c[1] - cc[1]) + cc[0],
                  s120 * (c[0] - cc[0]) + c120 * (c[1] - cc[1]) + cc[1]): entry
-                for c, entry in stable_entries.iteritems()}
+                for c, entry in stable_entries.items()}
             newunstable_entries = {
                 entry: (c120 * (c[0] - cc[0]) - s120 * (c[1] - cc[1]) + cc[0],
                         s120 * (c[0] - cc[0]) + c120 * (c[1] - cc[1]) + cc[1])
-                for entry, c in unstable_entries.iteritems()}
+                for entry, c in unstable_entries.items()}
             return newlines, newstable_entries, newunstable_entries
         else:
             c120 = np.cos(2.0 * np.pi / 3.0)
@@ -662,11 +671,11 @@ def order_phase_diagram(lines, stable_entries, unstable_entries, ordering):
                 newlines.append([newx, newy])
             newstable_entries = {(-c120 * (c[0] - 1.0) - s120 * c[1] + 1.0,
                                   -s120 * (c[0] - 1.0) + c120 * c[1]): entry
-                                 for c, entry in stable_entries.iteritems()}
+                                 for c, entry in stable_entries.items()}
             newunstable_entries = {
             entry: (-c120 * (c[0] - 1.0) - s120 * c[1] + 1.0,
                     -s120 * (c[0] - 1.0) + c120 * c[1])
-            for entry, c in unstable_entries.iteritems()}
+            for entry, c in unstable_entries.items()}
             return newlines, newstable_entries, newunstable_entries
     elif nameup == ordering[2]:
         if nameleft == ordering[0]:
@@ -685,11 +694,11 @@ def order_phase_diagram(lines, stable_entries, unstable_entries, ordering):
             newstable_entries = {
                 (c240 * (c[0] - cc[0]) - s240 * (c[1] - cc[1]) + cc[0],
                  s240 * (c[0] - cc[0]) + c240 * (c[1] - cc[1]) + cc[1]): entry
-                for c, entry in stable_entries.iteritems()}
+                for c, entry in stable_entries.items()}
             newunstable_entries = {
                 entry: (c240 * (c[0] - cc[0]) - s240 * (c[1] - cc[1]) + cc[0],
                         s240 * (c[0] - cc[0]) + c240 * (c[1] - cc[1]) + cc[1])
-                for entry, c in unstable_entries.iteritems()}
+                for entry, c in unstable_entries.items()}
             return newlines, newstable_entries, newunstable_entries
         else:
             c240 = np.cos(4.0 * np.pi / 3.0)

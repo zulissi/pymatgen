@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+# coding: utf-8
+
+from __future__ import unicode_literals
 
 """
 This module provides classes to comparsion the structures of the two
@@ -9,8 +11,10 @@ This module is supposed to perform rough comparisons with the atom order
 correspondence prerequisite, while molecule_matcher is supposed to do exact
 comparisons without the atom order correspondence prerequisite.
 """
+
 import itertools
-from pymatgen.serializers.json_coders import MSONable
+from pymatgen.serializers.json_coders import PMGSONable
+from six.moves import zip
 
 __author__ = "Xiaohui Qu"
 __copyright__ = "Copyright 2011, The Materials Project"
@@ -57,7 +61,7 @@ class CovalentRadius():
               'Np': 1.90, 'Pu': 1.87, 'Am': 1.80, 'Cm': 1.69}
 
 
-class MoleculeStructureComparator(MSONable):
+class MoleculeStructureComparator(PMGSONable):
 
     """
     Class to check whether the connection tables of the two molecules are the
@@ -76,14 +80,20 @@ class MoleculeStructureComparator(MSONable):
         priority_cap: The ratio of the elongation of the bond to be
             acknowledged for the priority bonds.
     """
+
+    ionic_element_list = ['Na', 'Mg', 'Al', 'Sc', 'V', 'Cr', "Mn", 'Fe', 'Co', 'Ni',
+                          'Cu', 'Zn', 'Ga', 'Rb', 'Sr']
+
     def __init__(self, bond_length_cap=0.3,
                  covalent_radius=CovalentRadius.radius,
                  priority_bonds=(),
-                 priority_cap=0.8):
+                 priority_cap=0.8,
+                 ignore_ionic_bond=True):
         self.bond_length_cap = bond_length_cap
         self.covalent_radius = covalent_radius
         self.priority_bonds = [tuple(sorted(b)) for b in priority_bonds]
         self.priority_cap = priority_cap
+        self.ignore_ionic_bond = ignore_ionic_bond
 
     def are_equal(self, mol1, mol2):
         """
@@ -110,9 +120,13 @@ class MoleculeStructureComparator(MSONable):
         """
         num_atoms = len(mol)
         # index starting from 0
-        all_pairs = list(itertools.combinations(range(num_atoms), 2))
+        if self.ignore_ionic_bond:
+            covalent_atoms = [i for i in range(num_atoms) if mol.species[i].symbol not in self.ionic_element_list]
+        else:
+            covalent_atoms = list(range(num_atoms))
+        all_pairs = list(itertools.combinations(covalent_atoms, 2))
         pair_dists = [mol.get_distance(*p) for p in all_pairs]
-        elements = mol.composition.to_dict.keys()
+        elements = mol.composition.as_dict().keys()
         unavailable_elements = list(set(elements) -
                                     set(self.covalent_radius.keys()))
         if len(unavailable_elements) > 0:
@@ -129,8 +143,7 @@ class MoleculeStructureComparator(MSONable):
                  if dist <= cap]
         return bonds
 
-    @property
-    def to_dict(self):
+    def as_dict(self):
         return {"version": __version__, "@module": self.__class__.__module__,
                 "@class": self.__class__.__name__,
                 "bond_length_cap": self.bond_length_cap,

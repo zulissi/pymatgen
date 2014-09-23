@@ -1,10 +1,13 @@
-#!/usr/bin/env python
+# coding: utf-8
+
+from __future__ import division, unicode_literals
 
 """
 This module provides classes for analyzing phase diagrams.
 """
 
-from __future__ import division
+from six.moves import filter
+from six.moves import zip
 
 __author__ = "Shyue Ping Ong"
 __copyright__ = "Copyright 2011, The Materials Project"
@@ -18,12 +21,13 @@ import numpy as np
 import itertools
 import collections
 
-from pyhull.convex_hull import ConvexHull
+from monty.functools import lru_cache
+
 from pyhull.simplex import Simplex
 
 from pymatgen.core.composition import Composition
 from pymatgen.phasediagram.pdmaker import PhaseDiagram, \
-    GrandPotentialPhaseDiagram
+    GrandPotentialPhaseDiagram, get_facets
 from pymatgen.analysis.reaction_calculator import Reaction
 
 
@@ -80,24 +84,21 @@ class PDAnalyzer(object):
         else:
             return True
 
-    def _get_facets(self, comp):
-        """
-        Get the facets that a composition falls into.
-        """
-        return filter(lambda f: self._in_facet(f, comp), self._pd.facets)
-
+    @lru_cache(1)
     def _get_facet(self, comp):
         """
-        Get any facet that a composition falls into.
+        Get any facet that a composition falls into. Cached so successive
+        calls at same composition are fast.
         """
-        for facet in self._pd.facets:
-            if self._in_facet(facet, comp):
-                return facet
+        c = [comp.get_atomic_fraction(e) for e in self._pd.elements[1:]]
+        for f, s in zip(self._pd.facets, self._pd.simplices):
+            if s.in_simplex(c, PDAnalyzer.numerical_tol / 10):
+                return f
         raise RuntimeError("No facet found for comp = {}".format(comp))
 
     def get_decomposition(self, comp):
         """
-        Provides the decomposition at a particular composition
+        Provides the decomposition at a particular composition.
 
         Args:
             comp: A composition
@@ -116,7 +117,9 @@ class PDAnalyzer(object):
 
     def get_decomp_and_e_above_hull(self, entry, allow_negative=False):
         """
-        Provides the decomposition and energy above convex hull for an entry
+        Provides the decomposition and energy above convex hull for an entry.
+        Due to caching, can be much faster if entries with the same composition
+        are processed together.
 
         Args:
             entry: A PDEntry like object
@@ -131,21 +134,18 @@ class PDAnalyzer(object):
         if entry in self._pd.stable_entries:
             return {entry: 1}, 0
 
-        # Hackish fix to deal with problem of -ve ehulls in very high
-        # dimensional convex hulls (typically 8D and above).
-        # TODO: find a better fix.
-        for facet in self._get_facets(entry.composition):
-            comp_list = [self._pd.qhull_entries[i].composition for i in facet]
-            m = self._make_comp_matrix(comp_list)
-            compm = self._make_comp_matrix([entry.composition])
-            decomp_amts = np.linalg.solve(m.T, compm.T)[:,0]
-            decomp = {self._pd.qhull_entries[facet[i]]: decomp_amts[i]
-                      for i in xrange(len(decomp_amts))
-                      if abs(decomp_amts[i]) > PDAnalyzer.numerical_tol}
-            energies = [self._pd.qhull_entries[i].energy_per_atom for i in facet]
-            ehull = entry.energy_per_atom - np.dot(decomp_amts, energies)
-            if allow_negative or ehull >= -PDAnalyzer.numerical_tol:
-                return decomp, ehull
+        facet = self._get_facet(entry.composition)
+        comp_list = [self._pd.qhull_entries[i].composition for i in facet]
+        m = self._make_comp_matrix(comp_list)
+        compm = self._make_comp_matrix([entry.composition])
+        decomp_amts = np.linalg.solve(m.T, compm.T)[:,0]
+        decomp = {self._pd.qhull_entries[facet[i]]: decomp_amts[i]
+                  for i in range(len(decomp_amts))
+                  if abs(decomp_amts[i]) > PDAnalyzer.numerical_tol}
+        energies = [self._pd.qhull_entries[i].energy_per_atom for i in facet]
+        ehull = entry.energy_per_atom - np.dot(decomp_amts, energies)
+        if allow_negative or ehull >= -PDAnalyzer.numerical_tol:
+            return decomp, ehull
         raise ValueError("No valid decomp found!")
 
     def get_e_above_hull(self, entry):
@@ -282,7 +282,7 @@ class PDAnalyzer(object):
 
         for c in chempots:
             gcpd = GrandPotentialPhaseDiagram(
-                stable_entries, {element: c - 0.01}, self._pd.elements
+                stable_entries, {element: c - 1e-5}, self._pd.elements
             )
             analyzer = PDAnalyzer(gcpd)
             gcdecomp = analyzer.get_decomposition(gccomp)
@@ -337,7 +337,7 @@ class PDAnalyzer(object):
         chempot_ranges = collections.defaultdict(list)
         vertices = [[i for i in range(len(self._pd.elements))]]
         if len(all_chempots) > len(self._pd.elements):
-            vertices = ConvexHull(all_chempots).vertices
+            vertices = get_facets(all_chempots, True)
         for ufacet in vertices:
             for combi in itertools.combinations(ufacet, 2):
                 data1 = facets[combi[0]]
@@ -355,11 +355,11 @@ class PDAnalyzer(object):
 
         return chempot_ranges
 
-    def getmu_vertices_stability_phase(self, target_comp, dep_elt):
+    def getmu_vertices_stability_phase(self, target_comp, dep_elt, tol_en=1e-2):
         """
-        returns a set of chemical potentials correspoding to the vertices of the simplex
+        returns a set of chemical potentials corresponding to the vertices of the simplex
         in the chemical potential phase diagram.
-        The simplex is buit using all elements in the target_composition except dep_elt.
+        The simplex is built using all elements in the target_composition except dep_elt.
         The chemical potential of dep_elt is computed from the target composition energy.
         This method is useful to get the limiting conditions for
         defects computations for instance.
@@ -368,22 +368,27 @@ class PDAnalyzer(object):
             target_comp: A Composition object
             dep_elt: the element for which the chemical potential is computed from the energy of
             the stable phase at the target composition
+            tol_en: a tolerance on the energy to set
 
         Returns:
-             [{Element:mu}]: An array of conditions on simplex vertices for which each element has a chemical potential
-             set to a given value. "absolute" values (i.e., not referenced to element energies)
+             [{Element:mu}]: An array of conditions on simplex vertices for
+             which each element has a chemical potential set to a given
+             value. "absolute" values (i.e., not referenced to element energies)
         """
-        muref = np.array([self._pd.el_refs[e].energy_per_atom for e in self._pd.elements if e != dep_elt])
-        chempot_ranges = self.get_chempot_range_map([e for e in self._pd.elements if e != dep_elt])
+        muref = np.array([self._pd.el_refs[e].energy_per_atom
+                          for e in self._pd.elements if e != dep_elt])
+        chempot_ranges = self.get_chempot_range_map(
+            [e for e in self._pd.elements if e != dep_elt])
 
         for e in self._pd.elements:
             if not e in target_comp.elements:
-                target_comp = target_comp+Composition({e: 0.0})
+                target_comp = target_comp + Composition({e: 0.0})
         coeff = [-target_comp[e] for e in self._pd.elements if e != dep_elt]
         for e in chempot_ranges.keys():
-            if e.composition.reduced_composition == target_comp.reduced_composition:
-                multiplicator = e.composition[dep_elt]/target_comp[dep_elt]
-                ef = e.energy/multiplicator
+            if e.composition.reduced_composition == \
+                    target_comp.reduced_composition:
+                multiplicator = e.composition[dep_elt] / target_comp[dep_elt]
+                ef = e.energy / multiplicator
                 all_coords = []
                 for s in chempot_ranges[e]:
                     for v in s._coords:
@@ -391,17 +396,29 @@ class PDAnalyzer(object):
                         res = {}
                         for i in range(len(elts)):
                             res[elts[i]] = v[i] + muref[i]
-                        res[dep_elt]=(np.dot(v+muref,coeff)+ef)/target_comp[dep_elt]
-                        all_coords.append(res)
+                        res[dep_elt]=(np.dot(v+muref, coeff)+ef)/target_comp[dep_elt]
+                        already_in = False
+                        for di in all_coords:
+                            dict_equals = True
+                            for k in di:
+                                if abs(di[k]-res[k]) > tol_en:
+                                    dict_equals = False
+                                    break
+                            if dict_equals:
+                                already_in = True
+                                break
+                        if not already_in:
+                            all_coords.append(res)
         return all_coords
 
-    def getmu_range_stability_phase(self, target_comp, open_elt):
+    def get_chempot_range_stability_phase(self, target_comp, open_elt):
         """
-        returns a set of chemical potentials correspoding to the max and min chemical potential
-        of the open element for a given composition. It is quite common to have for instance a ternary oxide
-        (e.g., ABO3) for which you want to know what are the A and B chemical potential leading to the
-        highest and lowest oxygen chemical potential (reducing and oxidizing conditions). This is useful
-        for defect computations.
+        returns a set of chemical potentials correspoding to the max and min
+        chemical potential of the open element for a given composition. It is
+        quite common to have for instance a ternary oxide (e.g., ABO3) for
+        which you want to know what are the A and B chemical potential leading
+        to the highest and lowest oxygen chemical potential (reducing and
+        oxidizing conditions). This is useful for defect computations.
 
         Args:
             target_comp: A Composition object
@@ -411,33 +428,40 @@ class PDAnalyzer(object):
              {Element:(mu_min,mu_max)}: Chemical potentials are given in
              "absolute" values (i.e., not referenced to 0)
         """
-        muref = np.array([self._pd.el_refs[e].energy_per_atom for e in self._pd.elements if e != open_elt])
-        chempot_ranges = self.get_chempot_range_map([e for e in self._pd.elements if e != open_elt])
+        muref = np.array([self._pd.el_refs[e].energy_per_atom
+                          for e in self._pd.elements if e != open_elt])
+        chempot_ranges = self.get_chempot_range_map(
+            [e for e in self._pd.elements if e != open_elt])
         for e in self._pd.elements:
             if not e in target_comp.elements:
-                target_comp = target_comp+Composition({e: 0.0})
+                target_comp = target_comp + Composition({e: 0.0})
         coeff = [-target_comp[e] for e in self._pd.elements if e != open_elt]
-        max_open = -100000000
-        min_open = 1000000000
+        max_open = -float('inf')
+        min_open = float('inf')
         max_mus = None
         min_mus = None
         for e in chempot_ranges.keys():
-            if e.composition.reduced_composition == target_comp.reduced_composition:
-                multiplicator = e.composition[open_elt]/target_comp[open_elt]
-                ef = e.energy/multiplicator
+            if e.composition.reduced_composition == \
+                    target_comp.reduced_composition:
+                multiplicator = e.composition[open_elt] / target_comp[open_elt]
+                ef = e.energy / multiplicator
                 all_coords = []
                 for s in chempot_ranges[e]:
                     for v in s._coords:
                         all_coords.append(v)
-                        if (np.dot(v+muref,coeff)+ef)/target_comp[open_elt] > max_open:
-                            max_open = (np.dot(v+muref,coeff)+ef)/target_comp[open_elt]
+                        if (np.dot(v + muref, coeff) + ef) / target_comp[
+                            open_elt] > max_open:
+                            max_open = (np.dot(v + muref, coeff) + ef) / \
+                                       target_comp[open_elt]
                             max_mus = v
-                        if (np.dot(v+muref, coeff)+ef)/target_comp[open_elt] < min_open:
-                            min_open = (np.dot(v+muref, coeff)+ef)/target_comp[open_elt]
+                        if (np.dot(v + muref, coeff) + ef) / target_comp[
+                            open_elt] < min_open:
+                            min_open = (np.dot(v + muref, coeff) + ef) / \
+                                       target_comp[open_elt]
                             min_mus = v
         elts = [e for e in self._pd.elements if e != open_elt]
         res = {}
         for i in range(len(elts)):
-            res[elts[i]] = (min_mus[i]+muref[i], max_mus[i]+muref[i])
+            res[elts[i]] = (min_mus[i] + muref[i], max_mus[i] + muref[i])
         res[open_elt] = (min_open, max_open)
         return res

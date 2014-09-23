@@ -1,11 +1,12 @@
-#!/usr/bin/env python
+# coding: utf-8
+
+from __future__ import division, unicode_literals
 
 """
 This class implements smart io classes that performs intelligent io based on
 file extensions.
 """
 
-from __future__ import division
 
 __author__ = "Shyue Ping Ong"
 __copyright__ = "Copyright 2012, The Materials Project"
@@ -26,11 +27,12 @@ from pymatgen.io.cssrio import Cssr
 from pymatgen.io.xyzio import XYZ
 from pymatgen.io.gaussianio import GaussianInput, GaussianOutput
 from monty.io import zopen
-from pymatgen.serializers.json_coders import PMGJSONDecoder, PMGJSONEncoder
+from monty.json import MontyDecoder, MontyEncoder
+from monty.string import str2unicode
 from pymatgen.io.babelio import BabelMolAdaptor
 
 
-def read_structure(filename):
+def read_structure(filename, primitive=True, sort=False):
     """
     Reads a structure based on file extension. For example, anything ending in
     a "cif" is assumed to be a Crystallographic Information Format file.
@@ -39,6 +41,9 @@ def read_structure(filename):
 
     Args:
         filename (str): A filename to read from.
+        primitive (bool): Whether to convert to a primitive cell for cifs.
+            Defaults to True.
+        sort (bool): Whether to sort sites. Default to False.
 
     Returns:
         A Structure object.
@@ -46,25 +51,27 @@ def read_structure(filename):
     fname = os.path.basename(filename)
     if fnmatch(fname.lower(), "*.cif*"):
         parser = CifParser(filename)
-        return parser.get_structures(True)[0]
+        s = parser.get_structures(primitive=primitive)[0]
     elif fnmatch(fname, "POSCAR*") or fnmatch(fname, "CONTCAR*"):
-        return Poscar.from_file(filename, False).structure
+        s = Poscar.from_file(filename, False).structure
     elif fnmatch(fname, "CHGCAR*") or fnmatch(fname, "LOCPOT*"):
-        return Chgcar.from_file(filename).structure
+        s = Chgcar.from_file(filename).structure
     elif fnmatch(fname, "vasprun*.xml*"):
-        return Vasprun(filename).final_structure
+        s = Vasprun(filename).final_structure
     elif fnmatch(fname.lower(), "*.cssr*"):
         cssr = Cssr.from_file(filename)
-        return cssr.structure
+        s = cssr.structure
     elif fnmatch(fname, "*.json*") or fnmatch(fname, "*.mson*"):
         with zopen(filename) as f:
-            s = json.load(f, cls=PMGJSONDecoder)
+            s = json.load(f, cls=MontyDecoder)
             if type(s) != Structure:
                 raise IOError("File does not contain a valid serialized "
                               "structure")
-            return s
-    raise ValueError("Unrecognized file extension!")
-
+    else:
+        raise ValueError("Unrecognized file extension!")
+    if sort:
+        s = s.get_sorted_structure()
+    return s
 
 def write_structure(structure, filename):
     """
@@ -85,8 +92,8 @@ def write_structure(structure, filename):
     elif fnmatch(fname.lower(), "*.cssr*"):
         writer = Cssr(structure)
     elif fnmatch(fname, "*.json*") or fnmatch(fname, "*.mson*"):
-        with zopen(filename, "w") as f:
-            json.dump(structure, f, cls=PMGJSONEncoder)
+        with zopen(filename, "wt") as f:
+            f.write(str2unicode(json.dumps(structure, cls=MontyEncoder)))
             return
     else:
         raise ValueError("Unrecognized file extension!")
@@ -119,7 +126,7 @@ def read_mol(filename):
         return GaussianOutput(filename).final_structure
     elif fnmatch(fname, "*.json*") or fnmatch(fname, "*.mson*"):
         with zopen(filename) as f:
-            s = json.load(f, cls=PMGJSONDecoder)
+            s = json.load(f, cls=MontyDecoder)
             if type(s) != Molecule:
                 raise IOError("File does not contain a valid serialized "
                               "molecule")
@@ -152,8 +159,8 @@ def write_mol(mol, filename):
               for r in ["gjf", "g03", "g09", "com", "inp"]]):
         return GaussianInput(mol).write_file(filename)
     elif fnmatch(fname, "*.json*") or fnmatch(fname, "*.mson*"):
-        with zopen(filename, "w") as f:
-            return json.dump(mol, f, cls=PMGJSONEncoder)
+        with zopen(filename, "wt") as f:
+            return f.write(str2unicode(json.dumps(mol, cls=MontyEncoder)))
     else:
         m = re.search("\.(pdb|mol|mdl|sdf|sd|ml2|sy2|mol2|cml|mrv)",
                       filename.lower())
@@ -161,4 +168,3 @@ def write_mol(mol, filename):
             return BabelMolAdaptor(mol).write_file(filename, m.group(1))
 
     raise ValueError("Unrecognized file extension!")
-

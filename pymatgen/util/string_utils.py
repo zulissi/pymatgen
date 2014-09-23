@@ -1,8 +1,15 @@
-#!/usr/bin/env python
-
+# coding: utf-8
 """
 This module provides utility classes for string operations.
 """
+from __future__ import unicode_literals
+import re
+import sys
+import fnmatch
+
+from six.moves import zip
+from monty.string import list_strings
+
 
 __author__ = "Shyue Ping Ong"
 __copyright__ = "Copyright 2011, The Materials Project"
@@ -11,10 +18,6 @@ __maintainer__ = "Shyue Ping Ong"
 __email__ = "shyuep@gmail.com"
 __status__ = "Production"
 __date__ = "$Sep 23, 2011M$"
-
-import re
-import sys
-import fnmatch
 
 
 def generate_latex_table(results, header=None, caption=None, label=None):
@@ -50,7 +53,7 @@ def str_delimited(results, header=None, delimiter="\t"):
     """
     Given a tuple of tuples, generate a delimited string form.
     >>> results = [["a","b","c"],["d","e","f"],[1,2,3]]
-    >>> print str_delimited(results,delimiter=",")
+    >>> print(str_delimited(results,delimiter=","))
     a,b,c
     d,e,f
     1,2,3
@@ -73,7 +76,7 @@ def str_aligned(results, header=None):
     """
     Given a tuple, generate a nicely aligned string form.
     >>> results = [["a","b","cz"],["d","ez","f"],[1,2,3]]
-    >>> print str_aligned(results)
+    >>> print(str_aligned(results))
     a    b   cz
     d   ez    f
     1    2    3
@@ -122,7 +125,7 @@ def formula_double_format(afloat, ignore_ones=True, tol=1e-8):
     elif abs(afloat - int(afloat)) < tol:
         return str(int(afloat))
     else:
-        return str(afloat)
+        return str(round(afloat, 8))
 
 
 def latexify(formula):
@@ -187,38 +190,6 @@ def pprint_table(table, out=sys.stdout, rstrip=False):
             col = row[i].rjust(col_paddings[i] + 2)
             out.write(col)
         out.write("\n")
-
-
-def is_string(s):
-    """True if s behaves like a string (duck typing test)."""
-    try:
-        s + " "
-        return True
-
-    except TypeError:
-        return False
-
-
-def list_strings(arg):
-    """
-    Always return a list of strings, given a string or list of strings as
-    input.
-
-    :Examples:
-
-    >>> list_strings('A single string')
-    ['A single string']
-
-    >>> list_strings(['A single string in a list'])
-    ['A single string in a list']
-
-    >>> list_strings(['A','list','of','strings'])
-    ['A', 'list', 'of', 'strings']
-    """
-    if is_string(arg):
-        return [arg]
-    else:
-        return arg
 
 
 def stream_has_colours(stream):

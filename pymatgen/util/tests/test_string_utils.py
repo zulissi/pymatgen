@@ -1,10 +1,11 @@
-#!/usr/bin/env python
+# coding: utf-8
+
+from __future__ import division, unicode_literals
 
 """
 FIXME: Proper module docstring
 """
 
-from __future__ import division
 
 __author__ = "Shyue Ping Ong"
 __copyright__ = "Copyright 2012, The Materials Project"
@@ -46,6 +47,7 @@ ccc   dddd"""
         self.assertEqual(formula_double_format(1.00), "")
         self.assertEqual(formula_double_format(2.00), "2")
         self.assertEqual(formula_double_format(2.10), "2.1")
+        self.assertEqual(formula_double_format(2.10000000002), "2.1")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+# coding: utf-8
+
+from __future__ import division, unicode_literals, print_function
 
 """
 This module provides classes to run and analyze boltztrap on pymatgen band
@@ -19,7 +21,6 @@ References are::
     Computer Physics Communications, 175, 67-71
 """
 
-from __future__ import division
 
 __author__ = "Geoffroy Hautier"
 __copyright__ = "Copyright 2013, The Materials Project"
@@ -75,6 +76,10 @@ class BoltztrapRunner():
                 type of boltztrap usage by default BOLTZ to compute transport coefficients
                 but you can have also "FERMI" to compute fermi surface or more correctly to
                 get certain bands interpolated
+            soc:
+                results from spin-orbit coupling (soc) computations give typically non-polarized (no spin up or down)
+                results but 1 electron occupations. If the band structure comes from a soc computation, you should set
+                soc to True (default False)
     """
 
     @requires(which('x_trans'),
@@ -85,7 +90,7 @@ class BoltztrapRunner():
               "Bolztrap accordingly. Then add x_trans to your path")
 
     def __init__(self, bs, nelec, dos_type="HISTO", energy_grid=0.005,
-                 lpfac=10, type="BOLTZ", band_nb=None):
+                 lpfac=10, type="BOLTZ", band_nb=None, tauref=0, tauexp=0, tauen=0, soc=False):
         self.lpfac = lpfac
         self._bs = bs
         self._nelec = nelec
@@ -94,6 +99,10 @@ class BoltztrapRunner():
         self.error = []
         self.type = type
         self.band_nb = band_nb
+        self.tauref=tauref
+        self.tauexp=tauexp
+        self.tauen=tauen
+        self.soc=soc
 
     def _make_energy_file(self, file_name):
         with open(file_name, 'w') as f:
@@ -135,7 +144,7 @@ class BoltztrapRunner():
     def _make_def_file(self, def_file_name):
         with open(def_file_name,'w') as f:
             so = ""
-            if self._bs.is_spin_polarized:
+            if self._bs.is_spin_polarized or self.soc:
                 so = "so"
             f.write("5, 'boltztrap.intrans',      'old',    'formatted',0\n"+
                     "6,'boltztrap.outputtrans',      'unknown',    'formatted',0\n"+
@@ -198,7 +207,8 @@ class BoltztrapRunner():
                         i += 1
 
     def _make_intrans_file(self, file_name,
-                           doping=[1e15, 1e16, 1e17, 1e18, 1e19, 1e20], type="BOLTZ", band_nb=None):
+                           doping=[1e15, 1e16, 1e17, 1e18, 1e19, 1e20], type="BOLTZ", band_nb=None,
+                           tauref=0, tauexp=0, tauen=0):
         if type == "BOLTZ":
             with open(file_name, 'w') as fout:
                 fout.write("GENE          # use generic interface\n")
@@ -214,7 +224,7 @@ class BoltztrapRunner():
                 fout.write("800. 100.                  # Tmax, temperature grid\n")
                 fout.write("-1.  # energyrange of bands given DOS output sig_xxx and dos_xxx (xxx is band number)\n")
                 fout.write(self.dos_type+"\n")
-                fout.write("0 0 0 0 0\n")
+                fout.write(str(tauref)+" "+str(tauexp)+" "+str(tauen)+" 0 0 0\n")
                 fout.write(str(2*len(doping))+"\n")
                 for d in doping:
                     fout.write(str(d)+"\n")
@@ -234,7 +244,7 @@ class BoltztrapRunner():
                 fout.write(str(band_nb+1))
 
     def _make_all_files(self, path):
-        if self._bs.is_spin_polarized:
+        if self._bs.is_spin_polarized or self.soc:
             self._make_energy_file(os.path.join(path, "boltztrap.energyso"))
         else:
             self._make_energy_file(os.path.join(path, "boltztrap.energy"))
@@ -263,7 +273,7 @@ class BoltztrapRunner():
         os.chdir(path_dir)
 
         self._make_all_files(path_dir)
-        if self._bs.is_spin_polarized:
+        if self._bs.is_spin_polarized or self.soc:
             p = subprocess.Popen(["x_trans", "BoltzTraP", "-so"],
                                  stdout=subprocess.PIPE,
                                  stdin=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -284,8 +294,8 @@ class BoltztrapRunner():
                     warning = True
                     break
             if warning:
-                print "There was a warning! Increase lpfac to " + \
-                      str(self.lpfac * 2)
+                print("There was a warning! Increase lpfac to " + \
+                      str(self.lpfac * 2))
                 self.lpfac *= 2
                 self._make_intrans_file(os.path.join(path_dir,
                                                      dir_bz_name + ".intrans"))
@@ -310,7 +320,7 @@ class BoltztrapRunner():
                     break
         if not doping_ok:
             self.energy_grid /= 10
-            print "lowers energy grid to "+str(self.energy_grid)
+            print("lowers energy grid to " + str(self.energy_grid))
             if self.energy_grid < 0.00005:
                 raise BoltztrapError("energy grid lower than 0.00005 and still no good doping")
             self._make_intrans_file(path_dir + "/" + dir_bz_name + ".intrans")
@@ -324,10 +334,10 @@ class BoltztrapRunner():
                         - prev_sigma)\
                 / prev_sigma > 0.05:
             if prev_sigma is not None:
-                print abs(sum(analyzer.get_eig_average_eff_mass_tensor()['n'])
+                print((abs(sum(analyzer.get_eig_average_eff_mass_tensor()['n'])
                           / 3 - prev_sigma) / prev_sigma, \
                     self.lpfac, \
-                    analyzer.get_average_eff_mass_tensor(300, 1e18)
+                    analyzer.get_average_eff_mass_tensor(300, 1e18)))
             self.lpfac *= 2
             if self.lpfac > 100:
                 raise BoltztrapError("lpfac higher than 100 and still not converged")
@@ -751,8 +761,7 @@ class BoltztrapAnalyzer():
             doping, data_doping_full, data_doping_hall, vol, warning)
 
 
-    @property
-    def to_dict(self):
+    def as_dict(self):
         from pymatgen.util.io_utils import clean_json
         results = {'gap': self.gap,
                    'mu_steps': self.mu_steps,
@@ -766,7 +775,7 @@ class BoltztrapAnalyzer():
                    'cond_doping': self.cond_doping,
                    'kappa_doping': self.kappa_doping,
                    'hall_doping': self.hall_doping,
-                   'dos': self.dos.to_dict,
+                   'dos': self.dos.as_dict(),
                    'dos_partial': self._dos_partial,
                    'carrier_conc': self.carrier_conc,
                    'vol': self.vol}
@@ -824,7 +833,7 @@ class BoltztrapAnalyzer():
              'n': {int(d): [_make_float_hall(v)
                             for v in data['hall_doping']['n'][d]]
                    for d in data['hall_doping']['n']}},
-            Dos.from_dict(data['dos']), data['carrier_conc'], data['dos_partial'],
+            Dos.from_dict(data['dos']), data['dos_partial'], data['carrier_conc'], 
             data['vol'], str(data['warning']))
 
 
@@ -978,4 +987,3 @@ class BoltztrapPlotter():
         plt.xticks(fontsize=25)
         plt.yticks(fontsize=25)
         return plt
-

@@ -1,10 +1,14 @@
-#!/usr/bin/env python
+# coding: utf-8
+
+from __future__ import division, unicode_literals
 
 """
 This module provides classes for plotting Pourbaix objects.
 """
 
-from __future__ import division
+import six
+from six.moves import map
+from six.moves import zip
 
 __author__ = "Sai Jayaraman"
 __copyright__ = "Copyright 2011, The Materials Project"
@@ -80,7 +84,7 @@ class PourbaixPlotter(object):
         alldata = np.array(pd.qhull_data)
         unstable_entries = dict()
         stable = pd.stable_entries
-        for i in xrange(len(allentries)):
+        for i in range(len(allentries)):
             entry = allentries[i]
             if entry not in stable:
                 x = [alldata[i][0], alldata[i][0]]
@@ -465,7 +469,7 @@ class PourbaixPlotter(object):
         sorted_entry = entry_dict_of_multientries.keys()
         sorted_entry.sort(key=len_elts)
         i = -1
-        label_chr = map(chr, range(65, 91))
+        label_chr = map(chr, list(range(65, 91)))
         for entry in sorted_entry:
             color_indx = 0
             x_coord = 0.0
@@ -516,10 +520,10 @@ class PourbaixPlotter(object):
                 if bc and hc:
                     bbox = dict(boxstyle="round", hatch=hc, fc=fc)
 #                 bbox.set_path_effects([PathEffects.withSimplePatchShadow()])
-#                 plt.annotate(latexify_ion(latexify(entry)), xy_center,
-#                               color=fc, fontsize=30, bbox=bbox)
-                plt.annotate(label_chr[i], xy_center,
-                              color=bc, fontsize=30, bbox=bbox)
+                plt.annotate(latexify_ion(latexify(entry)), xy_center,
+                            color=bc, fontsize=30, bbox=bbox)
+#                 plt.annotate(label_chr[i], xy_center,
+#                               color=bc, fontsize=30, bbox=bbox)
 
         lw = 3
         plt.plot(h_line[0], h_line[1], "r--", linewidth=lw)
@@ -550,7 +554,7 @@ class PourbaixPlotter(object):
         mark_passive = {key: 0 for key in stable.keys()}
 
         if self._pd._elt_comp:
-            maxval = max(self._pd._elt_comp.iteritems(), key=operator.itemgetter(1))[1]
+            maxval = max(six.iteritems(self._pd._elt_comp), key=operator.itemgetter(1))[1]
             key = [k for k, v in self._pd._elt_comp.items() if v == maxval]
         passive_entry = key[0]
 

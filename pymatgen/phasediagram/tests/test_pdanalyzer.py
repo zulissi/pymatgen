@@ -1,3 +1,7 @@
+# coding: utf-8
+
+from __future__ import unicode_literals
+
 import unittest
 import os
 
@@ -37,7 +41,7 @@ class PDAnalyzerTest(unittest.TestCase):
 
     def test_get_decomposition(self):
         for entry in self.pd.stable_entries:
-            self.assertEquals(len(self.analyzer.get_decomposition(entry.composition)), 1,
+            self.assertEqual(len(self.analyzer.get_decomposition(entry.composition)), 1,
                               "Stable composition should have only 1 decomposition!")
         dim = len(self.pd.elements)
         for entry in self.pd.all_entries:
@@ -72,17 +76,22 @@ class PDAnalyzerTest(unittest.TestCase):
         self.assertEqual(len(self.analyzer.get_chempot_range_map(elements)), 10)
 
     def test_getmu_vertices_stability_phase(self):
-        results = self.analyzer.getmu_vertices_stability_phase(Composition.from_formula("LiFeO2"), Element("O"))
-        self.assertAlmostEqual(results[5][Element("O")], -7.11535414)
-        self.assertAlmostEqual(results[10][Element("Li")], -3.93161519)
-        self.assertAlmostEqual(results[0][Element("Fe")], -10.45183356)
+        results = self.analyzer.getmu_vertices_stability_phase(Composition("LiFeO2"), Element("O"))
+        self.assertAlmostEqual(len(results), 6)
+        test_equality = False
+        for c in results:
+            if abs(c[Element("O")]+7.115) < 1e-2 and abs(c[Element("Fe")]+6.596) < 1e-2 and \
+                    abs(c[Element("Li")]+3.931) < 1e-2:
+                test_equality = True
+        self.assertTrue(test_equality,"there is an expected vertex missing in the list")
+
 
     def test_getmu_range_stability_phase(self):
-        results = self.analyzer.getmu_range_stability_phase(Composition.from_formula("LiFeO2"), Element("O"))
+        results = self.analyzer.get_chempot_range_stability_phase(
+            Composition("LiFeO2"), Element("O"))
         self.assertAlmostEqual(results[Element("O")][1], -4.4501812249999997)
         self.assertAlmostEqual(results[Element("Fe")][0], -6.5961470999999996)
         self.assertAlmostEqual(results[Element("Li")][0], -3.6250022625000007)
 
 if __name__ == '__main__':
     unittest.main()
-

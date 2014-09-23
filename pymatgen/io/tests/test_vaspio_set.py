@@ -1,21 +1,25 @@
-#!/usr/bin/python
+# coding: utf-8
+
+from __future__ import unicode_literals
 
 import unittest
 import os
-from numpy import array
+import numpy as np
+import shutil
 
 from pymatgen.io.vaspio_set import MITVaspInputSet, MITHSEVaspInputSet, \
     MPVaspInputSet, MITGGAVaspInputSet, MITNEBVaspInputSet,\
     MPStaticVaspInputSet, MPNonSCFVaspInputSet, MITMDVaspInputSet,\
-    MPHSEVaspInputSet, MPBSHSEVaspInputSet, MPStaticDielectricDFPTVaspInputSet
-from pymatgen.io.vaspio.vasp_input import Poscar
+    MPHSEVaspInputSet, MPBSHSEVaspInputSet, MPStaticDielectricDFPTVaspInputSet,\
+    MPOpticsNonSCFVaspInputSet
+from pymatgen.io.vaspio.vasp_input import Poscar, Incar
 from pymatgen import Specie, Lattice, Structure
-from pymatgen.serializers.json_coders import PMGJSONDecoder
+from monty.json import MontyDecoder
 
 test_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..",
                         'test_files')
 
-dec = PMGJSONDecoder()
+dec = MontyDecoder()
 
 
 class MITMPVaspInputSetTest(unittest.TestCase):
@@ -40,9 +44,10 @@ class MITMPVaspInputSetTest(unittest.TestCase):
             {"NBANDS": 60}, mode="Line")
         self.mphseparamset = MPHSEVaspInputSet()
         self.mpbshseparamsetl = MPBSHSEVaspInputSet(mode="Line")
-        self.mpbshseparamsetu = MPBSHSEVaspInputSet(mode="Uniform", added_kpoints=[[0.5, 0.5, 0.0]])
+        self.mpbshseparamsetu = MPBSHSEVaspInputSet(
+            mode="Uniform", added_kpoints=[[0.5, 0.5, 0.0]])
         self.mpdielparamset = MPStaticDielectricDFPTVaspInputSet()
-        
+
     def test_get_poscar(self):
         coords = list()
         coords.append([0, 0, 0])
@@ -51,10 +56,10 @@ class MITMPVaspInputSetTest(unittest.TestCase):
                            [1.9200989668, 3.3257101909, 0.00],
                            [0.00, -2.2171384943, 3.1355090603]])
         struct = Structure(lattice, ["Fe", "Mn"], coords)
-        
+
         s_unsorted = self.mitparamset_unsorted.get_poscar(struct).structure
         s_sorted = self.mitparamset.get_poscar(struct).structure
-        
+
         self.assertEqual(s_unsorted[0].specie.symbol, 'Fe')
         self.assertEqual(s_sorted[0].specie.symbol, 'Mn')
 
@@ -67,12 +72,29 @@ class MITMPVaspInputSetTest(unittest.TestCase):
                            [1.9200989668, 3.3257101909, 0.00],
                            [0.00, -2.2171384943, 3.1355090603]])
         struct = Structure(lattice, ["P", "Fe", "O"], coords)
-        
+
         syms = self.paramset.get_potcar_symbols(struct)
-        self.assertEquals(syms, ['Fe_pv', 'P', 'O'])
-        
+        self.assertEqual(syms, ['Fe_pv', 'P', 'O'])
+
         syms = MPVaspInputSet(sort_structure=False).get_potcar_symbols(struct)
-        self.assertEquals(syms, ['P', 'Fe_pv', 'O'])
+        self.assertEqual(syms, ['P', 'Fe_pv', 'O'])
+
+    def test_lda_potcar(self):
+        coords = list()
+        coords.append([0, 0, 0])
+        coords.append([0.75, 0.5, 0.75])
+        lattice = Lattice([[3.8401979337, 0.00, 0.00],
+                           [1.9200989668, 3.3257101909, 0.00],
+                           [0.00, -2.2171384943, 3.1355090603]])
+        struct = Structure(lattice, ["P", "Fe"], coords)
+        p = MITVaspInputSet(potcar_functional="LDA").get_potcar(struct)
+        self.assertEqual(p.functional, 'LDA')
+
+    def test_get_nelect(self):
+        coords = [[0]*3, [0.5]*3, [0.75]*3]
+        lattice = Lattice.cubic(4)
+        s = Structure(lattice, ['Si', 'Si', 'Fe'], coords)
+        self.assertAlmostEqual(MITVaspInputSet().get_nelect(s), 16)
 
     def test_get_incar(self):
         incar = self.paramset.get_incar(self.struct)
@@ -116,11 +138,11 @@ class MITMPVaspInputSetTest(unittest.TestCase):
 
         si = 14
         coords = list()
-        coords.append(array([0, 0, 0]))
-        coords.append(array([0.75, 0.5, 0.75]))
+        coords.append(np.array([0, 0, 0]))
+        coords.append(np.array([0.75, 0.5, 0.75]))
 
         #Silicon structure for testing.
-        latt = Lattice(array([[3.8401979337, 0.00, 0.00],
+        latt = Lattice(np.array([[3.8401979337, 0.00, 0.00],
                               [1.9200989668, 3.3257101909, 0.00],
                               [0.00, -2.2171384943, 3.1355090603]]))
         struct = Structure(latt, [si, si], coords)
@@ -208,40 +230,54 @@ class MITMPVaspInputSetTest(unittest.TestCase):
         self.assertEqual(self.userparamset.get_incar(struct)['MAGMOM'],
                          [10, -5, 0.6])
 
+    def test_optics(self):
+        if "VASP_PSP_DIR" not in os.environ:
+            os.environ["VASP_PSP_DIR"] = test_dir
+        self.mpopticsparamset = MPOpticsNonSCFVaspInputSet.from_previous_vasp_run(
+            '{}/static_silicon'.format(test_dir), output_dir='optics_test_dir',
+            nedos=1145)
+        self.assertTrue(os.path.exists('optics_test_dir/CHGCAR'))
+        incar = Incar.from_file('optics_test_dir/INCAR')
+        self.assertTrue(incar['LOPTICS'])
+        self.assertEqual(incar['NEDOS'], 1145)
+
+        #Remove the directory in which the inputs have been created
+        shutil.rmtree('optics_test_dir')
+
     def test_get_kpoints(self):
         kpoints = self.paramset.get_kpoints(self.struct)
-        self.assertEquals(kpoints.kpts, [[2, 4, 6]])
-        self.assertEquals(kpoints.style, 'Monkhorst')
+        self.assertEqual(kpoints.kpts, [[4, 4, 6]])
+        self.assertEqual(kpoints.style, 'Monkhorst')
 
         kpoints = self.mitparamset.get_kpoints(self.struct)
-        self.assertEquals(kpoints.kpts, [[2, 4, 6]])
-        self.assertEquals(kpoints.style, 'Monkhorst')
+        self.assertEqual(kpoints.kpts, [[4, 4, 6]])
+        self.assertEqual(kpoints.style, 'Monkhorst')
 
         kpoints = self.mpstaticparamset.get_kpoints(self.struct)
-        self.assertEquals(kpoints.kpts, [[6, 6, 4]])
-        self.assertEquals(kpoints.style, 'Monkhorst')
+        self.assertEqual(kpoints.kpts, [[6, 6, 4]])
+        self.assertEqual(kpoints.style, 'Monkhorst')
 
         kpoints = self.mpnscfparamsetl.get_kpoints(self.struct)
-        self.assertEquals(kpoints.num_kpts, 140)
-        self.assertEquals(kpoints.style, 'Reciprocal')
+        self.assertEqual(kpoints.num_kpts, 140)
+        self.assertEqual(kpoints.style, 'Reciprocal')
 
         kpoints = self.mpnscfparamsetu.get_kpoints(self.struct)
-        self.assertEquals(kpoints.num_kpts, 168)
+        self.assertEqual(kpoints.num_kpts, 240)
 
         kpoints = self.mpbshseparamsetl.get_kpoints(self.struct)
-        self.assertAlmostEquals(kpoints.num_kpts, 188)
+        self.assertAlmostEqual(kpoints.num_kpts, 176)
         self.assertAlmostEqual(kpoints.kpts[10][0], 0.25)
-        self.assertAlmostEqual(kpoints.kpts[10][1], 0.5)
-        self.assertAlmostEqual(kpoints.kpts[10][2], 0.0)
+        self.assertAlmostEqual(kpoints.kpts[10][1], 0.0)
+        self.assertAlmostEqual(kpoints.kpts[10][2], 0.16666667)
         self.assertAlmostEqual(kpoints.kpts[-1][0], 0.66006924)
         self.assertAlmostEqual(kpoints.kpts[-1][1], 0.51780182)
         self.assertAlmostEqual(kpoints.kpts[-1][2], 0.30173482)
 
         kpoints = self.mpbshseparamsetu.get_kpoints(self.struct)
-        self.assertAlmostEquals(kpoints.num_kpts, 49)
-        self.assertAlmostEqual(kpoints.kpts[23][0], 0.5)
-        self.assertAlmostEqual(kpoints.kpts[23][1], 0.5)
-        self.assertAlmostEqual(kpoints.kpts[23][2], 0.16666667)
+        self.assertAlmostEqual(kpoints.num_kpts, 37)
+        self.assertAlmostEqual(kpoints.kpts[10][0], 0.25)
+        self.assertAlmostEqual(kpoints.kpts[10][1], 0.0)
+        self.assertAlmostEqual(kpoints.kpts[10][2], 0.16666667)
         self.assertAlmostEqual(kpoints.kpts[-1][0], 0.5)
         self.assertAlmostEqual(kpoints.kpts[-1][1], 0.5)
         self.assertAlmostEqual(kpoints.kpts[-1][2], 0.0)
@@ -254,27 +290,27 @@ class MITMPVaspInputSetTest(unittest.TestCase):
             user_incar_settings={'MAGMOM': {"Fe": 10, "S": -5, "Mn3+": 100}}
         )
 
-        d = self.mitparamset.to_dict
+        d = self.mitparamset.as_dict()
         v = dec.process_decoded(d)
         self.assertEqual(v.incar_settings["LDAUU"]["O"]["Fe"], 4)
 
-        d = self.mitggaparam.to_dict
+        d = self.mitggaparam.as_dict()
         v = dec.process_decoded(d)
         self.assertNotIn("LDAUU", v.incar_settings)
 
-        d = self.mithseparamset.to_dict
+        d = self.mithseparamset.as_dict()
         v = dec.process_decoded(d)
         self.assertEqual(v.incar_settings["LHFCALC"], True)
 
-        d = self.mphseparamset.to_dict
+        d = self.mphseparamset.as_dict()
         v = dec.process_decoded(d)
         self.assertEqual(v.incar_settings["LHFCALC"], True)
 
-        d = self.paramset.to_dict
+        d = self.paramset.as_dict()
         v = dec.process_decoded(d)
         self.assertEqual(v.incar_settings["LDAUU"]["O"]["Fe"], 5.3)
 
-        d = self.userparamset.to_dict
+        d = self.userparamset.as_dict()
         v = dec.process_decoded(d)
         #self.assertEqual(type(v), MPVaspInputSet)
         self.assertEqual(v.incar_settings["MAGMOM"],
@@ -291,7 +327,7 @@ class MITMDVaspInputSetTest(unittest.TestCase):
 
     def test_get_potcar_symbols(self):
         syms = self.mitmdparam.get_potcar_symbols(self.struct)
-        self.assertEquals(syms, ['Fe', 'P', 'O'])
+        self.assertEqual(syms, ['Fe', 'P', 'O'])
 
     def test_get_incar(self):
         incar = self.mitmdparam.get_incar(self.struct)
@@ -300,11 +336,11 @@ class MITMDVaspInputSetTest(unittest.TestCase):
 
     def test_get_kpoints(self):
         kpoints = self.mitmdparam.get_kpoints(self.struct)
-        self.assertEquals(kpoints.kpts, [(1, 1, 1)])
-        self.assertEquals(kpoints.style, 'Gamma')
+        self.assertEqual(kpoints.kpts, [(1, 1, 1)])
+        self.assertEqual(kpoints.style, 'Gamma')
 
     def test_to_from_dict(self):
-        d = self.mitmdparam.to_dict
+        d = self.mitmdparam.as_dict()
         v = dec.process_decoded(d)
         self.assertEqual(type(v), MITMDVaspInputSet)
         self.assertEqual(v.incar_settings["TEBEG"], 300)
@@ -320,7 +356,7 @@ class MITNEBVaspInputSetTest(unittest.TestCase):
 
     def test_get_potcar_symbols(self):
         syms = self.vis.get_potcar_symbols(self.struct)
-        self.assertEquals(syms, ['Fe', 'P', 'O'])
+        self.assertEqual(syms, ['Fe', 'P', 'O'])
 
     def test_get_incar(self):
         incar = self.vis.get_incar(self.struct)
@@ -329,13 +365,26 @@ class MITNEBVaspInputSetTest(unittest.TestCase):
 
     def test_get_kpoints(self):
         kpoints = self.vis.get_kpoints(self.struct)
-        self.assertEquals(kpoints.kpts, [[2, 4, 6]])
-        self.assertEquals(kpoints.style, 'Monkhorst')
+        self.assertEqual(kpoints.kpts, [[4, 4, 6]])
+        self.assertEqual(kpoints.style, 'Monkhorst')
 
     def test_to_from_dict(self):
-        d = self.vis.to_dict
+        d = self.vis.as_dict()
         v = dec.process_decoded(d)
         self.assertEqual(v.incar_settings["IMAGES"], 10)
+
+    def test_write_inputs(self):
+        c1 = [[0.5] * 3, [0.9] * 3]
+        c2 = [[0.5] * 3, [0.9, 0.1, 0.1]]
+        s1 = Structure(Lattice.cubic(5), ['Si', 'Si'], c1)
+        s2 = Structure(Lattice.cubic(5), ['Si', 'Si'], c2)
+        structs = []
+        for s in s1.interpolate(s2, 3, pbc=True):
+            structs.append(Structure.from_sites(s.sites,
+                                        to_unit_cell=True))
+
+        fc = self.vis._process_structures(structs)[2].frac_coords
+        self.assertTrue(np.allclose(fc, [[0.5]*3,[0.9, 1.033333, 1.0333333]]))
 
 
 if __name__ == '__main__':

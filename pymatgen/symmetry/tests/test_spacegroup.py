@@ -1,10 +1,11 @@
-#!/usr/bin/env python
+# coding: utf-8
+
+from __future__ import division, unicode_literals
 
 '''
 Created on Mar 12, 2012
 '''
 
-from __future__ import division
 
 __author__ = "Shyue Ping Ong"
 __copyright__ = "Copyright 2012, The Materials Project"

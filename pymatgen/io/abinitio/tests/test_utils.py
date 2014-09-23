@@ -1,5 +1,6 @@
-#!/usr/bin/env python
-from __future__ import division, print_function
+# coding: utf-8
+
+from __future__ import unicode_literals, division, print_function
 
 from pymatgen.util.testing import PymatgenTest
 from pymatgen.io.abinitio.utils import *

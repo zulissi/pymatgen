@@ -1,14 +1,7 @@
-.. pymatgen documentation master file, created by
-   sphinx-quickstart on Tue Nov 15 00:13:52 2011.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 .. image:: _static/pymatgen.png
    :width: 300 px
    :alt: pymatgen
    :align: center
-
-.. image:: https://circleci.com/gh/materialsproject/pymatgen/tree/stable.png?circle-token=:circle-token
 
 Introduction
 ============
@@ -71,55 +64,31 @@ several advantages over other codes out there:
    written in other languages. Pymatgen also comes with a complete system for
    handling periodic boundary conditions.
 
-Latest Change Log
-=================
+Python 3.x support
+==================
 
-v2.9.6
-------
-1. Patch to allow 1D phase diagrams (essentially finding the lowest energy
-   phase).
+.. versionadded:: 3.0
 
-v2.9.5
-------
-1. Bug fix for linear assignment, which may sometimes affect Structure
-   Matcher results.
-2. Minor improvement to the way grand canonical PDs work.
+With effect from version 3.0, pymatgen now supports both Python 2.7 as well
+as Python 3.x. All underlying core dependencies (numpy,
+pyhull and the spglib library) have been made Python 3 compatible,
+and a completely rewritten CIF parser module (courtesy of William Davidson
+Richards) has removed the dependency on PyCIFRW. We will support Python >= 3.3
+(ignoring v3.1 and v3.2).
 
-v2.9.4
-------
-1. Bug fix for Pourbaix Maker (Sai).
-2. Streamline use of scratch directories for various calls. Require monty >=
-   0.1.2.
-3. High accuracy mode for Zeo++ (Bharat Medasani).
+With the release of a new major version, we are taking the opportunity to
+streamline and cleanup some of the code, which introduces some backwards
+incompatibilities. The major ones are listed below:
 
-v2.9.3
-------
-1. Bug fix release for printing TransformedStructures from Substitutor (Will
-   Richards).
-2. Misc improvements in BVAnalyzer, coord_utils and defects (Will Richards,
-   David Waroquiers and Bharat Medasani).
+* The to_dict property of all classes have been deprecated in favor of the
+  as_dict() method protocol in the monty package. The to_dict property will
+  be available only up till the next minor version, i.e., v3.1.
+* All previously deprecated methods and modules (e.g.,
+  pymatgen.core.structure_editor) have been removed.
 
-v2.9.2
-------
-1. Bug fix release for DummySpecie, which failed when deserializing from
-   json and had bad hash function.
+.. include:: latest_changes.rst
 
-v2.9.1
-------
-1. Structure/Molecule now supports Pythonic list-like API for replacing and
-   removing sites. See :ref:`quick_start` for examples.
-
-v2.9.0
-------
-1. Updates to support ABINIT 7.6.1 (by Matteo Giantomassi).
-2. Vastly improved docs.
-3. Refactoring to move commonly used Python utility functions to `Monty
-   package <https://pypi.python.org/pypi/monty>`_, which is now a dependency
-   for pymatgen.
-4. Minor fixes and improvements to DiffusionAnalyzer.
-5. Many bug fixes and improvements.
-
-:doc:`Older versions </changelog>`
+:doc:`Older versions </change_log>`
 
 Getting pymatgen
 ================
@@ -159,17 +128,22 @@ Stable version
     Before installing pymatgen, you may need to first install a few critical
     dependencies manually.
 
-    1. Numpy's distutils is needed to compile the spglib and pyhull
+    1. Installation has been tested to be most successful with gcc,
+       and several dependencies have issues with icc. Use gcc where
+       possible and do "export CC=gcc" prior to installation.
+    2. Numpy's distutils is needed to compile the spglib and pyhull
        dependencies. This should be the first thing you install.
-    2. Pyhull and PyCifRW. The recent versions of pip does not allow the
-       installation of externally hosted files. Furthermore,
-       there are some issues with easy_install for these extensions. Install
-       both these dependencies manually using "pip install <package>
-       --allow-external <package> --allow-unverified <package>".
+    3. Although PyYaml can be installed directly through pip without
+       additional preparation, it is highly recommended that you install
+       pyyaml with the C bindings for speed. To do so, install LibYaml first,
+       and then install pyyaml with the command below (see the `pyyaml
+       doc <http://pyyaml.org/wiki/PyYAML>`_ for more information)::
+
+           python setup.py --with-libyaml install
 
 The version at the Python Package Index (PyPI) is always the latest stable
-release that will be hopefully, be relatively bug-free. The easiest way to
-install pymatgen on any system is to use easy_install or pip, as follows::
+release that is relatively bug-free. The easiest way to install pymatgen on
+any system is to use easy_install or pip, as follows::
 
     easy_install pymatgen
 
@@ -213,7 +187,7 @@ Installation help
 -----------------
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
    installation
 
@@ -276,24 +250,28 @@ some quick examples of the core capabilities and objects:
     >>> finder.get_spacegroup_symbol()
     'Pm-3m'
     >>>
-    >>> # Convenient IO to various formats. Format is intelligently determined
-    >>> # from file name and extension.
-    >>> mg.write_structure(structure, "POSCAR")
-    >>> mg.write_structure(structure, "CsCl.cif")
+    >>> # Convenient IO to various formats. You can specify various formats.
+    >>> # Without a filename, a string is returned. Otherwise,
+    >>> # the output is written to the file. If only the filenmae is provided,
+    >>> # the format is intelligently determined from a file.
+    >>> structure.to(fmt="poscar")
+    >>> structure.to(filename="POSCAR")
+    >>> structure.to(filename="CsCl.cif")
     >>>
-    >>> # Reading a structure from a file.
-    >>> structure = mg.read_structure("POSCAR")
+    >>> # Reading a structure is similarly easy.
+    >>> structure = mg.Structure.from_str(open("CsCl.cif").read(), fmt="cif")
+    >>> structure = mg.Structure.from_file("CsCl.cif")
     >>>
     >>> # Reading and writing a molecule from a file. Supports XYZ and
     >>> # Gaussian input and output by default. Support for many other
     >>> # formats via the optional openbabel dependency (if installed).
-    >>> methane = mg.read_mol("methane.xyz")
-    >>> mg.write_mol(mol, "methane.gjf")
+    >>> methane = mg.Molecule.from_file("methane.xyz")
+    >>> mol.to("methane.gjf")
     >>>
     >>> # Pythonic API for editing Structures and Molecules (v2.9.1 onwards)
     >>> # Changing the specie of a site.
     >>> structure[1] = "F"
-    >>> print structure
+    >>> print(structure)
     Structure Summary (Cs1 F1)
     Reduced Formula: CsF
     abc   :   4.200000   4.200000   4.200000
@@ -304,7 +282,7 @@ some quick examples of the core capabilities and objects:
     >>>
     >>> #Changes species and coordinates (fractional assumed for structures)
     >>> structure[1] = "Cl", [0.51, 0.51, 0.51]
-    >>> print structure
+    >>> print(structure)
     Structure Summary (Cs1 Cl1)
     Reduced Formula: CsCl
     abc   :   4.200000   4.200000   4.200000
@@ -316,7 +294,7 @@ some quick examples of the core capabilities and objects:
     >>> # Because structure is like a list, it supports most list-like methods
     >>> # such as sort, reverse, etc.
     >>> structure.reverse()
-    >>> print structure
+    >>> print(structure)
     Structure Summary (Cs1 Cl1)
     Reduced Formula: CsCl
     abc   :   4.200000   4.200000   4.200000
@@ -355,8 +333,8 @@ API documentation
 For detailed documentation of all modules and classes, please refer to the
 :doc:`API docs </modules>`.
 
-matgenie.py - Command line tool
--------------------------------
+pmg - Command line tool
+-----------------------
 
 To demonstrate the capabilities of pymatgen and to make it easy for users to
 quickly use the functionality, pymatgen comes with a set of useful scripts
@@ -365,46 +343,46 @@ installed to your path by default when you install pymatgen through the
 typical installation routes.
 
 Here, we will discuss the most versatile of these scripts, known as
-matgenie.py. The typical usage of matgenie.py is::
+pmg. The typical usage of pmg is::
 
-    matgenie.py {analyze, plotdos, plotchgint, convert, symm, view, compare} additional_arguments
+    pmg {analyze, plotdos, plotchgint, convert, symm, view, compare} additional_arguments
 
-At any time, you can use "matgenie.py --help" or "matgenie.py subcommand
---help" to bring up a useful help message on how to use these subcommands.
+At any time, you can use ``"pmg --help"`` or ``"pmg subcommand
+--help"`` to bring up a useful help message on how to use these subcommands.
 Here are a few examples of typical usages::
 
     #Parses all vasp runs in a directory and display the basic energy
     #information. Saves the data in a file called vasp_data.gz for subsequent
     #reuse.
 
-    matgenie.py analyze .
+    pmg analyze .
 
     #Plot the dos from the vasprun.xml file.
 
-    matgenie.py plotdos vasprun.xml
+    pmg plotdos vasprun.xml
 
     #Convert between file formats. The script attempts to intelligently
     #determine the file type. Input file types supported include CIF,
     #vasprun.xml, POSCAR, CSSR. You can force the script to assume certain file
-    #types by specifying additional arguments. See matgenie.py convert -h.
+    #types by specifying additional arguments. See pmg convert -h.
 
-    matgenie.py convert input_filename output_filename.
+    pmg convert input_filename output_filename.
 
     #Obtain spacegroup information.
 
-    matgenie.py symm -s filename1 filename2
+    pmg symm -s filename1 filename2
 
     #Visualize a structure. Requires VTK to be installed.
 
-    matgenie.py view filename
+    pmg view filename
 
     #Compare two structures for similarity
 
-    matgenie.py compare filename1 filename2
+    pmg compare filename1 filename2
 
     #Generate a POTCAR with symbols Li_sv O and the PBE functional
 
-    matgenie.py generate --potcar Li_sv O --functional PBE
+    pmg generate --potcar Li_sv O --functional PBE
 
 ipmg - A Custom ipython shell
 -----------------------------
@@ -483,28 +461,9 @@ License
 =======
 
 Pymatgen is released under the MIT License. The terms of the license are as
-follows::
+follows:
 
-    The MIT License (MIT)
-    Copyright (c) 2011-2012 MIT & LBNL
-
-    Permission is hereby granted, free of charge, to any person obtaining a
-    copy of this software and associated documentation files (the "Software")
-    , to deal in the Software without restriction, including without limitation
-    the rights to use, copy, modify, merge, publish, distribute, sublicense,
-    and/or sell copies of the Software, and to permit persons to whom the
-    Software is furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in
-    all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-    DEALINGS IN THE SOFTWARE.
+.. literalinclude:: ../LICENSE.rst
 
 Indices and tables
 ==================

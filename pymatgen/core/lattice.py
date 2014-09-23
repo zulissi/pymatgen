@@ -1,10 +1,11 @@
-#!/usr/bin/env python
+# coding: utf-8
+
+from __future__ import division, unicode_literals
 
 """
 This module defines the classes relating to 3D lattices.
 """
 
-from __future__ import division
 
 __author__ = "Shyue Ping Ong, Michael Kocher"
 __copyright__ = "Copyright 2011, The Materials Project"
@@ -17,14 +18,18 @@ __date__ = "Sep 23, 2011"
 import math
 import itertools
 
+from six.moves import map, zip
+
 import numpy as np
 from numpy.linalg import inv
 from numpy import pi, dot, transpose, radians
 
-from pymatgen.serializers.json_coders import MSONable
+from pyhull.voronoi import VoronoiTess
+
+from pymatgen.serializers.json_coders import PMGSONable
 
 
-class Lattice(MSONable):
+class Lattice(PMGSONable):
     """
     A lattice object.  Essentially a matrix with conversion matrices. In
     general, it is assumed that length units are in Angstroms and angles are in
@@ -41,17 +46,17 @@ class Lattice(MSONable):
             matrix: Sequence of numbers in any form. Examples of acceptable
                 input.
                 i) An actual numpy array.
-                ii) [[1, 0, 0],[0, 1, 0], [0, 0, 1]]
+                ii) [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
                 iii) [1, 0, 0 , 0, 1, 0, 0, 0, 1]
                 iv) (1, 0, 0, 0, 1, 0, 0, 0, 1)
                 Each row should correspond to a lattice vector.
-                E.g., [[10,0,0], [20,10,0], [0,0,30]] specifies a lattice with
-                lattice vectors [10,0,0], [20,10,0] and [0,0,30].
+                E.g., [[10, 0, 0], [20, 10, 0], [0, 0, 30]] specifies a lattice
+                with lattice vectors [10, 0, 0], [20, 10, 0] and [0, 0, 30].
         """
         m = np.array(matrix, dtype=np.float64).reshape((3, 3))
         lengths = np.sqrt(np.sum(m ** 2, axis=1))
         angles = np.zeros(3)
-        for i in xrange(3):
+        for i in range(3):
             j = (i + 1) % 3
             k = (i + 2) % 3
             angles[i] = dot(m[j], m[k]) / (lengths[j] * lengths[k])
@@ -75,12 +80,18 @@ class Lattice(MSONable):
 
     @property
     def inv_matrix(self):
+        """
+        Inverse of lattice matrix.
+        """
         if self._inv_matrix is None:
             self._inv_matrix = inv(self._matrix)
         return self._inv_matrix
 
     @property
     def metric_tensor(self):
+        """
+        The metric tensor of the lattice.
+        """
         if self._metric_tensor is None:
             self._metric_tensor = np.dot(self._matrix, self._matrix.T)
         return self._metric_tensor
@@ -102,7 +113,7 @@ class Lattice(MSONable):
         Returns the fractional coordinates given cartesian coordinates.
 
         Args:
-            cartesian_coords (3x1 array): Cartesian coords.
+            cart_coords (3x1 array): Cartesian coords.
 
         Returns:
             Fractional coordinates.
@@ -330,26 +341,34 @@ class Lattice(MSONable):
     @property
     def reciprocal_lattice(self):
         """
-        Return the reciprocal lattice. The property is lazily generated for
-        efficiency.
+        Return the reciprocal lattice. Note that this is the standard
+        reciprocal lattice used for solid state physics with a factor of 2 *
+        pi. If you are looking for the crystallographic reciprocal lattice,
+        use the reciprocal_lattice_crystallographic property.
+        The property is lazily generated for efficiency.
         """
         try:
             return self._reciprocal_lattice
         except AttributeError:
-            v = [np.cross(self._matrix[(i + 1) % 3], self._matrix[(i + 2) % 3])
-                for i in xrange(3)]
-            self._reciprocal_lattice = Lattice(np.array(v) * 2 * np.pi /
-                                               self.volume)
+            v = np.linalg.inv(self._matrix).T
+            self._reciprocal_lattice = Lattice(v * 2 * np.pi)
             return self._reciprocal_lattice
 
+    @property
+    def reciprocal_lattice_crystallographic(self):
+        """
+        Returns the *crystallographic* reciprocal lattice, i.e., no factor of
+        2 * pi.
+        """
+        return Lattice(self.reciprocal_lattice.matrix / (2 * np.pi))
+
     def __repr__(self):
-        f = lambda x: "%0.6f" % x
-        outs = ["Lattice", "    abc : " + " ".join(map(f, self._lengths)),
-                " angles : " + " ".join(map(f, self._angles)),
-                " volume : %0.4f" % self.volume,
-                "      A : " + " ".join(map(f, self._matrix[0])),
-                "      B : " + " ".join(map(f, self._matrix[1])),
-                "      C : " + " ".join(map(f, self._matrix[2]))]
+        outs = ["Lattice", "    abc : " + " ".join(map(repr, self._lengths)),
+                " angles : " + " ".join(map(repr, self._angles)),
+                " volume : " + repr(self.volume),
+                "      A : " + " ".join(map(repr, self._matrix[0])),
+                "      B : " + " ".join(map(repr, self._matrix[1])),
+                "      C : " + " ".join(map(repr, self._matrix[2]))]
         return "\n".join(outs)
 
     def __eq__(self, other):
@@ -359,7 +378,7 @@ class Lattice(MSONable):
         """
         if other is None:
             return False
-        return np.allclose(self._matrix, other._matrix)
+        return np.allclose(self.matrix, other.matrix)
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -371,8 +390,7 @@ class Lattice(MSONable):
         return "\n".join([" ".join(["%.6f" % i for i in row])
                           for row in self._matrix])
 
-    @property
-    def to_dict(self):
+    def as_dict(self):
         """""
         Json-serialization dict representation of the Lattice.
         """
@@ -386,6 +404,67 @@ class Lattice(MSONable):
                 "beta": float(self.beta),
                 "gamma": float(self.gamma),
                 "volume": float(self.volume)}
+
+    def find_all_mappings(self, other_lattice, ltol=1e-5, atol=1):
+        """
+        Finds all mappings between current lattice and another lattice.
+
+        Args:
+            other_lattice (Lattice): Another lattice that is equivalent to
+                this one.
+            ltol (float): Tolerance for matching lengths. Defaults to 1e-5.
+            atol (float): Tolerance for matching angles. Defaults to 1.
+
+        Yields:
+            (aligned_lattice, rotation_matrix, scale_matrix) if a mapping is
+            found. aligned_lattice is a rotated version of other_lattice that
+            has the same lattice parameters, but which is aligned in the
+            coordinate system of this lattice so that translational points
+            match up in 3D. rotation_matrix is the rotation that has to be
+            applied to other_lattice to obtain aligned_lattice, i.e.,
+            aligned_matrix = np.inner(other_lattice, rotation_matrix) and
+            op = SymmOp.from_rotation_and_translation(rotation_matrix)
+            aligned_matrix = op.operate_multi(latt.matrix)
+            Finally, scale_matrix is the integer matrix that expresses
+            aligned_matrix as a linear combination of this
+            lattice, i.e., aligned_matrix = np.dot(scale_matrix, self.matrix)
+
+            None is returned if no matches are found.
+        """
+        (lengths, angles) = other_lattice.lengths_and_angles
+        (alpha, beta, gamma) = angles
+
+        points = self.get_points_in_sphere([[0, 0, 0]], [0, 0, 0],
+                                           max(lengths) * (1 + ltol))
+        frac = np.array([p[0] for p in points])
+        dist = np.array([p[1] for p in points])
+        cart = self.get_cartesian_coords(frac)
+
+        inds = [np.abs(dist - l) / l <= ltol for l in lengths]
+        c_cand = [cart[i] for i in inds]
+        f_cand = [frac[i] for i in inds]
+        lengths = [np.sum(c ** 2, axis=-1) ** 0.5 for c in c_cand]
+
+        def get_angles(v1, v2, l1, l2):
+            x = np.inner(np.atleast_2d(v1), v2) / np.atleast_1d(l1)[:, None] / l2
+            x[x>1] = 1
+            x[x<-1] = -1
+            angles = np.arccos(x) * 180. / pi
+            return angles
+
+        gammas = get_angles(c_cand[0], c_cand[1], lengths[0], lengths[1])
+        for i, j in np.argwhere(np.abs(gammas - gamma) < atol):
+            alphas = get_angles(c_cand[1][j], c_cand[2], lengths[1][j], lengths[2])[0]
+            betas = get_angles(c_cand[0][i], c_cand[2], lengths[0][i], lengths[2])[0]
+            inds = np.logical_and(np.abs(alphas - alpha) < atol, np.abs(betas - beta) < atol)
+
+            for c, f in zip(c_cand[2][inds], f_cand[2][inds]):
+                aligned_m = np.array([c_cand[0][i], c_cand[1][j], c])
+                scale_m = np.array([f_cand[0][i], f_cand[1][j], f])
+                if abs(np.linalg.det(scale_m)) < 1e-8:
+                    continue
+                rotation_m = np.linalg.solve(aligned_m, other_lattice.matrix)
+                yield Lattice(aligned_m), rotation_m, scale_m
 
     def find_mapping(self, other_lattice, ltol=1e-5, atol=1):
         """
@@ -407,100 +486,17 @@ class Lattice(MSONable):
             coordinate system of this lattice so that translational points
             match up in 3D. rotation_matrix is the rotation that has to be
             applied to other_lattice to obtain aligned_lattice, i.e.,
-            aligned_matrix = rotation_matrix * other_lattice.
+            aligned_matrix = np.inner(other_lattice, rotation_matrix) and
+            op = SymmOp.from_rotation_and_translation(rotation_matrix)
+            aligned_matrix = op.operate_multi(latt.matrix)
             Finally, scale_matrix is the integer matrix that expresses
             aligned_matrix as a linear combination of this
-            lattice, i.e., aligned_matrix = scale_matrix * self
+            lattice, i.e., aligned_matrix = np.dot(scale_matrix, self.matrix)
 
             None is returned if no matches are found.
         """
-        (lengths, angles) = other_lattice.lengths_and_angles
-        (alpha, beta, gamma) = angles
-
-        points = self.get_points_in_sphere([[0, 0, 0]], [0, 0, 0],
-                                           max(lengths) + 0.1)
-        all_frac = [p[0] for p in points]
-        dist = [p[1] for p in points]
-        cart = self.get_cartesian_coords(all_frac)
-        data = zip(cart, dist)
-        candidates = [filter(lambda d: abs(d[1] - l) < ltol, data)
-                      for l in lengths]
-
-        def get_angle(v1, v2):
-            x = dot(v1[0], v2[0]) / v1[1] / v2[1]
-            x = min(1, x)
-            x = max(-1, x)
-            angle = np.arccos(x) * 180. / pi
-            return angle
-
-        for m1, m2, m3 in itertools.product(*candidates):
-            if abs(get_angle(m1, m2) - gamma) < atol and\
-                    abs(get_angle(m2, m3) - alpha) < atol and\
-                    abs(get_angle(m1, m3) - beta) < atol:
-                aligned_m = np.array([m1[0], m2[0], m3[0]])
-                rotation_matrix = np.linalg.solve(other_lattice.matrix.T,
-                                                  aligned_m.T).T
-                scale_matrix = np.linalg.solve(aligned_m.T, self._matrix.T).T
-                return Lattice(aligned_m), rotation_matrix, scale_matrix
-
-        return None
-
-    def get_most_compact_basis_on_lattice(self):
-        """
-        This method returns the alternative basis corresponding to the shortest
-        3 linearly independent translational operations permitted.
-        This tends to create larger angles for every elongated cells and is
-        beneficial for viewing crystal structure (especially when they are
-        Niggli cells).
-        """
-        matrix = self.matrix
-        a = matrix[0]
-        b = matrix[1]
-        c = matrix[2]
-        while True:
-            anychange = False
-            # take care of c
-            if dot(a, b) > 0:
-                diffvector = a - b
-            else:
-                diffvector = a + b
-            diffnorm = np.linalg.norm(diffvector)
-            if diffnorm < np.linalg.norm(a) or\
-                    diffnorm < np.linalg.norm(b):
-                if np.linalg.norm(a) < np.linalg.norm(b):
-                    b = diffvector
-                else:
-                    a = diffvector
-                anychange = True
-                # take care of b
-            if dot(a, c) > 0:
-                diffvector = a - c
-            else:
-                diffvector = a + c
-            diffnorm = np.linalg.norm(diffvector)
-            if diffnorm < np.linalg.norm(a) or\
-                    diffnorm < np.linalg.norm(c):
-                if np.linalg.norm(a) < np.linalg.norm(c):
-                    c = diffvector
-                else:
-                    a = diffvector
-                anychange = True
-                # take care of a
-            if dot(c, b) > 0:
-                diffvector = c - b
-            else:
-                diffvector = c + b
-            diffnorm = np.linalg.norm(diffvector)
-            if diffnorm < np.linalg.norm(c) or\
-                    diffnorm < np.linalg.norm(b):
-                if np.linalg.norm(c) < np.linalg.norm(b):
-                    b = diffvector
-                else:
-                    c = diffvector
-                anychange = True
-            if anychange:
-                break
-        return Lattice([a, b, c])
+        for x in self.find_all_mappings(other_lattice, ltol, atol):
+            return x
 
     def get_lll_reduced_lattice(self, delta=0.75):
         """
@@ -525,7 +521,7 @@ class Lattice(MSONable):
 
         b[:, 0] = a[:, 0]
         m[0] = dot(b[:, 0], b[:, 0])
-        for i in xrange(1, 3):
+        for i in range(1, 3):
             u[i, 0:i] = dot(a[:, i].T, b[:, 0:i]) / m[0:i]
             b[:, i] = a[:, i] - dot(b[:, 0:i], u[i, 0:i].T)
             m[i] = dot(b[:, i], b[:, i])
@@ -534,7 +530,7 @@ class Lattice(MSONable):
 
         while k <= 3:
             # Size reduction.
-            for i in xrange(k - 1, 0, -1):
+            for i in range(k - 1, 0, -1):
                 q = round(u[k - 1, i - 1])
                 if q != 0:
                     # Reduce the k-th basis vector.
@@ -557,7 +553,7 @@ class Lattice(MSONable):
                 a[:, k - 1] = a[:, k - 2].copy()
                 a[:, k - 2] = v
                 #Update the Gram-Schmidt coefficients
-                for s in xrange(k - 1, k + 1):
+                for s in range(k - 1, k + 1):
                     u[s - 1, 0:(s - 1)] = dot(a[:, s - 1].T,
                                               b[:, 0:(s - 1)]) / m[0:(s - 1)]
                     b[:, s - 1] = a[:, s - 1] - dot(b[:, 0:(s - 1)],
@@ -601,7 +597,7 @@ class Lattice(MSONable):
         G = np.array(G)
 
         #This sets an upper limit on the number of iterations.
-        for count in xrange(100):
+        for count in range(100):
             #The steps are labelled as Ax as per the labelling scheme in the
             #paper.
             (A, B, C, E, N, Y) = (G[0, 0], G[1, 1], G[2, 2],
@@ -729,7 +725,6 @@ class Lattice(MSONable):
             Wigner Seitz cell. For instance, a list of four coordinates will
             represent a square facet.
         """
-        from pyhull.voronoi import VoronoiTess
         vec1 = self.matrix[0]
         vec2 = self.matrix[1]
         vec3 = self.matrix[2]
@@ -840,7 +835,7 @@ class Lattice(MSONable):
         n = len(frac_points)
         fcoords = np.array(frac_points)
         pts = np.tile(center, (n, 1))
-        indices = np.array(range(n))
+        indices = np.array(list(range(n)))
 
         arange = np.arange(start=int(floor(pcoords[0] - nmax[0])),
                            stop=int(floor(pcoords[0] + nmax[0])) + 1)
@@ -862,9 +857,8 @@ class Lattice(MSONable):
                                axis=4))
         within_r = np.where(dists <= r)
 
-        d = [shifted_coords[within_r], dists[within_r], indices[within_r[0]]]
-
-        return np.transpose(d)
+        return list(zip(shifted_coords[within_r], dists[within_r],
+                        indices[within_r[0]]))
 
     def get_all_distances(self, fcoords1, fcoords2):
         """
@@ -906,11 +900,82 @@ class Lattice(MSONable):
         cart_f1 = self.get_cartesian_coords(fcoords1)
         cart_f2 = self.get_cartesian_coords(shifted_f2)
 
-        #all vectors from f1 to f2
-        vectors = cart_f2[None, :, :, :] - cart_f1[:, None, None, :]
+        if cart_f1.size * cart_f2.size < 1e5:
+            #all vectors from f1 to f2
+            vectors = cart_f2[None, :, :, :] - cart_f1[:, None, None, :]
+            d_2 = np.sum(vectors ** 2, axis=3)
+            distances = np.min(d_2, axis=2) ** 0.5
+            return distances
+        else:
+            #memory will overflow, so do a loop
+            distances = []
+            for c1 in cart_f1:
+                vectors = cart_f2[:, :, :] - c1[None, None, :]
+                d_2 = np.sum(vectors ** 2, axis=2)
+                distances.append(np.min(d_2, axis=1) ** 0.5)
+            return np.array(distances)
 
-        d_2 = np.sum(vectors ** 2, axis=3)
+    def is_hexagonal(self, hex_angle_tol=5, hex_length_tol=0.01):
+        lengths, angles = self.lengths_and_angles
+        right_angles = [i for i in range(3)
+                        if abs(angles[i] - 90) < hex_angle_tol]
+        hex_angles = [i for i in range(3)
+                      if abs(angles[i] - 60) < hex_angle_tol or
+                         abs(angles[i] - 120) < hex_angle_tol]
 
-        distances = np.min(d_2, axis=2) ** 0.5
+        return (len(right_angles) == 2 and len(hex_angles) == 1
+                and abs(lengths[right_angles[0]] -
+                        lengths[right_angles[1]]) < hex_length_tol)
 
-        return distances
+    def get_distance_and_image(self, frac_coords1, frac_coords2, jimage=None):
+        """
+        Gets distance between two frac_coords assuming periodic boundary
+        conditions. If the index jimage is not specified it selects the j
+        image nearest to the i atom and returns the distance and jimage
+        indices in terms of lattice vector translations. If the index jimage
+        is specified it returns the distance between the frac_coords1 and
+        the specified jimage of frac_coords2, and the given jimage is also
+        returned.
+
+        Args:
+            fcoords1 (3x1 array): Reference fcoords to get distance from.
+            fcoords2 (3x1 array): fcoords to get distance from.
+            jimage (3x1 array): Specific periodic image in terms of
+                lattice translations, e.g., [1,0,0] implies to take periodic
+                image that is one a-lattice vector away. If jimage == None,
+                the image that is nearest to the site is found.
+
+        Returns:
+            (distance, jimage): distance and periodic lattice translations
+            of the other site for which the distance applies. This means that
+            the distance between frac_coords1 and (jimage + frac_coords2) is
+            equal to distance.
+        """
+        if jimage is None:
+            #The following code is heavily vectorized to maximize speed.
+            #Get the image adjustment necessary to bring coords to unit_cell.
+            adj1 = np.floor(frac_coords1)
+            adj2 = np.floor(frac_coords2)
+            #Shift coords to unitcell
+            coord1 = frac_coords1 - adj1
+            coord2 = frac_coords2 - adj2
+            # Generate set of images required for testing.
+            # This is a cheat to create an 8x3 array of all length 3
+            # combinations of 0,1
+            test_set = np.unpackbits(np.array([5, 57, 119],
+                                              dtype=np.uint8)).reshape(8, 3)
+            images = np.copysign(test_set, coord1 - coord2)
+            # Create tiled cartesian coords for computing distances.
+            vec = np.tile(coord2 - coord1, (8, 1)) + images
+            vec = self.get_cartesian_coords(vec)
+            # Compute distances manually.
+            dist = np.sqrt(np.sum(vec ** 2, 1)).tolist()
+            # Return the minimum distance and the adjusted image corresponding
+            # to the min distance.
+            mindist = min(dist)
+            ind = dist.index(mindist)
+            return mindist, adj1 - adj2 + images[ind]
+
+        mapped_vec = self.get_cartesian_coords(jimage + frac_coords2
+                                               - frac_coords1)
+        return np.linalg.norm(mapped_vec), jimage

@@ -1,10 +1,11 @@
-#!/usr/bin/env python
+# coding: utf-8
+
+from __future__ import division, unicode_literals
 
 """
 This module define the various drones used to assimilate data.
 """
 
-from __future__ import division
 
 __author__ = "Shyue Ping Ong"
 __copyright__ = "Copyright 2012, The Materials Project"
@@ -21,34 +22,36 @@ import logging
 import fnmatch
 import json
 
+import six
+from six.moves import zip
+
 from monty.io import zopen
 from pymatgen.io.vaspio.vasp_input import Incar, Potcar, Poscar
 from pymatgen.io.vaspio.vasp_output import Vasprun, Oszicar
 from pymatgen.io.gaussianio import GaussianOutput
 from pymatgen.entries.computed_entries import ComputedEntry, \
     ComputedStructureEntry
-from pymatgen.serializers.json_coders import MSONable
+from pymatgen.serializers.json_coders import PMGSONable
 
 logger = logging.getLogger(__name__)
 
 
-class AbstractDrone(MSONable):
+class AbstractDrone(six.with_metaclass(abc.ABCMeta, PMGSONable)):
     """
     Abstract drone class that defines the various methods that must be
     implemented by drones. Because of the quirky nature of Python"s
     multiprocessing, the intermediate data representations has to be in the
     form of python primitives. So all objects that drones work with must be
-    MSONable. All drones must also implement the standard MSONable to_dict and
+    PMGSONable. All drones must also implement the standard PMGSONable as_dict() and
     from_dict API.
     """
-    __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
     def assimilate(self, path):
         """
         Assimilate data in a directory path into a pymatgen object. Because of
         the quirky nature of Python"s multiprocessing, the object must support
-        pymatgen"s to_dict for parallel processing.
+        pymatgen"s as_dict() for parallel processing.
 
         Args:
             path: directory path
@@ -147,23 +150,11 @@ class VaspToComputedEntryDrone(AbstractDrone):
         except Exception as ex:
             logger.debug("error in {}: {}".format(filepath, ex))
             return None
-        param = {}
-        for p in self._parameters:
-            param[p] = getattr(vasprun, p)
 
-        param["history"] = _get_transformation_history(path)
-
-        data = {}
-        for d in self._data:
-            data[d] = getattr(vasprun, d)
-        if self._inc_structure:
-            entry = ComputedStructureEntry(vasprun.final_structure,
-                                           vasprun.final_energy,
-                                           parameters=param, data=data)
-        else:
-            entry = ComputedEntry(vasprun.final_structure.composition,
-                                  vasprun.final_energy, parameters=param,
-                                  data=data)
+        entry = vasprun.get_computed_entry(self._inc_structure,
+                                           parameters=self._parameters,
+                                           data=self._data)
+        entry.parameters["history"] = _get_transformation_history(path)
         return entry
 
     def get_valid_paths(self, path):
@@ -179,8 +170,7 @@ class VaspToComputedEntryDrone(AbstractDrone):
     def __str__(self):
         return " VaspToComputedEntryDrone"
 
-    @property
-    def to_dict(self):
+    def as_dict(self):
         return {"init_args": {"inc_structure": self._inc_structure,
                               "parameters": self._parameters,
                               "data": self._data},
@@ -238,8 +228,8 @@ class SimpleVaspToComputedEntryDrone(VaspToComputedEntryDrone):
                         multiple steps. By default, assimilate will try to find
                         a file simply named filename, filename.bz2, or
                         filename.gz.  Failing which it will try to get a relax2
-                        from an aflow style run if possible. Or else, a
-                        randomly chosen file is chosen.
+                        from a custodian double relaxation style run if
+                        possible. Or else, a random file is chosen.
                         """
                         for fname in files:
                             if fnmatch.fnmatch(os.path.basename(fname),
@@ -298,8 +288,7 @@ class SimpleVaspToComputedEntryDrone(VaspToComputedEntryDrone):
     def __str__(self):
         return "SimpleVaspToComputedEntryDrone"
 
-    @property
-    def to_dict(self):
+    def as_dict(self):
         return {"init_args": {"inc_structure": self._inc_structure},
                 "version": __version__, "@module": self.__class__.__module__,
                 "@class": self.__class__.__name__}
@@ -384,8 +373,7 @@ class GaussianToComputedEntryDrone(AbstractDrone):
     def __str__(self):
         return " GaussianToComputedEntryDrone"
 
-    @property
-    def to_dict(self):
+    def as_dict(self):
         return {"init_args": {"inc_structure": self._inc_structure,
                               "parameters": self._parameters,
                               "data": self._data,

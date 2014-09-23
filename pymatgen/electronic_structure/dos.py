@@ -1,10 +1,11 @@
-#!/usr/bin/env python
+# coding: utf-8
+
+from __future__ import division, unicode_literals
 
 """
 This module defines classes to represent the density of states, etc.
 """
 
-from __future__ import division
 
 __author__ = "Shyue Ping Ong"
 __copyright__ = "Copyright 2012, The Materials Project"
@@ -15,10 +16,12 @@ __date__ = "Mar 20, 2012"
 
 import numpy as np
 
+import six
+
 from pymatgen.electronic_structure.core import Spin, Orbital
 from pymatgen.core.structure import Structure
 from pymatgen.util.coord_utils import get_linear_interpolated_value
-from pymatgen.serializers.json_coders import MSONable
+from pymatgen.serializers.json_coders import PMGSONable
 from monty.dev import requires
 
 try:
@@ -27,7 +30,7 @@ except ImportError:
     scipy = None
 
 
-class Dos(MSONable):
+class Dos(PMGSONable):
     """
     Basic DOS object. All other DOS objects are extended versions of this
     object.
@@ -95,7 +98,7 @@ class Dos(MSONable):
         from scipy.ndimage.filters import gaussian_filter1d
         smeared_dens = {}
         diff = [self.energies[i + 1] - self.energies[i]
-                for i in xrange(len(self.energies) - 1)]
+                for i in range(len(self.energies) - 1)]
         avgdiff = sum(diff) / len(diff)
         for spin, dens in self.densities.items():
             smeared_dens[spin] = gaussian_filter1d(dens, sigma / avgdiff)
@@ -153,9 +156,9 @@ class Dos(MSONable):
         if not abs_tol:
             tol = tol * tdos.sum() / tdos.shape[0]
         energies = self.energies
-        below_fermi = [i for i in xrange(len(energies))
+        below_fermi = [i for i in range(len(energies))
                        if energies[i] < self.efermi and tdos[i] > tol]
-        above_fermi = [i for i in xrange(len(energies))
+        above_fermi = [i for i in range(len(energies))
                        if energies[i] > self.efermi and tdos[i] > tol]
         vbm_start = max(below_fermi)
         cbm_start = min(above_fermi)
@@ -254,8 +257,7 @@ class Dos(MSONable):
                    {Spin.from_int(int(k)): v
                     for k, v in d["densities"].items()})
 
-    @property
-    def to_dict(self):
+    def as_dict(self):
         """
         Json-serializable dict representation of Dos.
         """
@@ -317,8 +319,28 @@ class CompleteDos(Dos):
         Returns:
             Dos containing summed orbital densities for site.
         """
-        site_dos = reduce(add_densities, self.pdos[site].values())
+        site_dos = six.moves.reduce(add_densities, self.pdos[site].values())
         return Dos(self.efermi, self.energies, site_dos)
+
+    def get_site_spd_dos(self, site):
+        """
+        Get orbital projected Dos of a particular site
+
+        Args:
+            site: Site in Structure associated with CompleteDos.
+
+        Returns:
+            dict of {orbital: Dos}, e.g. {"s": Dos object, ...}
+        """
+        spd_dos = dict()
+        for orb, pdos in self.pdos[site].items():
+            orb_type = orb.orbital_type
+            if orb_type in spd_dos:
+                spd_dos[orb_type] = add_densities(spd_dos[orb_type], pdos)
+            else:
+                spd_dos[orb_type] = pdos
+        return {orb: Dos(self.efermi, self.energies, densities) 
+                for orb, densities in spd_dos.items()}
 
     def get_site_t2g_eg_resolved_dos(self, site):
         """
@@ -341,9 +363,9 @@ class CompleteDos(Dos):
                     elif orb in (Orbital.dx2, Orbital.dz2):
                         eg_dos.append(pdos)
         return {"t2g": Dos(self.efermi, self.energies,
-                           reduce(add_densities, t2g_dos)),
+                           six.moves.reduce(add_densities, t2g_dos)),
                 "e_g": Dos(self.efermi, self.energies,
-                           reduce(add_densities, eg_dos))}
+                           six.moves.reduce(add_densities, eg_dos))}
 
     def get_spd_dos(self):
         """
@@ -383,6 +405,31 @@ class CompleteDos(Dos):
         return {el: Dos(self.efermi, self.energies, densities)
                 for el, densities in el_dos.items()}
 
+    def get_element_spd_dos(self, el):
+        """
+        Get element and spd projected Dos
+
+        Args:
+            el: Element in Structure.composition associated with CompleteDos
+
+        Returns:
+            dict of {Element: {"S": densities, "P": densities, "D": densities}}
+        """
+
+        el_dos = dict()
+        for site, atom_dos in self.pdos.items():
+            if site.specie == el:
+                for orb, pdos in atom_dos.items():
+                    orbital_type = orb.orbital_type
+                    if orbital_type not in el_dos:
+                        el_dos[orbital_type] = pdos
+                    else:
+                        el_dos[orbital_type] = \
+                            add_densities(el_dos[orbital_type], pdos)
+
+        return {orb: Dos(self.efermi, self.energies, densities)
+                for orb, densities in el_dos.items()}
+
     @classmethod
     def from_dict(cls, d):
         """
@@ -391,7 +438,7 @@ class CompleteDos(Dos):
         tdos = Dos.from_dict(d)
         struct = Structure.from_dict(d["structure"])
         pdoss = {}
-        for i in xrange(len(d["pdos"])):
+        for i in range(len(d["pdos"])):
             at = struct[i]
             orb_dos = {}
             for orb_str, odos in d["pdos"][i].items():
@@ -401,14 +448,13 @@ class CompleteDos(Dos):
             pdoss[at] = orb_dos
         return CompleteDos(struct, tdos, pdoss)
 
-    @property
-    def to_dict(self):
+    def as_dict(self):
         """
         Json-serializable dict representation of CompleteDos.
         """
         d = {"@module": self.__class__.__module__,
              "@class": self.__class__.__name__, "efermi": self.efermi,
-             "structure": self.structure.to_dict,
+             "structure": self.structure.as_dict(),
              "energies": list(self.energies),
              "densities": {str(spin): list(dens)
                            for spin, dens in self.densities.items()},
@@ -421,9 +467,9 @@ class CompleteDos(Dos):
                                                   for spin,
                                                   dens in pdos.items()}}
                 d["pdos"].append(dd)
-            d["atom_dos"] = {str(at): dos.to_dict for at,
+            d["atom_dos"] = {str(at): dos.as_dict() for at,
                              dos in self.get_element_dos().items()}
-            d["spd_dos"] = {str(orb): dos.to_dict for orb,
+            d["spd_dos"] = {str(orb): dos.as_dict() for orb,
                             dos in self.get_spd_dos().items()}
         return d
 

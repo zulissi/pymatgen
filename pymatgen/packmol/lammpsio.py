@@ -47,7 +47,7 @@ class LammpsLog(MSONable):
         """
         md = 0  # To avoid reading the minimization data steps
         header = 0
-        footer_blank_line = 0
+        #footer_blank_line = 0
         llog = {}
 
         with open(filename, 'r') as logfile:
@@ -78,19 +78,17 @@ class LammpsLog(MSONable):
                 if format:
                     data_format = format.group().split()[2:]
 
-                if all(isinstance(x, float) for x in
-                       list(_list2float(line.split()))) and md == 1: break
+                if all(isinstance(x, float) for x in list(_list2float(line.split()))) and md == 1: break
 
                 header += 1
 
             # note: we are starting from the "break" above
-            for line in logfile:
-                if line == '\n':
-                    footer_blank_line += 1
+            #for line in logfile:
+            #    if line == '\n':
+            #        footer_blank_line += 1
+            print int(md_step/log_save_freq)
 
-            rawdata = np.genfromtxt(fname=filename, dtype=float, skip_header=header,
-                                    skip_footer=total_lines - (
-                                    header + md_step / log_save_freq + 1) - footer_blank_line)
+            rawdata = np.genfromtxt(fname=filename,dtype=float,skip_header=header,skip_footer=int(total_lines-header-md_step/log_save_freq ))
 
             for column, property in enumerate(data_format):
                 llog[property] = rawdata[:, column]
@@ -104,7 +102,7 @@ class LammpsLog(MSONable):
         print log.llog.keys()
 
     @property
-    def to_dict(self):
+    def as_dict(self):
         return {"@module": self.__class__.__module__,
                 "@class": self.__class__.__name__,
                 "llog": self.llog,

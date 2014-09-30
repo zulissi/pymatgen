@@ -482,6 +482,9 @@
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">qtype</span><span class="p">,</span> <span class="n">qparams</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">setup</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">modules</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">shell_env</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">omp_env</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> 
                  <span class="n">pre_run</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">post_run</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">mpi_runner</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">policy</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
 
+        <span class="c">#if not kwargs:</span>
+        <span class="c">#    self = self.__class__.from_user_config()</span>
+
         <span class="n">qad_class</span> <span class="o">=</span> <span class="n">qadapter_class</span><span class="p">(</span><span class="n">qtype</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">qadapter</span> <span class="o">=</span> <span class="n">qad_class</span><span class="p">(</span><span class="n">qparams</span><span class="o">=</span><span class="n">qparams</span><span class="p">,</span> <span class="n">setup</span><span class="o">=</span><span class="n">setup</span><span class="p">,</span> <span class="n">modules</span><span class="o">=</span><span class="n">modules</span><span class="p">,</span> <span class="n">shell_env</span><span class="o">=</span><span class="n">shell_env</span><span class="p">,</span> <span class="n">omp_env</span><span class="o">=</span><span class="n">omp_env</span><span class="p">,</span> 
@@ -517,7 +520,6 @@
         <span class="sd">&quot;&quot;&quot;Create an instance from string s containing a YAML dictionary.&quot;&quot;&quot;</span>
         <span class="n">stream</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
         <span class="n">stream</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-
         <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">stream</span><span class="p">))</span>
 </div>
     <span class="nd">@classmethod</span>
@@ -1440,7 +1442,6 @@
 
     <span class="k">def</span> <span class="nf">not_converged</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Return True if the calculation is not converged.&quot;&quot;&quot;</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;not_converged method of the base class will always return False&quot;</span><span class="p">)</span>
         <span class="n">report</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_event_report</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">report</span><span class="o">.</span><span class="n">filter_types</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">CRITICAL_EVENTS</span><span class="p">)</span>
 
@@ -1682,14 +1683,7 @@
 <span class="sd">            info_msg:</span>
 <span class="sd">                string with human-readable message used in the case of errors (optional)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c"># Accepts strings as well.</span>
-        <span class="c">#if not isinstance(status, Status):</span>
-        <span class="c">#    try:</span>
-        <span class="c">#        status = getattr(Node, status)</span>
-        <span class="c">#    except AttributeError:</span>
-        <span class="c">#        status = Status.from_string(status)</span>
         <span class="n">status</span> <span class="o">=</span> <span class="n">Status</span><span class="o">.</span><span class="n">as_status</span><span class="p">(</span><span class="n">status</span><span class="p">)</span>
-        <span class="k">assert</span> <span class="n">status</span> <span class="ow">in</span> <span class="n">_STATUS2STR</span>
 
         <span class="n">changed</span> <span class="o">=</span> <span class="bp">True</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&quot;_status&quot;</span><span class="p">):</span>
@@ -1759,8 +1753,9 @@
         <span class="c"># 2) Check the returncode of the process (the process of submitting the job) first.</span>
         <span class="c"># this point type of problem should also be handled by the scheduler error parser</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">returncode</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c"># The job was not submitter properly</span>
             <span class="n">info_msg</span> <span class="o">=</span> <span class="s">&quot;return code </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">returncode</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">S_QUEUECRITICAL</span><span class="p">,</span> <span class="n">info_msg</span><span class="o">=</span><span class="n">info_msg</span><span class="p">)</span>           <span class="c"># The job was not submitter properly</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">S_QUEUECRITICAL</span><span class="p">,</span> <span class="n">info_msg</span><span class="o">=</span><span class="n">info_msg</span><span class="p">)</span>           
 
 <span class="c">#        err_msg = None</span>
 <span class="c">#=======</span>
@@ -1843,22 +1838,23 @@
             <span class="c"># 4)</span>
             <span class="k">if</span> <span class="n">report</span><span class="o">.</span><span class="n">errors</span> <span class="ow">or</span> <span class="n">report</span><span class="o">.</span><span class="n">bugs</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">report</span><span class="o">.</span><span class="n">errors</span><span class="p">:</span>
-                    <span class="k">print</span><span class="p">(</span><span class="s">&#39;errors:&#39;</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;&quot;Found errors in report&#39;</span><span class="p">)</span>
                     <span class="k">for</span> <span class="n">error</span> <span class="ow">in</span> <span class="n">report</span><span class="o">.</span><span class="n">errors</span><span class="p">:</span>
-                        <span class="k">print</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">))</span>
                         <span class="k">try</span><span class="p">:</span>
                             <span class="bp">self</span><span class="o">.</span><span class="n">abi_errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
                         <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
                             <span class="bp">self</span><span class="o">.</span><span class="n">abi_errors</span> <span class="o">=</span> <span class="p">[</span><span class="n">error</span><span class="p">]</span>
                 <span class="k">if</span> <span class="n">report</span><span class="o">.</span><span class="n">bugs</span><span class="p">:</span>
-                    <span class="k">print</span><span class="p">(</span><span class="s">&#39;bugs:&#39;</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;Found bugs in report:&#39;</span><span class="p">)</span>
                     <span class="k">for</span> <span class="n">bug</span> <span class="ow">in</span> <span class="n">report</span><span class="o">.</span><span class="n">bugs</span><span class="p">:</span>
-                        <span class="k">print</span><span class="p">(</span><span class="n">bug</span><span class="p">)</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">bug</span><span class="p">))</span>
                 <span class="c"># Abinit reports problems</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s">: Found Errors or Bugs in ABINIT main output!&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="p">)</span>
                 <span class="n">info_msg</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">report</span><span class="o">.</span><span class="n">errors</span><span class="p">)</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">report</span><span class="o">.</span><span class="n">bugs</span><span class="p">)</span>
                 <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">S_ABICRITICAL</span><span class="p">,</span> <span class="n">info_msg</span><span class="o">=</span><span class="n">info_msg</span><span class="p">)</span>
                 <span class="c"># The job is unfixable due to ABINIT errors</span>
+
             <span class="c"># 5)</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stderr_file</span><span class="o">.</span><span class="n">exists</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">err_info</span><span class="p">:</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">qerr_file</span><span class="o">.</span><span class="n">exists</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">err_msg</span><span class="p">:</span>
@@ -1887,20 +1883,20 @@
         <span class="c"># 7) Analyze the files of the resource manager and abinit and execution err (mvs)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">qerr_file</span><span class="o">.</span><span class="n">exists</span><span class="p">:</span>
             <span class="kn">from</span> <span class="nn">pymatgen.io.gwwrapper.scheduler_error_parsers</span> <span class="kn">import</span> <span class="n">get_parser</span>
-            <span class="k">print</span><span class="p">(</span><span class="s">&#39;QTYPE :&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">qadapter</span><span class="o">.</span><span class="n">QTYPE</span><span class="p">)</span>
             <span class="n">scheduler_parser</span> <span class="o">=</span> <span class="n">get_parser</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">qadapter</span><span class="o">.</span><span class="n">QTYPE</span><span class="p">,</span> <span class="n">err_file</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">qerr_file</span><span class="o">.</span><span class="n">path</span><span class="p">,</span>
                                           <span class="n">out_file</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">qout_file</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">run_err_file</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">stderr_file</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
             <span class="n">scheduler_parser</span><span class="o">.</span><span class="n">parse</span><span class="p">()</span>
+
             <span class="k">if</span> <span class="n">scheduler_parser</span><span class="o">.</span><span class="n">errors</span><span class="p">:</span>
                 <span class="c"># the queue errors in the task</span>
-                <span class="k">print</span><span class="p">(</span><span class="s">&#39;scheduler errors found:&#39;</span><span class="p">)</span>
-                <span class="k">print</span><span class="p">(</span><span class="n">scheduler_parser</span><span class="o">.</span><span class="n">errors</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;scheduler errors found:&#39;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">scheduler_parser</span><span class="o">.</span><span class="n">errors</span><span class="p">))</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">queue_errors</span> <span class="o">=</span> <span class="n">scheduler_parser</span><span class="o">.</span><span class="n">errors</span>
                 <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">S_QUEUECRITICAL</span><span class="p">)</span>
                 <span class="c"># The job is killed or crashed and we know what happened</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">err_info</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                    <span class="k">print</span><span class="p">(</span><span class="s">&#39;found unknown que error:</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">err_info</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;found unknown queue error: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">err_info</span><span class="p">))</span>
                     <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">S_QUEUECRITICAL</span><span class="p">,</span> <span class="n">info_msg</span><span class="o">=</span><span class="n">err_info</span><span class="p">)</span>
                     <span class="c"># The job is killed or crashed but we don&#39;t know what happened</span>
                     <span class="c"># it is set to queuecritical, we will attempt to fix it by running on more resources</span>
@@ -1908,7 +1904,7 @@
         <span class="c"># 8) analizing the err files and abinit output did not identify a problem</span>
         <span class="c"># but if the files are not empty we do have a problem but no way of solving it:</span>
         <span class="k">if</span> <span class="n">err_msg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">err_msg</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">print</span><span class="p">(</span><span class="s">&#39;found error message:</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">err_msg</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;found error message:</span><span class="se">\n</span><span class="s"> </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">err_msg</span><span class="p">))</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">S_QUEUECRITICAL</span><span class="p">,</span> <span class="n">info_msg</span><span class="o">=</span><span class="n">err_info</span><span class="p">)</span>
             <span class="c"># The job is killed or crashed but we don&#39;t know what happend</span>
             <span class="c"># it is set to queuecritical, we will attempt to fix it by running on more resources</span>
@@ -1969,8 +1965,7 @@
         <span class="c"># Link path to dest if dest link does not exist.</span>
         <span class="c"># else check that it points to the expected file.</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Linking path </span><span class="si">%s</span><span class="s"> --&gt; </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="n">infile</span><span class="p">))</span>
-        <span class="k">print</span><span class="p">(</span><span class="s">&quot;Linking path </span><span class="si">%s</span><span class="s"> --&gt; </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="n">infile</span><span class="p">))</span>
-                                                             
+
         <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">infile</span><span class="p">):</span>
             <span class="n">os</span><span class="o">.</span><span class="n">symlink</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="n">infile</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -2018,7 +2013,7 @@
       
             <span class="c"># Link path to dest if dest link does not exist.</span>
             <span class="c"># else check that it points to the expected file.</span>
-            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Linking path </span><span class="si">%s</span><span class="s"> --&gt; </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">dest</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Linking path </span><span class="si">%s</span><span class="s"> --&gt; </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">dest</span><span class="p">))</span>
                                                                                          
             <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">dest</span><span class="p">):</span>
                 <span class="n">os</span><span class="o">.</span><span class="n">symlink</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>
@@ -2236,7 +2231,7 @@
         <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">required_files</span><span class="p">:</span>
             <span class="c">#raise NotImplementedError(&quot;&quot;)</span>
             <span class="nb">vars</span> <span class="o">=</span> <span class="n">irdvars_for_ext</span><span class="p">(</span><span class="s">&quot;DEN&quot;</span><span class="p">)</span>
-            <span class="k">print</span><span class="p">(</span><span class="s">&quot;Adding connecting vars </span><span class="si">%s</span><span class="s"> &quot;</span> <span class="o">%</span> <span class="nb">vars</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Adding connecting vars </span><span class="si">%s</span><span class="s"> &quot;</span> <span class="o">%</span> <span class="nb">vars</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">add_extra_abivars</span><span class="p">(</span><span class="nb">vars</span><span class="p">)</span>
 
         <span class="c"># Automatic parallelization</span>
@@ -2407,7 +2402,7 @@
 
         <span class="c"># 3) Select the optimal configuration according to policy</span>
         <span class="n">optimal</span> <span class="o">=</span> <span class="n">confs</span><span class="o">.</span><span class="n">select_optimal_conf</span><span class="p">(</span><span class="n">policy</span><span class="p">)</span>
-        <span class="c">#print(&quot;optimal Autoparal conf:\n %s&quot; % optimal)</span>
+        <span class="c">#print(&quot;optimal autoparal conf:\n %s&quot; % optimal)</span>
 
         <span class="c"># Write autoparal configurations to file.</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">,</span> <span class="s">&quot;autoparal.txt&quot;</span><span class="p">),</span> <span class="s">&quot;wt&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
@@ -2654,7 +2649,6 @@
 </div></div>
 <div class="viewcode-block" id="DdkTask"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.tasks.DdkTask">[docs]</a><span class="k">class</span> <span class="nc">DdkTask</span><span class="p">(</span><span class="n">AbinitTask</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Task for DDK calculations.&quot;&quot;&quot;</span>
-<span class="c">#DDK_Task = DdkTask</span>
 
 </div>
 <div class="viewcode-block" id="PhononTask"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.tasks.PhononTask">[docs]</a><span class="k">class</span> <span class="nc">PhononTask</span><span class="p">(</span><span class="n">AbinitTask</span><span class="p">):</span>
@@ -2832,8 +2826,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">nscf_node</span> <span class="o">=</span> <span class="n">Node</span><span class="o">.</span><span class="n">as_node</span><span class="p">(</span><span class="n">nscf_node</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ddk_nodes</span> <span class="o">=</span> <span class="p">[</span><span class="n">Node</span><span class="o">.</span><span class="n">as_node</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">ddk_nodes</span><span class="p">]</span>
         <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">ddk_nodes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span>
-        <span class="k">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nscf_node</span><span class="p">)</span>
-        <span class="k">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ddk_nodes</span><span class="p">)</span>
+        <span class="c">#print(self.nscf_node)</span>
+        <span class="c">#print(self.ddk_nodes)</span>
 
         <span class="n">deps</span> <span class="o">=</span> <span class="p">{</span><span class="n">n</span><span class="p">:</span> <span class="s">&quot;1WF&quot;</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ddk_nodes</span><span class="p">}</span>
         <span class="n">deps</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="bp">self</span><span class="o">.</span><span class="n">nscf_node</span><span class="p">:</span> <span class="s">&quot;WFK&quot;</span><span class="p">})</span>

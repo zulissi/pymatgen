@@ -68,19 +68,19 @@
 <span class="kn">import</span> <span class="nn">collections</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">import</span> <span class="nn">shutil</span>
+
 <span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="nb">map</span><span class="p">,</span> <span class="n">cPickle</span> <span class="k">as</span> <span class="n">pickle</span>
-
-<span class="k">try</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">pydispatch</span> <span class="kn">import</span> <span class="n">dispatcher</span>
-<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-    <span class="k">pass</span>
-
 <span class="kn">from</span> <span class="nn">monty.io</span> <span class="kn">import</span> <span class="n">FileLock</span>
 <span class="kn">from</span> <span class="nn">pymatgen.util.string_utils</span> <span class="kn">import</span> <span class="n">pprint_table</span>
 <span class="kn">from</span> <span class="nn">.tasks</span> <span class="kn">import</span> <span class="n">Dependency</span><span class="p">,</span> <span class="n">Status</span><span class="p">,</span> <span class="n">Node</span><span class="p">,</span> <span class="n">Task</span><span class="p">,</span> <span class="n">ScfTask</span><span class="p">,</span> <span class="n">PhononTask</span><span class="p">,</span> <span class="n">TaskManager</span>
 <span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">Directory</span><span class="p">,</span> <span class="n">Editor</span>
 <span class="kn">from</span> <span class="nn">.abiinspect</span> <span class="kn">import</span> <span class="n">yaml_read_irred_perts</span>
 <span class="kn">from</span> <span class="nn">.workflows</span> <span class="kn">import</span> <span class="n">Workflow</span><span class="p">,</span> <span class="n">BandStructureWorkflow</span><span class="p">,</span> <span class="n">PhononWorkflow</span><span class="p">,</span> <span class="n">G0W0_Workflow</span><span class="p">,</span> <span class="n">QptdmWorkflow</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">pydispatch</span> <span class="kn">import</span> <span class="n">dispatcher</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="k">pass</span>
 
 <span class="kn">import</span> <span class="nn">logging</span>
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
@@ -164,6 +164,29 @@
         <span class="c">#for task in self.iflat_tasks():</span>
         <span class="c">#    slots[task] = {s: [] for s in work.S_ALL}</span>
 
+    <span class="c"># This is needed for fireworks although Node.__str__ and __repr__ are much more readable.</span>
+    <span class="c">#def __repr__(self):</span>
+    <span class="c">#    return self.workdir</span>
+
+    <span class="c">#def __str__(self):</span>
+    <span class="c">#    return repr(self)</span>
+
+<div class="viewcode-block" id="AbinitFlow.as_dict"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        JSON serialization, note that we only need to save </span>
+<span class="sd">        a string with the working directory since the object will be </span>
+<span class="sd">        reconstructed from the pickle file located in workdir</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s">&quot;workdir&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">}</span>
+
+    <span class="c"># This is needed for fireworks.</span></div>
+    <span class="n">to_dict</span> <span class="o">=</span> <span class="n">as_dict</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="AbinitFlow.from_dict"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reconstruct the flow from the pickle file.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="o">.</span><span class="n">pickle_load</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s">&quot;workdir&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</div>
 <div class="viewcode-block" id="AbinitFlow.set_workdir"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.set_workdir">[docs]</a>    <span class="k">def</span> <span class="nf">set_workdir</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workdir</span><span class="p">,</span> <span class="n">chroot</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Set the working directory. Cannot be set more than once unless chroot is True</span>
@@ -208,9 +231,9 @@
                 <span class="n">err_msg</span> <span class="o">=</span> <span class="s">&quot;Cannot find </span><span class="si">%s</span><span class="s"> inside directory </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">PICKLE_FNAME</span><span class="p">,</span> <span class="n">filepath</span><span class="p">)</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">err_msg</span><span class="p">)</span>
 
-        <span class="c">#with FileLock(filepath) as lock:</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
-            <span class="n">flow</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fh</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">FileLock</span><span class="p">(</span><span class="n">filepath</span><span class="p">):</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+                <span class="n">flow</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fh</span><span class="p">)</span>
 
         <span class="c"># Check if versions match.</span>
         <span class="k">if</span> <span class="n">flow</span><span class="o">.</span><span class="n">VERSION</span> <span class="o">!=</span> <span class="n">cls</span><span class="o">.</span><span class="n">VERSION</span><span class="p">:</span>
@@ -463,7 +486,7 @@
             <span class="c">#todo</span>
             <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">fix_abicritical</span><span class="p">():</span>
                 <span class="n">task</span><span class="o">.</span><span class="n">reset_from_scratch</span><span class="p">()</span>
-                <span class="c"># task.set_status(task.S_READY)</span>
+                <span class="c"># task.set_status(Task.S_READY)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">info_msg</span> <span class="o">=</span> <span class="s">&#39;We encountered an abi critial envent that could not be fixed&#39;</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">info_msg</span><span class="p">)</span>
@@ -494,7 +517,7 @@
                     <span class="k">return</span> <span class="bp">False</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">for</span> <span class="n">error</span> <span class="ow">in</span> <span class="n">task</span><span class="o">.</span><span class="n">queue_errors</span><span class="p">:</span>
-                    <span class="k">print</span><span class="p">(</span><span class="s">&#39;fixing :&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">))</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;fixing : </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">))</span>
                     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">NodeFailureError</span><span class="p">):</span>
                         <span class="c"># if the problematic node is know exclude it</span>
                         <span class="k">if</span> <span class="n">error</span><span class="o">.</span><span class="n">nodes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
@@ -939,6 +962,46 @@
         <span class="k">for</span> <span class="n">rec</span> <span class="ow">in</span> <span class="n">dispatcher</span><span class="o">.</span><span class="n">liveReceivers</span><span class="p">(</span><span class="n">dispatcher</span><span class="o">.</span><span class="n">getReceivers</span><span class="p">(</span><span class="n">sender</span><span class="p">,</span> <span class="n">signal</span><span class="p">)):</span>
             <span class="k">print</span><span class="p">(</span><span class="s">&quot;receiver --&gt;&quot;</span><span class="p">,</span> <span class="n">rec</span><span class="p">)</span>
         <span class="k">print</span><span class="p">(</span><span class="s">&quot;*** end live receivers ***&quot;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="AbinitFlow.rapidfire"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.rapidfire">[docs]</a>    <span class="k">def</span> <span class="nf">rapidfire</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">check_status</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Use PyLauncher to submits tasks in rapidfire mode.</span>
+<span class="sd">        kwargs contains the options passed to the launcher.</span>
+
+<span class="sd">        Return the number of tasks submitted.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">.launcher</span> <span class="kn">import</span> <span class="n">PyLauncher</span>
+
+        <span class="k">if</span> <span class="n">check_status</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">check_status</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">PyLauncher</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">rapidfire</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="AbinitFlow.make_scheduler"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.AbinitFlow.make_scheduler">[docs]</a>    <span class="k">def</span> <span class="nf">make_scheduler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Build a return a scheduler to run the flow.</span>
+
+<span class="sd">        kwargs:</span>
+<span class="sd">            if empty we use the user configuration file.</span>
+<span class="sd">            if filepath in kwargs we init the scheduler from file.</span>
+<span class="sd">            else pass **kwargs to PyFlowScheduler.__init__</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">.launcher</span> <span class="kn">import</span> <span class="n">PyFlowScheduler</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="c"># User config if kwargs is empty</span>
+            <span class="n">sched</span> <span class="o">=</span> <span class="n">PyFlowScheduler</span><span class="o">.</span><span class="n">from_user_config</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># Use from_file if filepath if present, else call __init__</span>
+            <span class="n">filepath</span> <span class="o">==</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&quot;filepath&quot;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">filepath</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">assert</span> <span class="ow">not</span> <span class="n">kwargs</span>
+                <span class="n">sched</span> <span class="o">=</span> <span class="n">PyFlowScheduler</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">sched</span> <span class="o">=</span> <span class="n">PyFlowScheduler</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="n">sched</span><span class="o">.</span><span class="n">add_flow</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">sched</span>
 
 </div></div>
 <div class="viewcode-block" id="G0W0WithQptdmFlow"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.flows.G0W0WithQptdmFlow">[docs]</a><span class="k">class</span> <span class="nc">G0W0WithQptdmFlow</span><span class="p">(</span><span class="n">AbinitFlow</span><span class="p">):</span>

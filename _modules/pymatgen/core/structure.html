@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.core.structure &mdash; pymatgen 3.0.4 documentation</title>
+    <title>pymatgen.core.structure &mdash; pymatgen 3.0.5 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '3.0.4',
+        VERSION:     '3.0.5',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.0.4 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.5 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 3.0.4 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 3.0.5 documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -109,6 +109,7 @@
     <span class="n">lattice_points_in_supercell</span>
 <span class="kn">from</span> <span class="nn">monty.design_patterns</span> <span class="kn">import</span> <span class="n">singleton</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.units</span> <span class="kn">import</span> <span class="n">Mass</span><span class="p">,</span> <span class="n">Length</span>
+<span class="kn">from</span> <span class="nn">pymatgen.symmetry.groups</span> <span class="kn">import</span> <span class="n">SpaceGroup</span>
 <span class="kn">from</span> <span class="nn">monty.io</span> <span class="kn">import</span> <span class="n">zopen</span>
 
 
@@ -414,7 +415,7 @@
 <span class="sd">                ii. List of dict of elements/species and occupancies, e.g.,</span>
 <span class="sd">                    [{&quot;Fe&quot; : 0.5, &quot;Mn&quot;:0.5}, ...]. This allows the setup of</span>
 <span class="sd">                    disordered structures.</span>
-<span class="sd">            fractional_coords (Nx3 array): list of fractional coordinates of</span>
+<span class="sd">            coords (Nx3 array): list of fractional/cartesian coordinates of</span>
 <span class="sd">                each species.</span>
 <span class="sd">            validate_proximity (bool): Whether to check if there are sites</span>
 <span class="sd">                that are less than 0.01 Ang apart. Defaults to False.</span>
@@ -489,6 +490,85 @@
                    <span class="n">site_properties</span><span class="o">=</span><span class="n">props</span><span class="p">,</span>
                    <span class="n">validate_proximity</span><span class="o">=</span><span class="n">validate_proximity</span><span class="p">,</span>
                    <span class="n">to_unit_cell</span><span class="o">=</span><span class="n">to_unit_cell</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="IStructure.from_spacegroup"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IStructure.from_spacegroup">[docs]</a>    <span class="k">def</span> <span class="nf">from_spacegroup</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">sg</span><span class="p">,</span> <span class="n">lattice</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">site_properties</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                        <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate a structure using a spacegroup. Note that only symmetrically</span>
+<span class="sd">        distinct species and coords should be provided. All equivalent sites</span>
+<span class="sd">        are generated from the spacegroup operations.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            sg (str/int): The spacegroup. If a string, it will be interpreted</span>
+<span class="sd">                as one of the notations supported by</span>
+<span class="sd">                pymatgen.symmetry.groups.Spacegroup. E.g., &quot;R-3c&quot; or &quot;Fm-3m&quot;.</span>
+<span class="sd">                If an int, it will be interpreted as an international number.</span>
+<span class="sd">            lattice (Lattice/3x3 array): The lattice, either as a</span>
+<span class="sd">                :class:`pymatgen.core.lattice.Lattice` or</span>
+<span class="sd">                simply as any 2D array. Each row should correspond to a lattice</span>
+<span class="sd">                vector. E.g., [[10,0,0], [20,10,0], [0,0,30]] specifies a</span>
+<span class="sd">                lattice with lattice vectors [10,0,0], [20,10,0] and [0,0,30].</span>
+<span class="sd">                Note that no attempt is made to check that the lattice is</span>
+<span class="sd">                compatible with the spacegroup specified. This may be</span>
+<span class="sd">                introduced in a future version.</span>
+<span class="sd">            species ([Specie]): Sequence of species on each site. Can take in</span>
+<span class="sd">                flexible input, including:</span>
+
+<span class="sd">                i.  A sequence of element / specie specified either as string</span>
+<span class="sd">                    symbols, e.g. [&quot;Li&quot;, &quot;Fe2+&quot;, &quot;P&quot;, ...] or atomic numbers,</span>
+<span class="sd">                    e.g., (3, 56, ...) or actual Element or Specie objects.</span>
+
+<span class="sd">                ii. List of dict of elements/species and occupancies, e.g.,</span>
+<span class="sd">                    [{&quot;Fe&quot; : 0.5, &quot;Mn&quot;:0.5}, ...]. This allows the setup of</span>
+<span class="sd">                    disordered structures.</span>
+<span class="sd">            coords (Nx3 array): list of fractional/cartesian coordinates of</span>
+<span class="sd">                each species.</span>
+<span class="sd">            coords_are_cartesian (bool): Set to True if you are providing</span>
+<span class="sd">                coordinates in cartesian coordinates. Defaults to False.</span>
+<span class="sd">            site_properties (dict): Properties associated with the sites as a</span>
+<span class="sd">                dict of sequences, e.g., {&quot;magmom&quot;:[5,5,5,5]}. The sequences</span>
+<span class="sd">                have to be the same length as the atomic species and</span>
+<span class="sd">                fractional_coords. Defaults to None for no properties.</span>
+<span class="sd">            tol (float): A fractional tolerance to deal with numerical</span>
+<span class="sd">               precision issues in determining if orbits are the same.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">sg</span><span class="p">)</span>
+            <span class="n">sgp</span> <span class="o">=</span> <span class="n">SpaceGroup</span><span class="o">.</span><span class="n">from_int_number</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="n">sgp</span> <span class="o">=</span> <span class="n">SpaceGroup</span><span class="p">(</span><span class="n">sg</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="n">Lattice</span><span class="p">):</span>
+            <span class="n">latt</span> <span class="o">=</span> <span class="n">lattice</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">latt</span> <span class="o">=</span> <span class="n">Lattice</span><span class="p">(</span><span class="n">lattice</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">sgp</span><span class="o">.</span><span class="n">is_compatible</span><span class="p">(</span><span class="n">latt</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s">&quot;Supplied lattice with parameters </span><span class="si">%s</span><span class="s"> is incompatible with &quot;</span>
+                <span class="s">&quot;supplied spacegroup </span><span class="si">%s</span><span class="s">!&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">latt</span><span class="o">.</span><span class="n">lengths_and_angles</span><span class="p">,</span>
+                                             <span class="n">sgp</span><span class="o">.</span><span class="n">symbol</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="n">frac_coords</span> <span class="o">=</span> <span class="n">coords</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">coords_are_cartesian</span> <span class="k">else</span> \
+            <span class="n">lattice</span><span class="o">.</span><span class="n">get_fractional_coords</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
+
+        <span class="n">props</span> <span class="o">=</span> <span class="p">{}</span> <span class="k">if</span> <span class="n">site_properties</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="n">site_properties</span>
+
+        <span class="n">all_sp</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">all_coords</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">all_site_properties</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">sp</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">species</span><span class="p">,</span> <span class="n">frac_coords</span><span class="p">)):</span>
+            <span class="n">cc</span> <span class="o">=</span> <span class="n">sgp</span><span class="o">.</span><span class="n">get_orbit</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="n">tol</span><span class="p">)</span>
+            <span class="n">all_sp</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">sp</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">cc</span><span class="p">))</span>
+            <span class="n">all_coords</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">cc</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">props</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">all_site_properties</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">v</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">cc</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">latt</span><span class="p">,</span> <span class="n">all_sp</span><span class="p">,</span> <span class="n">all_coords</span><span class="p">,</span>
+                   <span class="n">site_properties</span><span class="o">=</span><span class="n">all_site_properties</span><span class="p">)</span>
+
 </div>
     <span class="nd">@property</span>
 <div class="viewcode-block" id="IStructure.distance_matrix"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IStructure.distance_matrix">[docs]</a>    <span class="k">def</span> <span class="nf">distance_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -1186,7 +1266,10 @@
     <span class="nd">@classmethod</span>
 <div class="viewcode-block" id="IStructure.from_file"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IStructure.from_file">[docs]</a>    <span class="k">def</span> <span class="nf">from_file</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">primitive</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Reads a structure from a file.</span>
+<span class="sd">        Reads a structure from a file. For example, anything ending in</span>
+<span class="sd">        a &quot;cif&quot; is assumed to be a Crystallographic Information Format file.</span>
+<span class="sd">        Supported formats include CIF, POSCAR/CONTCAR, CHGCAR, LOCPOT,</span>
+<span class="sd">        vasprun.xml, CSSR and pymatgen&#39;s JSON serialized structures.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            filename (str): The filename to read from.</span>
@@ -1197,15 +1280,8 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            Structure.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">pymatgen.io.vaspio</span> <span class="kn">import</span> <span class="n">Vasprun</span><span class="p">,</span> <span class="n">Poscar</span><span class="p">,</span> <span class="n">Chgcar</span>
-        <span class="kn">from</span> <span class="nn">pymatgen.io.cifio</span> <span class="kn">import</span> <span class="n">CifParser</span>
-        <span class="kn">from</span> <span class="nn">pymatgen.io.cssrio</span> <span class="kn">import</span> <span class="n">Cssr</span>
-        <span class="kn">from</span> <span class="nn">pymatgen.io.xyzio</span> <span class="kn">import</span> <span class="n">XYZ</span>
-        <span class="kn">from</span> <span class="nn">pymatgen.io.gaussianio</span> <span class="kn">import</span> <span class="n">GaussianInput</span><span class="p">,</span> <span class="n">GaussianOutput</span>
+        <span class="kn">from</span> <span class="nn">pymatgen.io.vaspio</span> <span class="kn">import</span> <span class="n">Vasprun</span><span class="p">,</span> <span class="n">Chgcar</span>
         <span class="kn">from</span> <span class="nn">monty.io</span> <span class="kn">import</span> <span class="n">zopen</span>
-        <span class="kn">from</span> <span class="nn">monty.json</span> <span class="kn">import</span> <span class="n">MontyDecoder</span><span class="p">,</span> <span class="n">MontyEncoder</span>
-        <span class="kn">from</span> <span class="nn">monty.string</span> <span class="kn">import</span> <span class="n">str2unicode</span>
-        <span class="kn">from</span> <span class="nn">pymatgen.io.babelio</span> <span class="kn">import</span> <span class="n">BabelMolAdaptor</span>
         <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
         <span class="k">with</span> <span class="n">zopen</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
             <span class="n">contents</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
@@ -1751,7 +1827,11 @@
     <span class="nd">@classmethod</span>
 <div class="viewcode-block" id="IMolecule.from_file"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.structure.IMolecule.from_file">[docs]</a>    <span class="k">def</span> <span class="nf">from_file</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Reads a molecule from a file.</span>
+<span class="sd">        Reads a molecule from a file. Supported formats include xyz,</span>
+<span class="sd">        gaussian input (gjf|g03|g09|com|inp), Gaussian output (.out|and</span>
+<span class="sd">        pymatgen&#39;s JSON serialized molecules. Using openbabel,</span>
+<span class="sd">        many more extensions are supported but requires openbabel to be</span>
+<span class="sd">        installed.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            filename (str): The filename to read from.</span>
@@ -2702,7 +2782,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 3.0.4 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 3.0.5 documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

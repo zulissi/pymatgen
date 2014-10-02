@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.abinitio.qadapters &mdash; pymatgen 3.0.4 documentation</title>
+    <title>pymatgen.io.abinitio.qadapters &mdash; pymatgen 3.0.5 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '3.0.4',
+        VERSION:     '3.0.5',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.0.4 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.5 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 3.0.4 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.5 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -187,6 +187,7 @@
             <span class="s">&quot;slurm&quot;</span><span class="p">:</span> <span class="n">SlurmAdapter</span><span class="p">,</span>
             <span class="s">&quot;pbs&quot;</span><span class="p">:</span> <span class="n">PbsAdapter</span><span class="p">,</span>
             <span class="s">&quot;sge&quot;</span><span class="p">:</span> <span class="n">SGEAdapter</span><span class="p">,</span>
+            <span class="s">&quot;moab&quot;</span><span class="p">:</span> <span class="n">MOABAdapter</span><span class="p">,</span>
             <span class="p">}[</span><span class="n">qtype</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span>
 
 </div>
@@ -1142,6 +1143,154 @@
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&quot;increase_cpus&quot;</span><span class="p">)</span>
 
 
+<span class="k">class</span> <span class="nc">MOABAdapter</span><span class="p">(</span><span class="n">AbstractQueueAdapter</span><span class="p">):</span>
+<span class="c"># https://computing.llnl.gov/tutorials/moab/</span>
+    <span class="n">QTYPE</span> <span class="o">=</span> <span class="s">&quot;moab&quot;</span>
+
+    <span class="n">QTEMPLATE</span> <span class="o">=</span> <span class="s">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s">#!/bin/bash</span>
+
+<span class="s">#MSUB -a $${eligible_date}</span>
+<span class="s">#MSUB -A $${account}</span>
+<span class="s">#MSUB -c $${checkpoint_interval}</span>
+<span class="s">#MSUB -l feature=$${feature}</span>
+<span class="s">#MSUB -l gres=$${gres}</span>
+<span class="s">#MSUB -l nodes=$${nodes}</span>
+<span class="s">#MSUB -l partition=$${partition}</span>
+<span class="s">#MSUB -l procs=$${procs}</span>
+<span class="s">#MSUB -l ttc=$${ttc}</span>
+<span class="s">#MSUB -l walltime=$${walltime}</span>
+<span class="s">#MSUB -l $${resources}</span>
+<span class="s">#MSUB -p $${priority}</span>
+<span class="s">#MSUB -q $${queue}</span>
+<span class="s">#MSUB -S $${shell}</span>
+<span class="s">#MSUB -N $${job_name}</span>
+<span class="s">#MSUB -v $${variable_list}</span>
+
+<span class="s">#MSUB -o $${_qout_path}</span>
+<span class="s">#MSUB -e $${_qerr_path}</span>
+
+<span class="s">&quot;&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">mpi_ncpus</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Number of CPUs used for MPI.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">qparams</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;procs&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set_mpi_ncpus</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mpi_ncpus</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set the number of CPUs used for MPI.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">qparams</span><span class="p">[</span><span class="s">&quot;procs&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mpi_ncpus</span>
+
+    <span class="k">def</span> <span class="nf">set_omp_ncpus</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">omp_ncpus</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set the number of OpenMP threads.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">omp_env</span><span class="p">[</span><span class="s">&quot;OMP_NUM_THREADS&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">omp_ncpus</span>
+
+    <span class="k">def</span> <span class="nf">cancel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="s">&quot;canceljob </span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">job_id</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">submit_to_queue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">script_file</span><span class="p">,</span> <span class="n">submit_err_file</span><span class="o">=</span><span class="s">&quot;sbatch.err&quot;</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">script_file</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="s">&#39;Cannot find script file located at: {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">script_file</span><span class="p">))</span>
+
+        <span class="n">submit_err_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">script_file</span><span class="p">),</span> <span class="n">submit_err_file</span><span class="p">)</span>
+
+        <span class="c"># submit the job</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;msub&#39;</span><span class="p">,</span> <span class="n">script_file</span><span class="p">]</span>
+            <span class="n">process</span> <span class="o">=</span> <span class="n">Popen</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">PIPE</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="n">PIPE</span><span class="p">)</span>
+            <span class="c"># write the err output to file, a error parser may read it and a fixer may know what to do ...</span>
+
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">submit_err_file</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;msub submit process stderr:&#39;</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">read</span><span class="p">()))</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;qparams:&#39;</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">qparams</span><span class="p">))</span>
+
+            <span class="n">process</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span>
+
+            <span class="c"># grab the returncode. MOAB returns 0 if the job was successful</span>
+            <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="c"># output should be the queue_id</span>
+                    <span class="n">queue_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Job submission was successful and queue_id is {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">queue_id</span><span class="p">))</span>
+                <span class="k">except</span><span class="p">:</span>
+                    <span class="c"># probably error parsing job code</span>
+                    <span class="n">queue_id</span> <span class="o">=</span> <span class="bp">None</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s">&#39;Could not parse job id following msub...&#39;</span><span class="p">)</span>
+
+                <span class="k">finally</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">process</span><span class="p">,</span> <span class="n">queue_id</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c"># some qsub error, e.g. maybe wrong queue specified, don&#39;t have permission to submit, etc...</span>
+                <span class="n">err_msg</span> <span class="o">=</span> <span class="p">(</span><span class="s">&quot;Error in job submission with MOAB file {f} and cmd {c}</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">f</span><span class="o">=</span><span class="n">script_file</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="n">cmd</span><span class="p">)</span> <span class="o">+</span> 
+                           <span class="s">&quot;The error response reads: {c}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">c</span><span class="o">=</span><span class="n">process</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">read</span><span class="p">()))</span>
+                <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="n">err_msg</span><span class="p">)</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">details</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s">&#39;Error while submitting job:</span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">details</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">submit_err_file</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&#39;a&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">print</span><span class="p">(</span><span class="s">&#39;sometimes we land here, no idea what is happening ... Michiel&#39;</span><span class="p">)</span>
+                <span class="k">print</span><span class="p">(</span><span class="n">details</span><span class="p">)</span>
+                <span class="k">print</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+                <span class="k">print</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">returncode</span><span class="p">)</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="k">pass</span>
+
+            <span class="c"># random error, e.g. no qsub on machine!</span>
+            <span class="k">raise</span> <span class="bp">self</span><span class="o">.</span><span class="n">Error</span><span class="p">(</span><span class="s">&#39;Running msub caused an error...&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_njobs_in_queue</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">username</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">username</span> <span class="o">=</span> <span class="n">getpass</span><span class="o">.</span><span class="n">getuser</span><span class="p">()</span>
+
+        <span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;showq&#39;</span><span class="p">,</span> <span class="s">&#39;-s -u&#39;</span><span class="p">,</span> <span class="n">username</span><span class="p">]</span>
+        <span class="n">process</span> <span class="o">=</span> <span class="n">Popen</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">PIPE</span><span class="p">)</span>
+        <span class="n">process</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span>
+
+        <span class="c"># parse the result</span>
+        <span class="k">if</span> <span class="n">process</span><span class="o">.</span><span class="n">returncode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c"># lines should have this form:</span>
+            <span class="c">## </span>
+            <span class="c">## active jobs: N  eligible jobs: M  blocked jobs: P</span>
+            <span class="c">##</span>
+            <span class="c">## Total job:  1</span>
+            <span class="c">##</span>
+            <span class="c"># Split the output string and return the last element.</span>
+
+            <span class="n">outs</span> <span class="o">=</span> <span class="n">process</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+            <span class="n">njobs</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">outs</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;The number of jobs currently in the queue is: {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">njobs</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">njobs</span>
+
+        <span class="c"># there&#39;s a problem talking to squeue server?</span>
+        <span class="n">err_msg</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;Error trying to get the number of jobs in the queue using showq service&#39;</span> <span class="o">+</span> 
+                   <span class="s">&#39;The error response reads: {}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">process</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">read</span><span class="p">()))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="n">err_msg</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">None</span>
+    
+    <span class="k">def</span> <span class="nf">exclude_nodes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nodes</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&quot;exclude_nodes&quot;</span><span class="p">)</span>
+                                                                         
+    <span class="k">def</span> <span class="nf">increase_mem</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">factor</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&quot;increase_mem&quot;</span><span class="p">)</span>
+                                                                         
+    <span class="k">def</span> <span class="nf">increase_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">factor</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&quot;increase_time&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">increase_cpus</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">factor</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&quot;increase_cpus&quot;</span><span class="p">)</span>
+        
+    <span class="k">def</span> <span class="nf">set_mem_per_cpu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">factor</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&quot;set_mem_per_cpu&quot;</span><span class="p">)</span>
+
 <span class="k">class</span> <span class="nc">QScriptTemplate</span><span class="p">(</span><span class="n">string</span><span class="o">.</span><span class="n">Template</span><span class="p">):</span>
     <span class="n">delimiter</span> <span class="o">=</span> <span class="s">&#39;$$&#39;</span>
 </pre></div>
@@ -1177,7 +1326,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 3.0.4 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.5 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

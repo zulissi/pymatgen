@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.abinitio.flows &mdash; pymatgen 3.0.5 documentation</title>
+    <title>pymatgen.io.abinitio.flows &mdash; pymatgen 3.0.6 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '3.0.5',
+        VERSION:     '3.0.6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.0.5 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.6 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 3.0.5 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.6 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -68,10 +68,13 @@
 <span class="kn">import</span> <span class="nn">collections</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
 
-<span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="nb">map</span><span class="p">,</span> <span class="n">cPickle</span> <span class="k">as</span> <span class="n">pickle</span>
+<span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="nb">map</span> 
 <span class="kn">from</span> <span class="nn">monty.io</span> <span class="kn">import</span> <span class="n">FileLock</span>
-<span class="kn">from</span> <span class="nn">pymatgen.util.string_utils</span> <span class="kn">import</span> <span class="n">pprint_table</span>
+<span class="kn">from</span> <span class="nn">monty.pprint</span> <span class="kn">import</span> <span class="n">pprint_table</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.serializers.pickle_coders</span> <span class="kn">import</span> <span class="n">pmg_pickle_load</span><span class="p">,</span> <span class="n">pmg_pickle_dump</span> 
 <span class="kn">from</span> <span class="nn">.tasks</span> <span class="kn">import</span> <span class="n">Dependency</span><span class="p">,</span> <span class="n">Status</span><span class="p">,</span> <span class="n">Node</span><span class="p">,</span> <span class="n">Task</span><span class="p">,</span> <span class="n">ScfTask</span><span class="p">,</span> <span class="n">PhononTask</span><span class="p">,</span> <span class="n">TaskManager</span>
 <span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">Directory</span><span class="p">,</span> <span class="n">Editor</span>
 <span class="kn">from</span> <span class="nn">.abiinspect</span> <span class="kn">import</span> <span class="n">yaml_read_irred_perts</span>
@@ -233,7 +236,9 @@
 
         <span class="k">with</span> <span class="n">FileLock</span><span class="p">(</span><span class="n">filepath</span><span class="p">):</span>
             <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
-                <span class="n">flow</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fh</span><span class="p">)</span>
+                <span class="c">#flow = pickle.load(fh)</span>
+                <span class="c">#flow = PmgUnpickler(fh).load()</span>
+                <span class="n">flow</span> <span class="o">=</span> <span class="n">pmg_pickle_load</span><span class="p">(</span><span class="n">fh</span><span class="p">)</span>
 
         <span class="c"># Check if versions match.</span>
         <span class="k">if</span> <span class="n">flow</span><span class="o">.</span><span class="n">VERSION</span> <span class="o">!=</span> <span class="n">cls</span><span class="o">.</span><span class="n">VERSION</span><span class="p">:</span>
@@ -507,8 +512,7 @@
             <span class="k">if</span> <span class="ow">not</span> <span class="n">task</span><span class="o">.</span><span class="n">queue_errors</span><span class="p">:</span>
                 <span class="c"># queue error but no errors detected, try to solve by increasing resources</span>
                 <span class="c"># if resources are at maximum the tast is definitively turned to errored</span>
-                <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">qadapter</span><span class="o">.</span><span class="n">increase_resources</span><span class="p">():</span>
-                <span class="c">#if task.manager.policy.increase_max_ncpu():</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">increase_resources</span><span class="p">():</span>  <span class="c"># acts either on the policy or on the qadapter</span>
                     <span class="n">task</span><span class="o">.</span><span class="n">reset_from_scratch</span><span class="p">()</span>
                     <span class="k">return</span> <span class="bp">True</span>
                 <span class="k">else</span><span class="p">:</span>
@@ -528,8 +532,12 @@
                             <span class="n">info_msg</span> <span class="o">=</span> <span class="s">&#39;Node error detected but no was node identified. Unrecoverable error.&#39;</span>
                             <span class="k">return</span> <span class="n">task</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">S_ERROR</span><span class="p">,</span> <span class="n">info_msg</span><span class="p">)</span>
                     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">error</span><span class="p">,</span> <span class="n">MemoryCancelError</span><span class="p">):</span>
-                        <span class="c"># ask the qadapter to provide more memory</span>
-                        <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">qadapter</span><span class="o">.</span><span class="n">increase_mem</span><span class="p">():</span>
+                        <span class="c"># ask the qadapter to provide more resources, i.e. more cpu&#39;s so more total memory</span>
+                        <span class="k">if</span> <span class="n">task</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">increase_resources</span><span class="p">():</span>
+                            <span class="n">task</span><span class="o">.</span><span class="n">reset_from_scratch</span><span class="p">()</span>
+                            <span class="k">return</span> <span class="n">task</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">S_READY</span><span class="p">,</span> <span class="n">info_msg</span><span class="o">=</span><span class="s">&#39;increased mem&#39;</span><span class="p">)</span>
+                        <span class="c"># if the max is reached, try to increase the memory per cpu:</span>
+                        <span class="k">elif</span> <span class="n">task</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">qadapter</span><span class="o">.</span><span class="n">increase_mem</span><span class="p">():</span>
                             <span class="n">task</span><span class="o">.</span><span class="n">reset_from_scratch</span><span class="p">()</span>
                             <span class="k">return</span> <span class="n">task</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">S_READY</span><span class="p">,</span> <span class="n">info_msg</span><span class="o">=</span><span class="s">&#39;increased mem&#39;</span><span class="p">)</span>
                         <span class="c"># if this failed ask the task to provide a method to reduce the memory demand</span>
@@ -546,7 +554,7 @@
                             <span class="n">task</span><span class="o">.</span><span class="n">reset_from_scratch</span><span class="p">()</span>
                             <span class="k">return</span> <span class="n">task</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">S_READY</span><span class="p">,</span> <span class="n">info_msg</span><span class="o">=</span><span class="s">&#39;increased wall time&#39;</span><span class="p">)</span>
                         <span class="c"># if this fails ask the qadapter to increase the number of cpus</span>
-                        <span class="k">elif</span> <span class="n">task</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">qadapter</span><span class="o">.</span><span class="n">increase_cpus</span><span class="p">():</span>
+                        <span class="k">elif</span> <span class="n">task</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">increase_resources</span><span class="p">():</span>
                             <span class="n">task</span><span class="o">.</span><span class="n">reset_from_scratch</span><span class="p">()</span>
                             <span class="k">return</span> <span class="n">task</span><span class="o">.</span><span class="n">set_status</span><span class="p">(</span><span class="n">task</span><span class="o">.</span><span class="n">S_READY</span><span class="p">,</span> <span class="n">info_msg</span><span class="o">=</span><span class="s">&#39;increased number of cpus&#39;</span><span class="p">)</span>
                         <span class="c"># if this failed ask the task to provide a method to speed up the task</span>
@@ -653,8 +661,8 @@
                 <span class="k">try</span><span class="p">:</span>
                     <span class="n">selected</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">choices</span><span class="p">[</span><span class="n">c</span><span class="p">],</span> <span class="s">&quot;path&quot;</span><span class="p">))</span>
                 <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
-                    <span class="kn">import</span> <span class="nn">warnings</span>
                     <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&quot;Wrong keyword </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">c</span><span class="p">)</span>
+
             <span class="k">return</span> <span class="n">selected</span>
 
         <span class="c"># Build list of files to analyze.</span>
@@ -737,7 +745,9 @@
 
         <span class="k">with</span> <span class="n">FileLock</span><span class="p">(</span><span class="n">filepath</span><span class="p">):</span>
             <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s">&quot;w&quot;</span> <span class="k">if</span> <span class="n">protocol</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="s">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
-                <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fh</span><span class="p">,</span> <span class="n">protocol</span><span class="o">=</span><span class="n">protocol</span><span class="p">)</span>
+                <span class="c">#pickle.dump(self, fh, protocol=protocol)</span>
+                <span class="c">#PmgPickler(fh, protocol=protocol).dump(self)</span>
+                <span class="n">pmg_pickle_dump</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fh</span><span class="p">,</span> <span class="n">protocol</span><span class="o">=</span><span class="n">protocol</span><span class="p">)</span>
 
         <span class="c"># Atomic transaction.</span>
         <span class="c">#filepath_new = filepath + &quot;.new&quot;</span>
@@ -993,7 +1003,7 @@
             <span class="n">sched</span> <span class="o">=</span> <span class="n">PyFlowScheduler</span><span class="o">.</span><span class="n">from_user_config</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c"># Use from_file if filepath if present, else call __init__</span>
-            <span class="n">filepath</span> <span class="o">==</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&quot;filepath&quot;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+            <span class="n">filepath</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s">&quot;filepath&quot;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">filepath</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
                 <span class="k">assert</span> <span class="ow">not</span> <span class="n">kwargs</span>
                 <span class="n">sched</span> <span class="o">=</span> <span class="n">PyFlowScheduler</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
@@ -1327,7 +1337,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 3.0.5 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.6 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

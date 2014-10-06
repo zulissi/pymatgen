@@ -113,11 +113,11 @@ class LammpsLog(MSONable):
 
     # viscosity
     def viscosity(self,cutoff):
-    """
-    cutoff: initial lines ignored during the calculation
-    output: a file named viscosity_parallel.txt, 
-            which saves the correlation function and its integration which is teh viscosity in cP
-    """
+        """
+        cutoff: initial lines ignored during the calculation
+        output: a file named viscosity_parallel.txt,
+                which saves the correlation function and its integration which is teh viscosity in cP
+        """
 
         NCORES=8
         p=Pool(NCORES)

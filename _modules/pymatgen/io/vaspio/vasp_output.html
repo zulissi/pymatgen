@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.vaspio.vasp_output &mdash; pymatgen 3.0.6 documentation</title>
+    <title>pymatgen.io.vaspio.vasp_output &mdash; pymatgen 3.0.8 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '3.0.6',
+        VERSION:     '3.0.8',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.0.6 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.8 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 3.0.6 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.8 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -66,7 +66,7 @@
 
 
 <span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong, Geoffroy Hautier, Rickard Armiento, &quot;</span> <span class="o">+</span> \
-    <span class="s">&quot;Vincent L Chevrier&quot;</span>
+    <span class="s">&quot;Vincent L Chevrier, Ioannis Petousis&quot;</span>
 <span class="n">__credits__</span> <span class="o">=</span> <span class="s">&quot;Anubhav Jain&quot;</span>
 <span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot;Copyright 2011, The Materials Project&quot;</span>
 <span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;1.2&quot;</span>
@@ -91,9 +91,10 @@
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 
 <span class="kn">from</span> <span class="nn">monty.io</span> <span class="kn">import</span> <span class="n">zopen</span><span class="p">,</span> <span class="n">reverse_readfile</span>
+<span class="kn">from</span> <span class="nn">monty.json</span> <span class="kn">import</span> <span class="n">jsanitize</span>
 
-<span class="kn">from</span> <span class="nn">pymatgen.util.io_utils</span> <span class="kn">import</span> <span class="n">clean_lines</span><span class="p">,</span> <span class="n">micro_pyawk</span><span class="p">,</span> \
-    <span class="n">clean_json</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.util.io_utils</span> <span class="kn">import</span> <span class="n">clean_lines</span><span class="p">,</span> <span class="n">micro_pyawk</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="kn">import</span> <span class="n">Structure</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.units</span> <span class="kn">import</span> <span class="n">unitized</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.composition</span> <span class="kn">import</span> <span class="n">Composition</span>
@@ -191,6 +192,21 @@
     <span class="k">return</span> <span class="bp">None</span>
 
 
+<span class="k">def</span> <span class="nf">_vasprun_float</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Large numbers are often represented as ********* in the vasprun.</span>
+<span class="sd">    This function parses these values as np.nan</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">f</span> <span class="o">==</span> <span class="s">&#39;*&#39;</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&#39;Float overflow (*******) encountered in vasprun&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="k">raise</span> <span class="n">e</span>
+
+
 <div class="viewcode-block" id="Vasprun"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun">[docs]</a><span class="k">class</span> <span class="nc">Vasprun</span><span class="p">(</span><span class="n">PMGSONable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Vastly improved cElementTree-based parser for vasprun.xml files. Uses</span>
@@ -286,6 +302,16 @@
 
 <span class="sd">        The static part of the dielectric constant. Present when it&#39;s a DFPT run</span>
 <span class="sd">        (LEPSILON=TRUE)</span>
+
+<span class="sd">    .. attribute:: epsilon_static_wolfe</span>
+
+<span class="sd">        The static part of the dielectric constant without any local field effects.</span>
+<span class="sd">        Present when it&#39;s a DFPT run (LEPSILON=TRUE)</span>
+
+<span class="sd">    .. attribute:: epsilon_ionic</span>
+
+<span class="sd">        The ionic part of the static dielectric constant. Present when it&#39;s a DFPT run</span>
+<span class="sd">        (LEPSILON=TRUE) and IBRION=5, 6, 7 or 8</span>
 
 <span class="sd">    .. attribute:: nionic_steps</span>
 
@@ -395,7 +421,7 @@
                     <span class="bp">self</span><span class="o">.</span><span class="n">tdos</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">idos</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pdos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_dos</span><span class="p">(</span><span class="n">elem</span><span class="p">)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">efermi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tdos</span><span class="o">.</span><span class="n">efermi</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">dos_has_errors</span> <span class="o">=</span> <span class="bp">False</span>
-                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">dos_has_errors</span> <span class="o">=</span> <span class="bp">True</span>
             <span class="k">elif</span> <span class="n">parse_eigen</span> <span class="ow">and</span> <span class="n">tag</span> <span class="o">==</span> <span class="s">&quot;eigenvalues&quot;</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">eigenvalues</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_eigen</span><span class="p">(</span><span class="n">elem</span><span class="p">)</span>
@@ -417,6 +443,20 @@
 <span class="sd">        Property only available for DFPT calculations.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ionic_steps</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;epsilon&quot;</span><span class="p">,</span> <span class="p">[])</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Vasprun.epsilon_static_wolfe"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.epsilon_static_wolfe">[docs]</a>    <span class="k">def</span> <span class="nf">epsilon_static_wolfe</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Property only available for DFPT calculations.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ionic_steps</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;epsilon_rpa&quot;</span><span class="p">,</span> <span class="p">[])</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Vasprun.epsilon_ionic"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.epsilon_ionic">[docs]</a>    <span class="k">def</span> <span class="nf">epsilon_ionic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Property only available for DFPT calculations and when IBRION=5, 6, 7 or 8.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ionic_steps</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;epsilon_ion&quot;</span><span class="p">,</span> <span class="p">[])</span>
 </div>
     <span class="nd">@property</span>
 <div class="viewcode-block" id="Vasprun.lattice"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.lattice">[docs]</a>    <span class="k">def</span> <span class="nf">lattice</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -810,8 +850,10 @@
                 <span class="n">vout</span><span class="p">[</span><span class="s">&#39;projected_eigenvalues&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">peigen</span>
 
         <span class="n">vout</span><span class="p">[</span><span class="s">&#39;epsilon_static&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">epsilon_static</span>
+        <span class="n">vout</span><span class="p">[</span><span class="s">&#39;epsilon_static_wolfe&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">epsilon_static_wolfe</span>
+        <span class="n">vout</span><span class="p">[</span><span class="s">&#39;epsilon_ionic&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">epsilon_ionic</span>
         <span class="n">d</span><span class="p">[</span><span class="s">&#39;output&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">vout</span>
-        <span class="k">return</span> <span class="n">clean_json</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">jsanitize</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
 </div>
     <span class="k">def</span> <span class="nf">_parse_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elem</span><span class="p">):</span>
         <span class="n">params</span> <span class="o">=</span> <span class="p">{}</span>
@@ -875,14 +917,25 @@
         <span class="k">return</span> <span class="n">Structure</span><span class="p">(</span><span class="n">latt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">atomic_symbols</span><span class="p">,</span> <span class="n">pos</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_parse_calculation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elem</span><span class="p">):</span>
-        <span class="n">istep</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s">&quot;name&quot;</span><span class="p">]:</span> <span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
-                 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">elem</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;energy&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">&quot;i&quot;</span><span class="p">)}</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">istep</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s">&quot;name&quot;</span><span class="p">]:</span> <span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+                     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">elem</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;energy&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">&quot;i&quot;</span><span class="p">)}</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>  <span class="c"># not all calculations have an energy</span>
+            <span class="n">istep</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">pass</span>
         <span class="n">esteps</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">scstep</span> <span class="ow">in</span> <span class="n">elem</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">&quot;scstep&quot;</span><span class="p">):</span>
-            <span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s">&quot;name&quot;</span><span class="p">]:</span> <span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
-                 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">scstep</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;energy&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">&quot;i&quot;</span><span class="p">)}</span>
-            <span class="n">esteps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
-        <span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_structure</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;structure&quot;</span><span class="p">))</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">d</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s">&quot;name&quot;</span><span class="p">]:</span> <span class="n">_vasprun_float</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+                     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">scstep</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;energy&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">&quot;i&quot;</span><span class="p">)}</span>
+                <span class="n">esteps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>  <span class="c"># not all calculations have an energy</span>
+                <span class="k">pass</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_structure</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;structure&quot;</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>  <span class="c"># not all calculations have a structure</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="k">pass</span>
         <span class="k">for</span> <span class="n">va</span> <span class="ow">in</span> <span class="n">elem</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">&quot;varray&quot;</span><span class="p">):</span>
             <span class="n">istep</span><span class="p">[</span><span class="n">va</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s">&quot;name&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">_parse_varray</span><span class="p">(</span><span class="n">va</span><span class="p">)</span>
         <span class="n">istep</span><span class="p">[</span><span class="s">&quot;electronic_steps&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">esteps</span>
@@ -904,16 +957,18 @@
             <span class="n">idensities</span><span class="p">[</span><span class="n">spin</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span>
 
         <span class="n">pdoss</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">elem</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;partial&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;array&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;set&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">&quot;set&quot;</span><span class="p">):</span>
-            <span class="n">pdos</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">ss</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">&quot;set&quot;</span><span class="p">):</span>
-                <span class="n">spin</span> <span class="o">=</span> <span class="n">Spin</span><span class="o">.</span><span class="n">up</span> <span class="k">if</span> <span class="n">ss</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s">&quot;comment&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;spin 1&quot;</span> <span class="k">else</span> \
-                    <span class="n">Spin</span><span class="o">.</span><span class="n">down</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">_parse_varray</span><span class="p">(</span><span class="n">ss</span><span class="p">))</span>
-                <span class="n">nrow</span><span class="p">,</span> <span class="n">ncol</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span>
-                <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">ncol</span><span class="p">):</span>
-                    <span class="n">pdos</span><span class="p">[</span><span class="n">Orbital</span><span class="o">.</span><span class="n">from_vasp_index</span><span class="p">(</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)][</span><span class="n">spin</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span>
-            <span class="n">pdoss</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pdos</span><span class="p">)</span>
+        <span class="n">partial</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;partial&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">partial</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">partial</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;array&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;set&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">&quot;set&quot;</span><span class="p">):</span>
+                <span class="n">pdos</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">ss</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">&quot;set&quot;</span><span class="p">):</span>
+                    <span class="n">spin</span> <span class="o">=</span> <span class="n">Spin</span><span class="o">.</span><span class="n">up</span> <span class="k">if</span> <span class="n">ss</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s">&quot;comment&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;spin 1&quot;</span> <span class="k">else</span> \
+                        <span class="n">Spin</span><span class="o">.</span><span class="n">down</span>
+                    <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">_parse_varray</span><span class="p">(</span><span class="n">ss</span><span class="p">))</span>
+                    <span class="n">nrow</span><span class="p">,</span> <span class="n">ncol</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span>
+                    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">ncol</span><span class="p">):</span>
+                        <span class="n">pdos</span><span class="p">[</span><span class="n">Orbital</span><span class="o">.</span><span class="n">from_vasp_index</span><span class="p">(</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)][</span><span class="n">spin</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span>
+                <span class="n">pdoss</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pdos</span><span class="p">)</span>
         <span class="n">elem</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">Dos</span><span class="p">(</span><span class="n">efermi</span><span class="p">,</span> <span class="n">energies</span><span class="p">,</span> <span class="n">tdensities</span><span class="p">),</span> \
                <span class="n">Dos</span><span class="p">(</span><span class="n">efermi</span><span class="p">,</span> <span class="n">energies</span><span class="p">,</span> <span class="n">idensities</span><span class="p">),</span> <span class="n">pdoss</span>
@@ -996,7 +1051,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">is_stopped</span> <span class="o">=</span> <span class="bp">False</span>
 
         <span class="c"># data from end of OUTCAR</span>
-        <span class="n">read_charge_mag</span> <span class="o">=</span> <span class="bp">False</span>
         <span class="n">charge</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">mag</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">header</span> <span class="o">=</span> <span class="p">[]</span>
@@ -1013,31 +1067,8 @@
         <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">reverse_readfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">):</span>
             <span class="n">clean</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
             <span class="n">all_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">clean</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">clean</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&quot;tot &quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span><span class="n">charge</span> <span class="ow">and</span> <span class="n">mag</span><span class="p">):</span>
-                <span class="n">read_charge_mag</span> <span class="o">=</span> <span class="bp">True</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">elif</span> <span class="n">read_charge_mag</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">clean</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&quot;# of ion&quot;</span><span class="p">):</span>
-                    <span class="n">header</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;\s{2,}&quot;</span><span class="p">,</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
-                    <span class="n">header</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-                <span class="k">elif</span> <span class="n">clean</span> <span class="o">==</span> <span class="s">&quot;total charge&quot;</span><span class="p">:</span>
-                    <span class="n">data</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
-                    <span class="n">charge</span> <span class="o">=</span> <span class="p">[</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">header</span><span class="p">,</span> <span class="n">v</span><span class="p">))</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]</span>
-                    <span class="n">read_charge_mag</span> <span class="o">=</span> <span class="bp">False</span>
-                <span class="k">elif</span> <span class="n">clean</span> <span class="o">==</span> <span class="s">&quot;magnetization (x)&quot;</span><span class="p">:</span>
-                    <span class="n">data</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
-                    <span class="n">mag</span> <span class="o">=</span> <span class="p">[</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">header</span><span class="p">,</span> <span class="n">v</span><span class="p">))</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]</span>
-                    <span class="n">read_charge_mag</span> <span class="o">=</span> <span class="bp">False</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s">&quot;\s*(\d+)\s+(([\d\.\-]+)\s+)+&quot;</span><span class="p">,</span> <span class="n">clean</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
-                        <span class="n">toks</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">&quot;[\d\.\-]+&quot;</span><span class="p">,</span>
-                                                             <span class="n">clean</span><span class="p">)]</span>
-                        <span class="n">toks</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-                        <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">toks</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="n">clean</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;soft stop encountered!  aborting job&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">clean</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;soft stop encountered!  aborting job&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">is_stopped</span> <span class="o">=</span> <span class="bp">True</span>
-                <span class="c">#print(clean, cores)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">time_patt</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">line</span><span class="p">):</span>
                     <span class="n">tok</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;:&quot;</span><span class="p">)</span>
@@ -1062,7 +1093,39 @@
                     <span class="n">run_stats</span><span class="p">]):</span>
                 <span class="k">break</span>
 
+        <span class="c"># For single atom systems, VASP doesn&#39;t print a total line, so</span>
+        <span class="c"># reverse parsing is very difficult</span>
+        <span class="n">read_charge</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">read_mag</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">all_lines</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">clean</span> <span class="ow">in</span> <span class="n">all_lines</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">read_charge</span> <span class="ow">or</span> <span class="n">read_mag</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">clean</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&quot;# of ion&quot;</span><span class="p">):</span>
+                    <span class="n">header</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;\s{2,}&quot;</span><span class="p">,</span> <span class="n">clean</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+                    <span class="n">header</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s">&quot;\s*(\d+)\s+(([\d\.\-]+)\s+)+&quot;</span><span class="p">,</span> <span class="n">clean</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+                        <span class="n">toks</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">&quot;[\d\.\-]+&quot;</span><span class="p">,</span> <span class="n">clean</span><span class="p">)]</span>
+                        <span class="n">toks</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">read_charge</span><span class="p">:</span>
+                            <span class="n">charge</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">header</span><span class="p">,</span> <span class="n">toks</span><span class="p">)))</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">mag</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">header</span><span class="p">,</span> <span class="n">toks</span><span class="p">)))</span>
+                    <span class="k">elif</span> <span class="n">clean</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;tot&#39;</span><span class="p">):</span>
+                        <span class="n">read_charge</span> <span class="o">=</span> <span class="bp">False</span>
+                        <span class="n">read_mag</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="k">if</span> <span class="n">clean</span> <span class="o">==</span> <span class="s">&quot;total charge&quot;</span><span class="p">:</span>
+                <span class="n">charge</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">read_charge</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="n">read_mag</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="k">elif</span> <span class="n">clean</span> <span class="o">==</span> <span class="s">&quot;magnetization (x)&quot;</span><span class="p">:</span>
+                <span class="n">mag</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">read_mag</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="n">read_charge</span> <span class="o">=</span> <span class="bp">False</span>
+
         <span class="c"># data from beginning of OUTCAR</span>
+        <span class="n">run_stats</span><span class="p">[</span><span class="s">&#39;cores&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="k">with</span> <span class="n">zopen</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&quot;rt&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
                 <span class="k">if</span> <span class="s">&quot;running&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
@@ -1201,33 +1264,38 @@
             <span class="k">def</span> <span class="nf">dielectric_section_start</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">match</span><span class="p">):</span>
                 <span class="n">results</span><span class="o">.</span><span class="n">dielectric_index</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
 
-            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;MACROSCOPIC STATIC DIELECTRIC TENSOR&quot;</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span>
+            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;MACROSCOPIC STATIC DIELECTRIC TENSOR \(&quot;</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span>
                            <span class="n">dielectric_section_start</span><span class="p">])</span>
 
             <span class="k">def</span> <span class="nf">dielectric_section_start2</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">match</span><span class="p">):</span>
                 <span class="n">results</span><span class="o">.</span><span class="n">dielectric_index</span> <span class="o">=</span> <span class="mi">0</span>
 
-            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;-------------------------------------&quot;</span><span class="p">,</span>
-                           <span class="k">lambda</span> <span class="n">results</span><span class="p">,</span>
-                           <span class="n">line</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">dielectric_index</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
-                           <span class="n">dielectric_section_start2</span><span class="p">])</span>
+            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">[</span><span class="s">&quot;-------------------------------------&quot;</span><span class="p">,</span>
+                <span class="k">lambda</span> <span class="n">results</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">dielectric_index</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+                <span class="n">dielectric_section_start2</span><span class="p">])</span>
 
             <span class="k">def</span> <span class="nf">dielectric_data</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">match</span><span class="p">):</span>
                 <span class="n">results</span><span class="o">.</span><span class="n">dielectric_tensor</span><span class="p">[</span><span class="n">results</span><span class="o">.</span><span class="n">dielectric_index</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> \
                     <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">)])</span>
                 <span class="n">results</span><span class="o">.</span><span class="n">dielectric_index</span> <span class="o">+=</span> <span class="mi">1</span>
 
-            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;^ *([-0-9.Ee+]+) +([-0-9.Ee+]+) +([-0-9.Ee+]+) *$&quot;</span><span class="p">,</span>
-                           <span class="k">lambda</span> <span class="n">results</span><span class="p">,</span>
-                           <span class="n">line</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">dielectric_index</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span>
-                           <span class="n">dielectric_data</span><span class="p">])</span>
+            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">[</span><span class="s">&quot;^ *([-0-9.Ee+]+) +([-0-9.Ee+]+) +([-0-9.Ee+]+) *$&quot;</span><span class="p">,</span>
+                <span class="k">lambda</span> <span class="n">results</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">dielectric_index</span> <span class="o">&gt;=</span> <span class="mi">0</span>
+                                      <span class="k">if</span> <span class="n">results</span><span class="o">.</span><span class="n">dielectric_index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+                                      <span class="k">else</span> <span class="bp">None</span><span class="p">,</span>
+                <span class="n">dielectric_data</span><span class="p">])</span>
 
             <span class="k">def</span> <span class="nf">dielectric_section_stop</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">match</span><span class="p">):</span>
                 <span class="n">results</span><span class="o">.</span><span class="n">dielectric_index</span> <span class="o">=</span> <span class="bp">None</span>
 
-            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;-------------------------------------&quot;</span><span class="p">,</span>
-                           <span class="k">lambda</span> <span class="n">results</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">dielectric_index</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">,</span>
-                           <span class="n">dielectric_section_stop</span><span class="p">])</span>
+            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">[</span><span class="s">&quot;-------------------------------------&quot;</span><span class="p">,</span>
+                <span class="k">lambda</span> <span class="n">results</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">dielectric_index</span> <span class="o">&gt;=</span> <span class="mi">1</span>
+                                      <span class="k">if</span> <span class="n">results</span><span class="o">.</span><span class="n">dielectric_index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+                                      <span class="k">else</span> <span class="bp">None</span><span class="p">,</span>
+                <span class="n">dielectric_section_stop</span><span class="p">])</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">dielectric_index</span> <span class="o">=</span> <span class="bp">None</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">dielectric_tensor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
@@ -1236,7 +1304,7 @@
                 <span class="n">results</span><span class="o">.</span><span class="n">piezo_index</span> <span class="o">=</span> <span class="mi">0</span>
 
             <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;PIEZOELECTRIC TENSOR  for field in x, y, z        &quot;</span>
-                           <span class="s">&quot;\(e  Angst\)&quot;</span><span class="p">,</span>
+                           <span class="s">&quot;\(C/m\^2\)&quot;</span><span class="p">,</span>
                            <span class="bp">None</span><span class="p">,</span> <span class="n">piezo_section_start</span><span class="p">])</span>
 
             <span class="k">def</span> <span class="nf">piezo_data</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">match</span><span class="p">):</span>
@@ -1244,18 +1312,24 @@
                     <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="p">)])</span>
                 <span class="n">results</span><span class="o">.</span><span class="n">piezo_index</span> <span class="o">+=</span> <span class="mi">1</span>
 
-            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;^ *[xyz] +([-0-9.Ee+]+) +([-0-9.Ee+]+)&quot;</span> <span class="o">+</span>
-                           <span class="s">&quot; +([-0-9.Ee+]+) *([-0-9.Ee+]+) +([-0-9.Ee+]+)&quot;</span> <span class="o">+</span>
-                           <span class="s">&quot; +([-0-9.Ee+]+)*$&quot;</span><span class="p">,</span>
-                           <span class="k">lambda</span> <span class="n">results</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">piezo_index</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span>
-                           <span class="n">piezo_data</span><span class="p">])</span>
+            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">[</span><span class="s">&quot;^ *[xyz] +([-0-9.Ee+]+) +([-0-9.Ee+]+)&quot;</span> <span class="o">+</span>
+                 <span class="s">&quot; +([-0-9.Ee+]+) *([-0-9.Ee+]+) +([-0-9.Ee+]+)&quot;</span> <span class="o">+</span>
+                 <span class="s">&quot; +([-0-9.Ee+]+)*$&quot;</span><span class="p">,</span>
+                 <span class="k">lambda</span> <span class="n">results</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">piezo_index</span> <span class="o">&gt;=</span> <span class="mi">0</span>
+                                       <span class="k">if</span> <span class="n">results</span><span class="o">.</span><span class="n">piezo_index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+                                       <span class="k">else</span> <span class="bp">None</span><span class="p">,</span>
+                 <span class="n">piezo_data</span><span class="p">])</span>
 
             <span class="k">def</span> <span class="nf">piezo_section_stop</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">match</span><span class="p">):</span>
                 <span class="n">results</span><span class="o">.</span><span class="n">piezo_index</span> <span class="o">=</span> <span class="bp">None</span>
 
-            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;-------------------------------------&quot;</span><span class="p">,</span>
-                           <span class="k">lambda</span> <span class="n">results</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">piezo_index</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">,</span>
-                           <span class="n">piezo_section_stop</span><span class="p">])</span>
+            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">[</span><span class="s">&quot;-------------------------------------&quot;</span><span class="p">,</span>
+                <span class="k">lambda</span> <span class="n">results</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">piezo_index</span> <span class="o">&gt;=</span> <span class="mi">1</span>
+                                      <span class="k">if</span> <span class="n">results</span><span class="o">.</span><span class="n">piezo_index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+                                      <span class="k">else</span> <span class="bp">None</span><span class="p">,</span>
+                <span class="n">piezo_section_stop</span><span class="p">])</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">piezo_index</span> <span class="o">=</span> <span class="bp">None</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">piezo_tensor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
@@ -1278,25 +1352,122 @@
                 <span class="n">results</span><span class="o">.</span><span class="n">born</span><span class="p">[</span><span class="n">results</span><span class="o">.</span><span class="n">born_ion</span><span class="p">][</span><span class="nb">int</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> \
                     <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">)])</span>
 
-            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;^ *([1-3]+) +([-0-9.Ee+]+) +([-0-9.Ee+]+) &quot;</span>
-                           <span class="s">&quot;+([-0-9.Ee+]+)$&quot;</span><span class="p">,</span>
-                           <span class="k">lambda</span> <span class="n">results</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">born_ion</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">,</span>
-                           <span class="n">born_data</span><span class="p">])</span>
+            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">[</span><span class="s">&quot;^ *([1-3]+) +([-0-9.Ee+]+) +([-0-9.Ee+]+) +([-0-9.Ee+]+)$&quot;</span><span class="p">,</span>
+                <span class="k">lambda</span> <span class="n">results</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">born_ion</span> <span class="o">&gt;=</span> <span class="mi">0</span>
+                                      <span class="k">if</span> <span class="n">results</span><span class="o">.</span><span class="n">born_ion</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+                                      <span class="k">else</span> <span class="n">results</span><span class="o">.</span><span class="n">born_ion</span><span class="p">,</span>
+                <span class="n">born_data</span><span class="p">])</span>
 
             <span class="k">def</span> <span class="nf">born_section_stop</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">match</span><span class="p">):</span>
                 <span class="n">results</span><span class="o">.</span><span class="n">born_index</span> <span class="o">=</span> <span class="bp">None</span>
 
-            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;-------------------------------------&quot;</span><span class="p">,</span>
-                           <span class="k">lambda</span> <span class="n">results</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">born_ion</span> <span class="o">&gt;=</span> <span class="mi">1</span><span class="p">,</span>
-                           <span class="n">born_section_stop</span><span class="p">])</span>
+            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">[</span><span class="s">&quot;-------------------------------------&quot;</span><span class="p">,</span>
+                <span class="k">lambda</span> <span class="n">results</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">born_ion</span> <span class="o">&gt;=</span> <span class="mi">1</span>
+                                      <span class="k">if</span> <span class="n">results</span><span class="o">.</span><span class="n">born_ion</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+                                      <span class="k">else</span> <span class="n">results</span><span class="o">.</span><span class="n">born_ion</span><span class="p">,</span>
+                <span class="n">born_section_stop</span><span class="p">])</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">born_ion</span> <span class="o">=</span> <span class="bp">None</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">born</span> <span class="o">=</span> <span class="p">{}</span>
 
             <span class="n">micro_pyawk</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="n">search</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
 
+            <span class="bp">self</span><span class="o">.</span><span class="n">dielectric_tensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dielectric_tensor</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">piezo_tensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">piezo_tensor</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+
         <span class="k">except</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;LEPSILON OUTCAR could not be parsed.&quot;</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="Outcar.read_lepsilon_ionic"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Outcar.read_lepsilon_ionic">[docs]</a>    <span class="k">def</span> <span class="nf">read_lepsilon_ionic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># variables to be filled</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">search</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="k">def</span> <span class="nf">dielectric_section_start</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">match</span><span class="p">):</span>
+                <span class="n">results</span><span class="o">.</span><span class="n">dielectric_ionic_index</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;MACROSCOPIC STATIC DIELECTRIC TENSOR IONIC&quot;</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span>
+                           <span class="n">dielectric_section_start</span><span class="p">])</span>
+
+            <span class="k">def</span> <span class="nf">dielectric_section_start2</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">match</span><span class="p">):</span>
+                <span class="n">results</span><span class="o">.</span><span class="n">dielectric_ionic_index</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">[</span><span class="s">&quot;-------------------------------------&quot;</span><span class="p">,</span>
+                <span class="k">lambda</span> <span class="n">results</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">dielectric_ionic_index</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span>
+                                      <span class="k">if</span> <span class="n">results</span><span class="o">.</span><span class="n">dielectric_ionic_index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+                                      <span class="k">else</span> <span class="n">results</span><span class="o">.</span><span class="n">dielectric_ionic_index</span><span class="p">,</span>
+                <span class="n">dielectric_section_start2</span><span class="p">])</span>
+
+            <span class="k">def</span> <span class="nf">dielectric_data</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">match</span><span class="p">):</span>
+                <span class="n">results</span><span class="o">.</span><span class="n">dielectric_ionic_tensor</span><span class="p">[</span><span class="n">results</span><span class="o">.</span><span class="n">dielectric_ionic_index</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> \
+                    <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">)])</span>
+                <span class="n">results</span><span class="o">.</span><span class="n">dielectric_ionic_index</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">[</span><span class="s">&quot;^ *([-0-9.Ee+]+) +([-0-9.Ee+]+) +([-0-9.Ee+]+) *$&quot;</span><span class="p">,</span>
+                <span class="k">lambda</span> <span class="n">results</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">dielectric_ionic_index</span> <span class="o">&gt;=</span> <span class="mi">0</span>
+                                      <span class="k">if</span> <span class="n">results</span><span class="o">.</span><span class="n">dielectric_ionic_index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+                                      <span class="k">else</span> <span class="n">results</span><span class="o">.</span><span class="n">dielectric_ionic_index</span><span class="p">,</span>
+                <span class="n">dielectric_data</span><span class="p">])</span>
+
+            <span class="k">def</span> <span class="nf">dielectric_section_stop</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">match</span><span class="p">):</span>
+                <span class="n">results</span><span class="o">.</span><span class="n">dielectric_ionic_index</span> <span class="o">=</span> <span class="bp">None</span>
+
+            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">[</span><span class="s">&quot;-------------------------------------&quot;</span><span class="p">,</span>
+                <span class="k">lambda</span> <span class="n">results</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">dielectric_ionic_index</span> <span class="o">&gt;=</span> <span class="mi">1</span>
+                                      <span class="k">if</span> <span class="n">results</span><span class="o">.</span><span class="n">dielectric_ionic_index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+                                      <span class="k">else</span> <span class="n">results</span><span class="o">.</span><span class="n">dielectric_ionic_index</span><span class="p">,</span>
+                <span class="n">dielectric_section_stop</span><span class="p">])</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">dielectric_ionic_index</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dielectric_ionic_tensor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+
+            <span class="k">def</span> <span class="nf">piezo_section_start</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">match</span><span class="p">):</span>
+                <span class="n">results</span><span class="o">.</span><span class="n">piezo_ionic_index</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s">&quot;PIEZOELECTRIC TENSOR IONIC CONTR  for field in x, y, z        &quot;</span><span class="p">,</span>
+                           <span class="bp">None</span><span class="p">,</span> <span class="n">piezo_section_start</span><span class="p">])</span>
+
+            <span class="k">def</span> <span class="nf">piezo_data</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">match</span><span class="p">):</span>
+                <span class="n">results</span><span class="o">.</span><span class="n">piezo_ionic_tensor</span><span class="p">[</span><span class="n">results</span><span class="o">.</span><span class="n">piezo_ionic_index</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> \
+                    <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="p">)])</span>
+                <span class="n">results</span><span class="o">.</span><span class="n">piezo_ionic_index</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">[</span><span class="s">&quot;^ *[xyz] +([-0-9.Ee+]+) +([-0-9.Ee+]+)&quot;</span> <span class="o">+</span>
+                 <span class="s">&quot; +([-0-9.Ee+]+) *([-0-9.Ee+]+) +([-0-9.Ee+]+)&quot;</span> <span class="o">+</span>
+                 <span class="s">&quot; +([-0-9.Ee+]+)*$&quot;</span><span class="p">,</span>
+                 <span class="k">lambda</span> <span class="n">results</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">piezo_ionic_index</span> <span class="o">&gt;=</span> <span class="mi">0</span>
+                                       <span class="k">if</span> <span class="n">results</span><span class="o">.</span><span class="n">piezo_ionic_index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+                                       <span class="k">else</span> <span class="n">results</span><span class="o">.</span><span class="n">piezo_ionic_index</span><span class="p">,</span>
+                 <span class="n">piezo_data</span><span class="p">])</span>
+
+            <span class="k">def</span> <span class="nf">piezo_section_stop</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">match</span><span class="p">):</span>
+                <span class="n">results</span><span class="o">.</span><span class="n">piezo_ionic_index</span> <span class="o">=</span> <span class="bp">None</span>
+
+            <span class="n">search</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">[</span><span class="s">&quot;-------------------------------------&quot;</span><span class="p">,</span>
+                 <span class="k">lambda</span> <span class="n">results</span><span class="p">,</span> <span class="n">line</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">piezo_ionic_index</span> <span class="o">&gt;=</span> <span class="mi">1</span>
+                                       <span class="k">if</span> <span class="n">results</span><span class="o">.</span><span class="n">piezo_ionic_index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span>
+                                       <span class="k">else</span> <span class="n">results</span><span class="o">.</span><span class="n">piezo_ionic_index</span><span class="p">,</span>
+                 <span class="n">piezo_section_stop</span><span class="p">])</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">piezo_ionic_index</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">piezo_ionic_tensor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+
+            <span class="n">micro_pyawk</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="n">search</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">dielectric_ionic_tensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dielectric_ionic_tensor</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">piezo_ionic_tensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">piezo_ionic_tensor</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;ionic part of LEPSILON OUTCAR could not be parsed.&quot;</span><span class="p">)</span>
+
 </div>
 <div class="viewcode-block" id="Outcar.read_lcalcpol"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Outcar.read_lcalcpol">[docs]</a>    <span class="k">def</span> <span class="nf">read_lcalcpol</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c"># variables to be filled</span>
@@ -1344,13 +1515,13 @@
 <span class="sd">            structure at the last ionic step is [5][&quot;2s&quot;][-1]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="n">natom</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">charge</span><span class="p">)</span>
-        <span class="n">cl</span> <span class="o">=</span> <span class="p">[</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">natom</span><span class="p">)]</span>
-
         <span class="k">with</span> <span class="n">zopen</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="s">&quot;rt&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">foutcar</span><span class="p">:</span>
             <span class="n">line</span> <span class="o">=</span> <span class="n">foutcar</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
             <span class="k">while</span> <span class="n">line</span> <span class="o">!=</span> <span class="s">&quot;&quot;</span><span class="p">:</span>
                 <span class="n">line</span> <span class="o">=</span> <span class="n">foutcar</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+                <span class="k">if</span> <span class="s">&quot;NIONS =&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                    <span class="n">natom</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;NIONS =&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="n">cl</span> <span class="o">=</span> <span class="p">[</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">natom</span><span class="p">)]</span>
                 <span class="k">if</span> <span class="s">&quot;the core state eigen&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
                     <span class="k">for</span> <span class="n">iat</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">natom</span><span class="p">):</span>
                         <span class="n">line</span> <span class="o">=</span> <span class="n">foutcar</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
@@ -2056,11 +2227,11 @@
                 <span class="k">if</span> <span class="n">preamble</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
                     <span class="n">preamble</span> <span class="o">=</span> <span class="p">[</span><span class="n">l</span><span class="p">]</span>
                 <span class="k">elif</span> <span class="ow">not</span> <span class="n">preamble_done</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="n">l</span> <span class="o">==</span> <span class="s">&quot;&quot;</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">l</span> <span class="o">==</span> <span class="s">&quot;&quot;</span> <span class="ow">or</span> <span class="s">&quot;Direct configuration=&quot;</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
                         <span class="n">preamble_done</span> <span class="o">=</span> <span class="bp">True</span>
                     <span class="k">else</span><span class="p">:</span>
                         <span class="n">preamble</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">l</span><span class="p">)</span>
-                <span class="k">elif</span> <span class="n">l</span> <span class="o">==</span> <span class="s">&quot;&quot;</span><span class="p">:</span>
+                <span class="k">elif</span> <span class="n">l</span> <span class="o">==</span> <span class="s">&quot;&quot;</span> <span class="ow">or</span> <span class="s">&quot;Direct configuration=&quot;</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
                     <span class="n">p</span> <span class="o">=</span> <span class="n">Poscar</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">preamble</span> <span class="o">+</span>
                                                      <span class="p">[</span><span class="s">&quot;Direct&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">coords_str</span><span class="p">))</span>
                     <span class="n">structures</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">structure</span><span class="p">)</span>
@@ -2134,7 +2305,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 3.0.6 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.8 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

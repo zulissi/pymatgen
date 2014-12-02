@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.abinitio.calculations &mdash; pymatgen 3.0.6 documentation</title>
+    <title>pymatgen.io.abinitio.calculations &mdash; pymatgen 3.0.8 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '3.0.6',
+        VERSION:     '3.0.8',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.0.6 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.8 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 3.0.6 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.8 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -58,13 +58,13 @@
   <h1>Source code for pymatgen.io.abinitio.calculations</h1><div class="highlight"><pre>
 <span class="c"># coding: utf-8</span>
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Factory functions producing ABINIT workflows. Entry points for client code (high-level interface)</span>
+<span class="sd">Factory functions producing ABINIT Works. Entry points for client code (high-level interface)</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
-
+<span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">from</span> <span class="nn">.abiobjects</span> <span class="kn">import</span> <span class="n">KSampling</span><span class="p">,</span> <span class="n">Screening</span><span class="p">,</span> <span class="n">SelfEnergy</span><span class="p">,</span> <span class="n">ExcHamiltonian</span><span class="p">,</span> <span class="n">HilbertTransform</span>
-<span class="kn">from</span> <span class="nn">.strategies</span> <span class="kn">import</span> <span class="n">ScfStrategy</span><span class="p">,</span> <span class="n">NscfStrategy</span><span class="p">,</span> <span class="n">ScreeningStrategy</span><span class="p">,</span> <span class="n">SelfEnergyStrategy</span><span class="p">,</span> <span class="n">MDFBSE_Strategy</span>
-<span class="kn">from</span> <span class="nn">.workflows</span> <span class="kn">import</span> <span class="n">BandStructureWorkflow</span><span class="p">,</span> <span class="n">G0W0_Workflow</span><span class="p">,</span> <span class="n">BSEMDF_Workflow</span>
+<span class="kn">from</span> <span class="nn">.strategies</span> <span class="kn">import</span> <span class="n">ScfStrategy</span><span class="p">,</span> <span class="n">NscfStrategy</span><span class="p">,</span> <span class="n">ScreeningStrategy</span><span class="p">,</span> <span class="n">SelfEnergyStrategy</span><span class="p">,</span> <span class="n">MdfBse_Strategy</span>
+<span class="kn">from</span> <span class="nn">.works</span> <span class="kn">import</span> <span class="n">BandStructureWork</span><span class="p">,</span> <span class="n">G0W0Work</span><span class="p">,</span> <span class="n">BseMdfWork</span>
 
 
 <span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Matteo Giantomassi&quot;</span>
@@ -74,44 +74,29 @@
 <span class="n">__email__</span> <span class="o">=</span> <span class="s">&quot;gmatteo at gmail.com&quot;</span>
 
 
-<div class="viewcode-block" id="bandstructure"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.calculations.bandstructure">[docs]</a><span class="k">def</span> <span class="nf">bandstructure</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">pseudos</span><span class="p">,</span> <span class="n">scf_kppa</span><span class="p">,</span> <span class="n">nscf_nband</span><span class="p">,</span>
-                  <span class="n">ndivsm</span><span class="p">,</span> <span class="n">accuracy</span><span class="o">=</span><span class="s">&quot;normal&quot;</span><span class="p">,</span> <span class="n">spin_mode</span><span class="o">=</span><span class="s">&quot;polarized&quot;</span><span class="p">,</span>
-                  <span class="n">smearing</span><span class="o">=</span><span class="s">&quot;fermi_dirac:0.1 eV&quot;</span><span class="p">,</span> <span class="n">charge</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">scf_algorithm</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-                  <span class="n">dos_kppa</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">extra_abivars</span><span class="p">):</span>
+<div class="viewcode-block" id="bandstructure_work"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.calculations.bandstructure_work">[docs]</a><span class="k">def</span> <span class="nf">bandstructure_work</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">pseudos</span><span class="p">,</span> <span class="n">scf_kppa</span><span class="p">,</span> <span class="n">nscf_nband</span><span class="p">,</span>
+                       <span class="n">ndivsm</span><span class="p">,</span> <span class="n">accuracy</span><span class="o">=</span><span class="s">&quot;normal&quot;</span><span class="p">,</span> <span class="n">spin_mode</span><span class="o">=</span><span class="s">&quot;polarized&quot;</span><span class="p">,</span>
+                       <span class="n">smearing</span><span class="o">=</span><span class="s">&quot;fermi_dirac:0.1 eV&quot;</span><span class="p">,</span> <span class="n">charge</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">scf_algorithm</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                       <span class="n">dos_kppa</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">extra_abivars</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Returns a Workflow for bandstructure calculations.</span>
+<span class="sd">    Returns a :class:`Work` for bandstructure calculations.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        structure:</span>
-<span class="sd">            Pymatgen structure.</span>
-<span class="sd">        pseudos:</span>
-<span class="sd">            List of `Pseudo` objects.</span>
-<span class="sd">        scf_kppa:</span>
-<span class="sd">            Defines the sampling used for the SCF run.</span>
-<span class="sd">        nscf_nband:</span>
-<span class="sd">            Number of bands included in the NSCF run.</span>
-<span class="sd">        ndivs:</span>
-<span class="sd">            Number of divisions used to sample the smallest segment of the</span>
-<span class="sd">            k-path.</span>
-<span class="sd">        accuracy:</span>
-<span class="sd">            Accuracy of the calculation.</span>
-<span class="sd">        spin_mode:</span>
-<span class="sd">            Spin polarization.</span>
-<span class="sd">        smearing:</span>
-<span class="sd">            Smearing technique.</span>
-<span class="sd">        charge:</span>
-<span class="sd">            Electronic charge added to the unit cell.</span>
-<span class="sd">        scf_algorithm:</span>
-<span class="sd">            Algorithm used for solving of the SCF cycle.</span>
-<span class="sd">        dos_kppa:</span>
-<span class="sd">            Defines the k-point sampling used for the computation of the DOS </span>
+<span class="sd">        structure: Pymatgen structure.</span>
+<span class="sd">        pseudos: List of `Pseudo` objects.</span>
+<span class="sd">        scf_kppa: Defines the sampling used for the SCF run.</span>
+<span class="sd">        nscf_nband: Number of bands included in the NSCF run.</span>
+<span class="sd">        ndivs: Number of divisions used to sample the smallest segment of the k-path.</span>
+<span class="sd">        accuracy: Accuracy of the calculation.</span>
+<span class="sd">        spin_mode: Spin polarization.</span>
+<span class="sd">        smearing: Smearing technique.</span>
+<span class="sd">        charge: Electronic charge added to the unit cell.</span>
+<span class="sd">        scf_algorithm: Algorithm used for solving of the SCF cycle.</span>
+<span class="sd">        dos_kppa: Defines the k-point sampling used for the computation of the DOS</span>
 <span class="sd">            (None if DOS is not wanted).</span>
-<span class="sd">        workdir:</span>
-<span class="sd">            Working directory.</span>
-<span class="sd">        manager:</span>
-<span class="sd">            `TaskManager` instance.</span>
-<span class="sd">        extra_abivars:</span>
-<span class="sd">            Dictionary with extra variables passed to ABINIT.</span>
+<span class="sd">        workdir: Working directory.</span>
+<span class="sd">        manager: :class:`TaskManager` instance.</span>
+<span class="sd">        extra_abivars: Dictionary with extra variables passed to ABINIT.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c"># SCF calculation.</span>
     <span class="n">scf_ksampling</span> <span class="o">=</span> <span class="n">KSampling</span><span class="o">.</span><span class="n">automatic_density</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">scf_kppa</span><span class="p">,</span> <span class="n">chksymbreak</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
@@ -129,17 +114,16 @@
     <span class="c"># DOS calculation.</span>
     <span class="n">dos_strategy</span> <span class="o">=</span> <span class="bp">None</span>
     <span class="k">if</span> <span class="n">dos_kppa</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-        <span class="c">#raise NotImplementedError(&quot;DOS must be tested&quot;)</span>
         <span class="n">dos_ksampling</span> <span class="o">=</span> <span class="n">KSampling</span><span class="o">.</span><span class="n">automatic_density</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">dos_kppa</span><span class="p">,</span> <span class="n">chksymbreak</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="c">#dos_ksampling = KSampling.monkhorst(dos_ngkpt, shiftk=dos_shiftk, chksymbreak=0)</span>
 
         <span class="n">dos_strategy</span> <span class="o">=</span> <span class="n">NscfStrategy</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">,</span> <span class="n">dos_ksampling</span><span class="p">,</span> <span class="n">nscf_nband</span><span class="p">,</span> <span class="n">nscf_solver</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">extra_abivars</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">BandStructureWorkflow</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">,</span> <span class="n">nscf_strategy</span><span class="p">,</span> <span class="n">dos_inputs</span><span class="o">=</span><span class="n">dos_strategy</span><span class="p">,</span> 
-                                 <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="n">manager</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">BandStructureWork</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">,</span> <span class="n">nscf_strategy</span><span class="p">,</span> <span class="n">dos_inputs</span><span class="o">=</span><span class="n">dos_strategy</span><span class="p">,</span> 
+                             <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="n">manager</span><span class="p">)</span>
 
 
-<span class="c">#def relaxation(workdir, manager, structure, pseudos, scf_kppa,</span>
+<span class="c">#def relaxation_work(workdir, manager, structure, pseudos, scf_kppa,</span>
 <span class="c">#               accuracy=&quot;normal&quot;, spin_mode=&quot;polarized&quot;,</span>
 <span class="c">#               smearing=&quot;fermi_dirac:0.1 eV&quot;, charge=0.0, scf_algorithm=None, **extra_abivars):</span>
 <span class="c">#    &quot;&quot;&quot;</span>
@@ -178,54 +162,35 @@
 <span class="c">#    #return Relaxation(relax_strategy, workdir=workdir, manager=manager)</span>
 
 </div>
-<div class="viewcode-block" id="g0w0_with_ppmodel"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.calculations.g0w0_with_ppmodel">[docs]</a><span class="k">def</span> <span class="nf">g0w0_with_ppmodel</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">pseudos</span><span class="p">,</span> <span class="n">scf_kppa</span><span class="p">,</span> <span class="n">nscf_nband</span><span class="p">,</span> <span class="n">ecuteps</span><span class="p">,</span> <span class="n">ecutsigx</span><span class="p">,</span>
-                      <span class="n">accuracy</span><span class="o">=</span><span class="s">&quot;normal&quot;</span><span class="p">,</span> <span class="n">spin_mode</span><span class="o">=</span><span class="s">&quot;polarized&quot;</span><span class="p">,</span> <span class="n">smearing</span><span class="o">=</span><span class="s">&quot;fermi_dirac:0.1 eV&quot;</span><span class="p">,</span>
-                      <span class="n">ppmodel</span><span class="o">=</span><span class="s">&quot;godby&quot;</span><span class="p">,</span> <span class="n">charge</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">scf_algorithm</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">inclvkb</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">scr_nband</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-                      <span class="n">sigma_nband</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">gw_qprange</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">extra_abivars</span><span class="p">):</span>
+<div class="viewcode-block" id="g0w0_with_ppmodel_work"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.calculations.g0w0_with_ppmodel_work">[docs]</a><span class="k">def</span> <span class="nf">g0w0_with_ppmodel_work</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">pseudos</span><span class="p">,</span> <span class="n">scf_kppa</span><span class="p">,</span> <span class="n">nscf_nband</span><span class="p">,</span> <span class="n">ecuteps</span><span class="p">,</span> <span class="n">ecutsigx</span><span class="p">,</span>
+                           <span class="n">accuracy</span><span class="o">=</span><span class="s">&quot;normal&quot;</span><span class="p">,</span> <span class="n">spin_mode</span><span class="o">=</span><span class="s">&quot;polarized&quot;</span><span class="p">,</span> <span class="n">smearing</span><span class="o">=</span><span class="s">&quot;fermi_dirac:0.1 eV&quot;</span><span class="p">,</span>
+                           <span class="n">ppmodel</span><span class="o">=</span><span class="s">&quot;godby&quot;</span><span class="p">,</span> <span class="n">charge</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">scf_algorithm</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">inclvkb</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">scr_nband</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                           <span class="n">sigma_nband</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">gw_qprange</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">extra_abivars</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Returns a Work object that performs G0W0 calculations for the given the material.</span>
+<span class="sd">    Returns a :class:`Work` object that performs G0W0 calculations for the given the material.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        structure:</span>
-<span class="sd">            Pymatgen structure.</span>
-<span class="sd">        pseudos:</span>
-<span class="sd">            List of `Pseudo` objects.</span>
-<span class="sd">        scf_kppa:</span>
-<span class="sd">            Defines the sampling used for the SCF run.</span>
-<span class="sd">        nscf_nband:</span>
-<span class="sd">            Number of bands included in the NSCF run.</span>
-<span class="sd">        ecuteps:</span>
-<span class="sd">            Cutoff energy [Ha] for the screening matrix.</span>
-<span class="sd">        ecutsigx:</span>
-<span class="sd">            Cutoff energy [Ha] for the exchange part of the self-energy.</span>
-<span class="sd">        accuracy:</span>
-<span class="sd">            Accuracy of the calculation.</span>
-<span class="sd">        spin_mode:</span>
-<span class="sd">            Spin polarization.</span>
-<span class="sd">        smearing:</span>
-<span class="sd">            Smearing technique.</span>
-<span class="sd">        ppmodel:</span>
-<span class="sd">            Plasmonpole technique.</span>
-<span class="sd">        charge:</span>
-<span class="sd">            Electronic charge added to the unit cell.</span>
-<span class="sd">        scf_algorithm:</span>
-<span class="sd">            Algorithm used for solving of the SCF cycle.</span>
-<span class="sd">        inclvkb:</span>
-<span class="sd">            Treatment of the dipole matrix elements (see abinit variable).</span>
-<span class="sd">        scr_nband:</span>
-<span class="sd">            Number of bands used to compute the screening (default is nscf_nband)</span>
-<span class="sd">        sigma_nband:</span>
-<span class="sd">            Number of bands used to compute the self-energy (default is nscf_nband)</span>
-<span class="sd">        gw_qprange:</span>
-<span class="sd">            Option for the automatic selection of k-points and bands for GW corrections.</span>
+<span class="sd">        structure: Pymatgen structure.</span>
+<span class="sd">        pseudos: List of `Pseudo` objects.</span>
+<span class="sd">        scf_kppa: Defines the sampling used for the SCF run.</span>
+<span class="sd">        nscf_nband: Number of bands included in the NSCF run.</span>
+<span class="sd">        ecuteps: Cutoff energy [Ha] for the screening matrix.</span>
+<span class="sd">        ecutsigx: Cutoff energy [Ha] for the exchange part of the self-energy.</span>
+<span class="sd">        accuracy: Accuracy of the calculation.</span>
+<span class="sd">        spin_mode: Spin polarization.</span>
+<span class="sd">        smearing: Smearing technique.</span>
+<span class="sd">        ppmodel: Plasmonpole technique.</span>
+<span class="sd">        charge: Electronic charge added to the unit cell.</span>
+<span class="sd">        scf_algorithm: Algorithm used for solving of the SCF cycle.</span>
+<span class="sd">        inclvkb: Treatment of the dipole matrix elements (see abinit variable).</span>
+<span class="sd">        scr_nband: Number of bands used to compute the screening (default is nscf_nband)</span>
+<span class="sd">        sigma_nband: Number of bands used to compute the self-energy (default is nscf_nband)</span>
+<span class="sd">        gw_qprange: Option for the automatic selection of k-points and bands for GW corrections.</span>
 <span class="sd">            See Abinit docs for more detail. The default value makes the code compute the</span>
 <span class="sd">            QP energies for all the point in the IBZ and one band above and one band below the Fermi level.</span>
-<span class="sd">        workdir:</span>
-<span class="sd">            Working directory.</span>
-<span class="sd">        manager:</span>
-<span class="sd">            `TaskManager` instance.</span>
-<span class="sd">        extra_abivars</span>
-<span class="sd">            Dictionary with extra variables passed to ABINIT.</span>
+<span class="sd">        workdir: Working directory.</span>
+<span class="sd">        manager: :class:`TaskManager` instance.</span>
+<span class="sd">        extra_abivars: Dictionary with extra variables passed to ABINIT.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c"># TODO: Cannot use istwfk != 1.</span>
     <span class="k">if</span> <span class="s">&quot;istwfk&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">extra_abivars</span><span class="p">:</span>
@@ -256,54 +221,36 @@
     <span class="n">sigma_strategy</span> <span class="o">=</span> <span class="n">SelfEnergyStrategy</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">,</span> <span class="n">nscf_strategy</span><span class="p">,</span> <span class="n">scr_strategy</span><span class="p">,</span> <span class="n">self_energy</span><span class="p">,</span>
                                         <span class="o">**</span><span class="n">extra_abivars</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">G0W0_Workflow</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">,</span> <span class="n">nscf_strategy</span><span class="p">,</span> <span class="n">scr_strategy</span><span class="p">,</span> <span class="n">sigma_strategy</span><span class="p">,</span> 
-                         <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="n">manager</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">G0W0Work</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">,</span> <span class="n">nscf_strategy</span><span class="p">,</span> <span class="n">scr_strategy</span><span class="p">,</span> <span class="n">sigma_strategy</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="n">manager</span><span class="p">)</span>
 
 </div>
-<div class="viewcode-block" id="g0w0_extended"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.calculations.g0w0_extended">[docs]</a><span class="k">def</span> <span class="nf">g0w0_extended</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">pseudos</span><span class="p">,</span> <span class="n">scf_kppa</span><span class="p">,</span> <span class="n">nscf_nband</span><span class="p">,</span> <span class="n">ecuteps</span><span class="p">,</span> <span class="n">ecutsigx</span><span class="p">,</span> <span class="n">accuracy</span><span class="o">=</span><span class="s">&quot;normal&quot;</span><span class="p">,</span> <span class="n">spin_mode</span><span class="o">=</span><span class="s">&quot;polarized&quot;</span><span class="p">,</span>
-                  <span class="n">smearing</span><span class="o">=</span><span class="s">&quot;fermi_dirac:0.1 eV&quot;</span><span class="p">,</span> <span class="n">response_models</span><span class="o">=</span><span class="p">[</span><span class="s">&quot;godby&quot;</span><span class="p">],</span> <span class="n">charge</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">scf_algorithm</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">inclvkb</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-                  <span class="n">scr_nband</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">sigma_nband</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">gw_qprange</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
-                  <span class="o">**</span><span class="n">extra_abivars</span><span class="p">):</span>
+<div class="viewcode-block" id="g0w0_extended_work"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.calculations.g0w0_extended_work">[docs]</a><span class="k">def</span> <span class="nf">g0w0_extended_work</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">pseudos</span><span class="p">,</span> <span class="n">scf_kppa</span><span class="p">,</span> <span class="n">nscf_nband</span><span class="p">,</span> <span class="n">ecuteps</span><span class="p">,</span> <span class="n">ecutsigx</span><span class="p">,</span> <span class="n">accuracy</span><span class="o">=</span><span class="s">&quot;normal&quot;</span><span class="p">,</span> <span class="n">spin_mode</span><span class="o">=</span><span class="s">&quot;polarized&quot;</span><span class="p">,</span>
+                       <span class="n">smearing</span><span class="o">=</span><span class="s">&quot;fermi_dirac:0.1 eV&quot;</span><span class="p">,</span> <span class="n">response_models</span><span class="o">=</span><span class="p">[</span><span class="s">&quot;godby&quot;</span><span class="p">],</span> <span class="n">charge</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">inclvkb</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                       <span class="n">scr_nband</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">sigma_nband</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">nksmall</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+                       <span class="o">**</span><span class="n">extra_abivars</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Returns a Work object that performs G0W0 calculations for the given the material.</span>
+<span class="sd">    Returns a :class:`Work` object that performs G0W0 calculations for the given the material.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        structure:</span>
-<span class="sd">            Pymatgen structure.</span>
-<span class="sd">        pseudos:</span>
-<span class="sd">            List of `Pseudo` objects.</span>
-<span class="sd">        scf_</span>
-<span class="sd">            Defines the sampling used for the SCF run.</span>
-<span class="sd">        nscf_nband:</span>
-<span class="sd">            Number of bands included in the NSCF run.</span>
-<span class="sd">        ecuteps:</span>
-<span class="sd">            Cutoff energy [Ha] for the screening matrix.</span>
-<span class="sd">        ecutsigx:</span>
-<span class="sd">            Cutoff energy [Ha] for the exchange part of the self-energy.</span>
-<span class="sd">        accuracy:</span>
-<span class="sd">            Accuracy of the calculation.</span>
-<span class="sd">        spin_mode:</span>
-<span class="sd">            Spin polarization.</span>
-<span class="sd">        smearing:</span>
-<span class="sd">            Smearing technique.</span>
-<span class="sd">        ppmodel:</span>
-<span class="sd">            Plasmonpole technique.</span>
-<span class="sd">        charge:</span>
-<span class="sd">            Electronic charge added to the unit cell.</span>
-<span class="sd">        scf_algorithm:</span>
-<span class="sd">            Algorithm used for solving of the SCF cycle.</span>
-<span class="sd">        inclvkb:</span>
-<span class="sd">            Treatment of the dipole matrix elements (see abinit variable).</span>
-<span class="sd">        scr_nband:</span>
-<span class="sd">            Number of bands used to compute the screening (default is nscf_nband)</span>
-<span class="sd">        sigma_nband:</span>
-<span class="sd">            Number of bands used to compute the self-energy (default is nscf_nband)</span>
-<span class="sd">        workdir:</span>
-<span class="sd">            Working directory.</span>
-<span class="sd">        manager:</span>
-<span class="sd">            `TaskManager` instance.</span>
-<span class="sd">        extra_abivars</span>
-<span class="sd">            Dictionary with extra variables passed to ABINIT.</span>
+<span class="sd">        structure: Pymatgen structure.</span>
+<span class="sd">        pseudos: List of `Pseudo` objects.</span>
+<span class="sd">        scf_ Defines the sampling used for the SCF run.</span>
+<span class="sd">        nscf_nband: Number of bands included in the NSCF run.</span>
+<span class="sd">        ecuteps: Cutoff energy [Ha] for the screening matrix.</span>
+<span class="sd">        ecutsigx: Cutoff energy [Ha] for the exchange part of the self-energy.</span>
+<span class="sd">        accuracy: Accuracy of the calculation.</span>
+<span class="sd">        spin_mode: Spin polarization.</span>
+<span class="sd">        smearing: Smearing technique.</span>
+<span class="sd">        ppmodel: Plasmonpole technique.</span>
+<span class="sd">        charge: Electronic charge added to the unit cell.</span>
+<span class="sd">        scf_algorithm: Algorithm used for solving of the SCF cycle.</span>
+<span class="sd">        inclvkb: Treatment of the dipole matrix elements (see abinit variable).</span>
+<span class="sd">        scr_nband: Number of bands used to compute the screening (default is nscf_nband)</span>
+<span class="sd">        sigma_nband: Number of bands used to compute the self-energy (default is nscf_nband)</span>
+<span class="sd">        workdir: Working directory.</span>
+<span class="sd">        manager: :class:`TaskManager` instance.</span>
+<span class="sd">        nksamll: if not None, a DFT bandstucture calculation will be added after after the sc run</span>
+<span class="sd">        extra_abivars: Dictionary with extra variables passed to ABINIT.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c"># TODO: Cannot use istwfk != 1.</span>
 
@@ -314,6 +261,9 @@
         <span class="k">elif</span> <span class="n">scf_kppa</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
             <span class="n">scf_ksampling</span> <span class="o">=</span> <span class="n">KSampling</span><span class="o">.</span><span class="n">gamma_centered</span><span class="p">(</span><span class="n">kpts</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
             <span class="n">nscf_ksampling</span> <span class="o">=</span> <span class="n">KSampling</span><span class="o">.</span><span class="n">gamma_centered</span><span class="p">(</span><span class="n">kpts</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="n">scf_kppa</span> <span class="o">&lt;=</span> <span class="mi">10</span><span class="p">:</span>
+            <span class="n">scf_ksampling</span> <span class="o">=</span> <span class="n">KSampling</span><span class="o">.</span><span class="n">gamma_centered</span><span class="p">(</span><span class="n">kpts</span><span class="o">=</span><span class="p">(</span><span class="n">scf_kppa</span><span class="p">,</span> <span class="n">scf_kppa</span><span class="p">,</span> <span class="n">scf_kppa</span><span class="p">))</span>
+            <span class="n">nscf_ksampling</span> <span class="o">=</span> <span class="n">KSampling</span><span class="o">.</span><span class="n">gamma_centered</span><span class="p">(</span><span class="n">kpts</span><span class="o">=</span><span class="p">(</span><span class="n">scf_kppa</span><span class="p">,</span> <span class="n">scf_kppa</span><span class="p">,</span> <span class="n">scf_kppa</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">scf_ksampling</span> <span class="o">=</span> <span class="n">KSampling</span><span class="o">.</span><span class="n">automatic_density</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">scf_kppa</span><span class="p">,</span> <span class="n">chksymbreak</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">shifts</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
             <span class="n">nscf_ksampling</span> <span class="o">=</span> <span class="n">KSampling</span><span class="o">.</span><span class="n">automatic_density</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">scf_kppa</span><span class="p">,</span> <span class="n">chksymbreak</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">shifts</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
@@ -326,7 +276,8 @@
 
     <span class="n">scf_strategy</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">to_add</span> <span class="o">=</span> <span class="p">{}</span>
-
+    <span class="n">scf_nband</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">nscf_nband</span><span class="p">)</span>
+    <span class="c">#print(scf_nband)</span>
     <span class="n">extra_abivars</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">to_add</span><span class="p">)</span>
 
     <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">extra_abivars</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
@@ -337,12 +288,17 @@
             <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values</span><span class="p">:</span>
                 <span class="n">extra_abivars</span><span class="p">[</span><span class="n">var</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
                 <span class="n">extra_abivars</span><span class="p">[</span><span class="s">&#39;pawecutdg&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extra_abivars</span><span class="p">[</span><span class="s">&#39;ecut&#39;</span><span class="p">]</span><span class="o">*</span><span class="mi">2</span>
-                <span class="n">scf_strategy</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ScfStrategy</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">pseudos</span><span class="p">,</span> <span class="n">scf_ksampling</span><span class="p">,</span> <span class="n">accuracy</span><span class="o">=</span><span class="n">accuracy</span><span class="p">,</span> <span class="n">spin_mode</span><span class="o">=</span><span class="n">spin_mode</span><span class="p">,</span>
-                                                <span class="n">smearing</span><span class="o">=</span><span class="n">smearing</span><span class="p">,</span> <span class="n">charge</span><span class="o">=</span><span class="n">charge</span><span class="p">,</span> <span class="n">scf_algorithm</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">extra_abivars</span><span class="p">))</span>
+                <span class="n">scf_strategy</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ScfStrategy</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">pseudos</span><span class="p">,</span> <span class="n">scf_ksampling</span><span class="p">,</span> <span class="n">accuracy</span><span class="o">=</span><span class="n">accuracy</span><span class="p">,</span>
+                                                <span class="n">spin_mode</span><span class="o">=</span><span class="n">spin_mode</span><span class="p">,</span> <span class="n">smearing</span><span class="o">=</span><span class="n">smearing</span><span class="p">,</span> <span class="n">charge</span><span class="o">=</span><span class="n">charge</span><span class="p">,</span>
+                                                <span class="n">scf_algorithm</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">extra_abivars</span><span class="p">))</span>
+
+    <span class="c">#temporary for testing a new approach ...</span>
+    <span class="n">spread_scr</span> <span class="o">=</span> <span class="bp">False</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="s">&#39;no_spread_scr&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="bp">True</span>
 
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
         <span class="n">scf_strategy</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ScfStrategy</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">pseudos</span><span class="p">,</span> <span class="n">scf_ksampling</span><span class="p">,</span> <span class="n">accuracy</span><span class="o">=</span><span class="n">accuracy</span><span class="p">,</span> <span class="n">spin_mode</span><span class="o">=</span><span class="n">spin_mode</span><span class="p">,</span>
                                         <span class="n">smearing</span><span class="o">=</span><span class="n">smearing</span><span class="p">,</span> <span class="n">charge</span><span class="o">=</span><span class="n">charge</span><span class="p">,</span> <span class="n">scf_algorithm</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">extra_abivars</span><span class="p">))</span>
+    <span class="n">scf_strategy</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">electrons</span><span class="o">.</span><span class="n">nband</span> <span class="o">=</span> <span class="n">scf_nband</span>
 
     <span class="n">nscf_strategy</span> <span class="o">=</span> <span class="n">NscfStrategy</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">nscf_ksampling</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">nscf_nband</span><span class="p">),</span> <span class="o">**</span><span class="n">extra_abivars</span><span class="p">)</span>
 
@@ -366,19 +322,24 @@
                 <span class="n">scr_nband</span> <span class="o">=</span> <span class="n">nscf_nband_v</span>
                 <span class="n">sigma_nband</span> <span class="o">=</span> <span class="n">nscf_nband_v</span>
                 <span class="k">if</span> <span class="n">response_model</span> <span class="o">==</span> <span class="s">&#39;cd&#39;</span><span class="p">:</span>
-                    <span class="n">screening</span> <span class="o">=</span> <span class="n">Screening</span><span class="p">(</span><span class="n">ecuteps_v</span><span class="p">,</span> <span class="n">scr_nband</span><span class="p">,</span> <span class="n">w_type</span><span class="o">=</span><span class="s">&quot;RPA&quot;</span><span class="p">,</span> <span class="n">sc_mode</span><span class="o">=</span><span class="s">&quot;one_shot&quot;</span><span class="p">,</span> <span class="n">hilbert</span><span class="o">=</span><span class="n">hilbert</span><span class="p">,</span> <span class="n">ecutwfn</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">inclvkb</span><span class="o">=</span><span class="n">inclvkb</span><span class="p">)</span>
+                    <span class="n">screening</span> <span class="o">=</span> <span class="n">Screening</span><span class="p">(</span><span class="n">ecuteps_v</span><span class="p">,</span> <span class="n">scr_nband</span><span class="p">,</span> <span class="n">w_type</span><span class="o">=</span><span class="s">&quot;RPA&quot;</span><span class="p">,</span> <span class="n">sc_mode</span><span class="o">=</span><span class="s">&quot;one_shot&quot;</span><span class="p">,</span> <span class="n">hilbert</span><span class="o">=</span><span class="n">hilbert</span><span class="p">,</span>
+                                          <span class="n">ecutwfn</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">inclvkb</span><span class="o">=</span><span class="n">inclvkb</span><span class="p">)</span>
                     <span class="n">self_energy</span> <span class="o">=</span> <span class="n">SelfEnergy</span><span class="p">(</span><span class="s">&quot;gw&quot;</span><span class="p">,</span> <span class="s">&quot;one_shot&quot;</span><span class="p">,</span> <span class="n">sigma_nband</span><span class="p">,</span> <span class="n">ecutsigx</span><span class="p">,</span> <span class="n">screening</span><span class="p">,</span> <span class="n">hilbert</span><span class="o">=</span><span class="n">hilbert</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">ppmodel</span> <span class="o">=</span> <span class="n">response_model</span>
-                    <span class="n">screening</span> <span class="o">=</span> <span class="n">Screening</span><span class="p">(</span><span class="n">ecuteps_v</span><span class="p">,</span> <span class="n">scr_nband</span><span class="p">,</span> <span class="n">w_type</span><span class="o">=</span><span class="s">&quot;RPA&quot;</span><span class="p">,</span> <span class="n">sc_mode</span><span class="o">=</span><span class="s">&quot;one_shot&quot;</span><span class="p">,</span> <span class="n">ecutwfn</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">inclvkb</span><span class="o">=</span><span class="n">inclvkb</span><span class="p">)</span>
-                    <span class="n">self_energy</span> <span class="o">=</span> <span class="n">SelfEnergy</span><span class="p">(</span><span class="s">&quot;gw&quot;</span><span class="p">,</span> <span class="s">&quot;one_shot&quot;</span><span class="p">,</span> <span class="n">sigma_nband</span><span class="p">,</span> <span class="n">ecutsigx</span><span class="p">,</span> <span class="n">screening</span><span class="p">,</span> <span class="n">ppmodel</span><span class="o">=</span><span class="n">ppmodel</span><span class="p">,</span> <span class="n">gw_qprange</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="n">screening</span> <span class="o">=</span> <span class="n">Screening</span><span class="p">(</span><span class="n">ecuteps_v</span><span class="p">,</span> <span class="n">scr_nband</span><span class="p">,</span> <span class="n">w_type</span><span class="o">=</span><span class="s">&quot;RPA&quot;</span><span class="p">,</span> <span class="n">sc_mode</span><span class="o">=</span><span class="s">&quot;one_shot&quot;</span><span class="p">,</span> <span class="n">ecutwfn</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                                          <span class="n">inclvkb</span><span class="o">=</span><span class="n">inclvkb</span><span class="p">)</span>
+                    <span class="n">self_energy</span> <span class="o">=</span> <span class="n">SelfEnergy</span><span class="p">(</span><span class="s">&quot;gw&quot;</span><span class="p">,</span> <span class="s">&quot;one_shot&quot;</span><span class="p">,</span> <span class="n">sigma_nband</span><span class="p">,</span> <span class="n">ecutsigx</span><span class="p">,</span> <span class="n">screening</span><span class="p">,</span> <span class="n">ppmodel</span><span class="o">=</span><span class="n">ppmodel</span><span class="p">,</span>
+                                             <span class="n">gw_qprange</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
                 <span class="n">scr_strategy</span> <span class="o">=</span> <span class="n">ScreeningStrategy</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">nscf_strategy</span><span class="p">,</span> <span class="n">screening</span><span class="p">,</span> <span class="o">**</span><span class="n">extra_abivars</span><span class="p">)</span>
-                <span class="n">sigma_strategy</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">SelfEnergyStrategy</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">nscf_strategy</span><span class="p">,</span> <span class="n">scr_strategy</span><span class="p">,</span> <span class="n">self_energy</span><span class="p">,</span> <span class="o">**</span><span class="n">extra_abivars</span><span class="p">))</span>
+                <span class="n">sigma_strategy</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">SelfEnergyStrategy</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">nscf_strategy</span><span class="p">,</span> <span class="n">scr_strategy</span><span class="p">,</span> <span class="n">self_energy</span><span class="p">,</span>
+                                                         <span class="o">**</span><span class="n">extra_abivars</span><span class="p">))</span>
 
-    <span class="k">return</span> <span class="n">G0W0_Workflow</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">,</span> <span class="n">nscf_strategy</span><span class="p">,</span> <span class="n">scr_strategy</span><span class="p">,</span> <span class="n">sigma_strategy</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="n">manager</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">G0W0Work</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">,</span> <span class="n">nscf_strategy</span><span class="p">,</span> <span class="n">scr_strategy</span><span class="p">,</span> <span class="n">sigma_strategy</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="n">manager</span><span class="p">,</span>
+                    <span class="n">spread_scr</span><span class="o">=</span><span class="n">spread_scr</span><span class="p">,</span> <span class="n">nksmall</span><span class="o">=</span><span class="n">nksmall</span><span class="p">)</span>
 
 
-<span class="c">#def g0w0_with_cd(structure, pseudos, scf_kppa, nscf_nband, ecuteps, ecutsigx, hilbert,</span>
+<span class="c">#def g0w0_with_cd_work(structure, pseudos, scf_kppa, nscf_nband, ecuteps, ecutsigx, hilbert,</span>
 <span class="c">#                 accuracy=&quot;normal&quot;, spin_mode=&quot;polarized&quot;, smearing=&quot;fermi_dirac:0.1 eV&quot;,</span>
 <span class="c">#                 charge=0.0, scf_algorithm=None, inclvkb=2, scr_nband=None, </span>
 <span class="c">#                 sigma_nband=None, workdir=None, manager=None, **extra_abivars):</span>
@@ -454,65 +415,44 @@
 <span class="c">#    sigma_strategy = SelfEnergyStrategy(scf_strategy, nscf_strategy, scr_strategy, self_energy,</span>
 <span class="c">#                                        **extra_abivars)</span>
 <span class="c">#</span>
-<span class="c">#    return G0W0_Workflow(scf_strategy, nscf_strategy, scr_strategy, sigma_strategy, </span>
-<span class="c">#                         workdir=workdir, manager=manager)</span>
+<span class="c">#    return G0W0Work(scf_strategy, nscf_strategy, scr_strategy, sigma_strategy, </span>
+<span class="c">#                    workdir=workdir, manager=manager)</span>
 
 </div>
-<div class="viewcode-block" id="bse_with_mdf"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.calculations.bse_with_mdf">[docs]</a><span class="k">def</span> <span class="nf">bse_with_mdf</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">pseudos</span><span class="p">,</span> <span class="n">scf_kppa</span><span class="p">,</span> <span class="n">nscf_nband</span><span class="p">,</span> <span class="n">nscf_ngkpt</span><span class="p">,</span> <span class="n">nscf_shiftk</span><span class="p">,</span> 
-                 <span class="n">ecuteps</span><span class="p">,</span> <span class="n">bs_loband</span><span class="p">,</span> <span class="n">bs_nband</span><span class="p">,</span> <span class="n">soenergy</span><span class="p">,</span> <span class="n">mdf_epsinf</span><span class="p">,</span> 
-                 <span class="n">exc_type</span><span class="o">=</span><span class="s">&quot;TDA&quot;</span><span class="p">,</span> <span class="n">bs_algo</span><span class="o">=</span><span class="s">&quot;haydock&quot;</span><span class="p">,</span> <span class="n">accuracy</span><span class="o">=</span><span class="s">&quot;normal&quot;</span><span class="p">,</span> <span class="n">spin_mode</span><span class="o">=</span><span class="s">&quot;polarized&quot;</span><span class="p">,</span> 
-                 <span class="n">smearing</span><span class="o">=</span><span class="s">&quot;fermi_dirac:0.1 eV&quot;</span><span class="p">,</span> <span class="n">charge</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">scf_algorithm</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> 
-                 <span class="o">**</span><span class="n">extra_abivars</span><span class="p">):</span>
+<div class="viewcode-block" id="bse_with_mdf_work"><a class="viewcode-back" href="../../../../pymatgen.io.abinitio.html#pymatgen.io.abinitio.calculations.bse_with_mdf_work">[docs]</a><span class="k">def</span> <span class="nf">bse_with_mdf_work</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">pseudos</span><span class="p">,</span> <span class="n">scf_kppa</span><span class="p">,</span> <span class="n">nscf_nband</span><span class="p">,</span> <span class="n">nscf_ngkpt</span><span class="p">,</span> <span class="n">nscf_shiftk</span><span class="p">,</span> 
+                      <span class="n">ecuteps</span><span class="p">,</span> <span class="n">bs_loband</span><span class="p">,</span> <span class="n">bs_nband</span><span class="p">,</span> <span class="n">soenergy</span><span class="p">,</span> <span class="n">mdf_epsinf</span><span class="p">,</span> 
+                      <span class="n">exc_type</span><span class="o">=</span><span class="s">&quot;TDA&quot;</span><span class="p">,</span> <span class="n">bs_algo</span><span class="o">=</span><span class="s">&quot;haydock&quot;</span><span class="p">,</span> <span class="n">accuracy</span><span class="o">=</span><span class="s">&quot;normal&quot;</span><span class="p">,</span> <span class="n">spin_mode</span><span class="o">=</span><span class="s">&quot;polarized&quot;</span><span class="p">,</span> 
+                      <span class="n">smearing</span><span class="o">=</span><span class="s">&quot;fermi_dirac:0.1 eV&quot;</span><span class="p">,</span> <span class="n">charge</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">scf_algorithm</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> 
+                      <span class="o">**</span><span class="n">extra_abivars</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Returns a `Workflow` object that performs a GS + NSCF + Bethe-Salpeter calculation.</span>
-<span class="sd">    The self-energy corrections are approximated with the scissors operator. The screening</span>
-<span class="sd">    in modeled by the model dielectric function.</span>
+<span class="sd">    Returns a :class:`Work` object that performs a GS + NSCF + Bethe-Salpeter calculation.</span>
+<span class="sd">    The self-energy corrections are approximated with the scissors operator.</span>
+<span class="sd">    The screening in modeled by the model dielectric function.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        structure:</span>
-<span class="sd">            `Structure` object.</span>
-<span class="sd">        pseudos:</span>
-<span class="sd">            List of `Pseudo` objects.</span>
-<span class="sd">        scf_kppa:</span>
-<span class="sd">            Defines the sampling used for the SCF run.</span>
-<span class="sd">        nscf_nband:</span>
-<span class="sd">            Number of bands included in the NSCF run.</span>
-<span class="sd">        nscf_ngkpt:</span>
-<span class="sd">            Division of the k-mesh used for the NSCF and the BSE run.</span>
-<span class="sd">        nscf_shiftk:</span>
-<span class="sd">            Shifts used for the NSCF and the BSE run.</span>
-<span class="sd">        ecuteps:</span>
-<span class="sd">            Cutoff energy [Ha] for the screening matrix.</span>
-<span class="sd">        bs_loband:</span>
-<span class="sd">            Index of the first occupied band included the e-h basis set</span>
+<span class="sd">        structure: :class:`Structure` object.</span>
+<span class="sd">        pseudos: List of `Pseudo` objects.</span>
+<span class="sd">        scf_kppa: Defines the sampling used for the SCF run.</span>
+<span class="sd">        nscf_nband: Number of bands included in the NSCF run.</span>
+<span class="sd">        nscf_ngkpt: Divisions of the k-mesh used for the NSCF and the BSE run.</span>
+<span class="sd">        nscf_shiftk: Shifts used for the NSCF and the BSE run.</span>
+<span class="sd">        ecuteps: Cutoff energy [Ha] for the screening matrix.</span>
+<span class="sd">        bs_loband: Index of the first occupied band included the e-h basis set</span>
 <span class="sd">            (ABINIT convention i.e. first band starts at 1).</span>
 <span class="sd">            Can be scalar or array of shape (nsppol,)</span>
-<span class="sd">        bs_nband:</span>
-<span class="sd">            Highest band idex used for the construction of the e-h basis set.</span>
-<span class="sd">        soenergy:</span>
-<span class="sd">            Scissor energy in Hartree.</span>
-<span class="sd">        mdf_epsinf:</span>
-<span class="sd">            Value of the macroscopic dielectric function used in expression for the model dielectric function.</span>
-<span class="sd">        exc_type:</span>
-<span class="sd">            Approximation used for the BSE Hamiltonian (Tamm-Dancoff or coupling).</span>
-<span class="sd">        bs_algo:</span>
-<span class="sd">            Algorith for the computatio of the macroscopic dielectric function.</span>
-<span class="sd">        accuracy:</span>
-<span class="sd">            Accuracy of the calculation.</span>
-<span class="sd">        spin_mode:</span>
-<span class="sd">            Spin polarization.</span>
-<span class="sd">        smearing:</span>
-<span class="sd">            Smearing technique.</span>
-<span class="sd">        charge:</span>
-<span class="sd">            Electronic charge added to the unit cell.</span>
-<span class="sd">        scf_algorithm:</span>
-<span class="sd">            Algorithm used for solving the SCF cycle.</span>
-<span class="sd">        workdir:</span>
-<span class="sd">            Working directory.</span>
-<span class="sd">        manager:</span>
-<span class="sd">            `TaskManger` instance.</span>
-<span class="sd">        extra_abivars:</span>
-<span class="sd">            Dictionary with extra variables passed to ABINIT.</span>
+<span class="sd">        bs_nband: Highest band idex used for the construction of the e-h basis set.</span>
+<span class="sd">        soenergy: Scissor energy in Hartree.</span>
+<span class="sd">        mdf_epsinf: Value of the macroscopic dielectric function used in expression for the model dielectric function.</span>
+<span class="sd">        exc_type: Approximation used for the BSE Hamiltonian (Tamm-Dancoff or coupling).</span>
+<span class="sd">        bs_algo: Algorith for the computatio of the macroscopic dielectric function.</span>
+<span class="sd">        accuracy: Accuracy of the calculation.</span>
+<span class="sd">        spin_mode: Spin polarization.</span>
+<span class="sd">        smearing: Smearing technique.</span>
+<span class="sd">        charge: Electronic charge added to the unit cell.</span>
+<span class="sd">        scf_algorithm: Algorithm used for solving the SCF cycle.</span>
+<span class="sd">        workdir: Working directory.</span>
+<span class="sd">        manager: :class:`TaskManger` instance.</span>
+<span class="sd">        extra_abivars: Dictionary with extra variables passed to ABINIT.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c"># TODO: Cannot use istwfk != 1.</span>
     <span class="k">if</span> <span class="s">&quot;istwfk&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">extra_abivars</span><span class="p">:</span>
@@ -535,10 +475,9 @@
                              <span class="n">spin_mode</span><span class="o">=</span><span class="n">spin_mode</span><span class="p">,</span> <span class="n">mdf_epsinf</span><span class="o">=</span><span class="n">mdf_epsinf</span><span class="p">,</span> <span class="n">exc_type</span><span class="o">=</span><span class="n">exc_type</span><span class="p">,</span> <span class="n">algo</span><span class="o">=</span><span class="n">bs_algo</span><span class="p">,</span>
                              <span class="n">bs_freq_mesh</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">with_lf</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">zcut</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
 
-    <span class="n">bse_strategy</span> <span class="o">=</span> <span class="n">MDFBSE_Strategy</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">,</span> <span class="n">nscf_strategy</span><span class="p">,</span> <span class="n">exc_ham</span><span class="p">,</span> <span class="o">**</span><span class="n">extra_abivars</span><span class="p">)</span>
-    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+    <span class="n">bse_strategy</span> <span class="o">=</span> <span class="n">MdfBse_Strategy</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">,</span> <span class="n">nscf_strategy</span><span class="p">,</span> <span class="n">exc_ham</span><span class="p">,</span> <span class="o">**</span><span class="n">extra_abivars</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">BSEMDF_Workflow</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">,</span> <span class="n">nscf_strategy</span><span class="p">,</span> <span class="n">bse_strategy</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="n">manager</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">BseMdfWork</span><span class="p">(</span><span class="n">scf_strategy</span><span class="p">,</span> <span class="n">nscf_strategy</span><span class="p">,</span> <span class="n">bse_strategy</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">,</span> <span class="n">manager</span><span class="o">=</span><span class="n">manager</span><span class="p">)</span></div>
 </pre></div>
 
           </div>
@@ -572,7 +511,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 3.0.6 documentation</a> &raquo;</li>
+        <li><a href="../../../../index.html">pymatgen 3.0.8 documentation</a> &raquo;</li>
           <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

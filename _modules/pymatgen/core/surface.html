@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.core.surface &mdash; pymatgen 3.0.6 documentation</title>
+    <title>pymatgen.core.surface &mdash; pymatgen 3.0.8 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '3.0.6',
+        VERSION:     '3.0.8',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.0.6 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.8 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 3.0.6 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 3.0.8 documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -59,15 +59,14 @@
 <span class="c"># coding: utf-8</span>
 
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">unicode_literals</span>
-
-<span class="c"># !/usr/bin/env python</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="nb">reduce</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">This module implements representations of slabs and surfaces.</span>
+<span class="sd">This module implements representations of slabs and surfaces, as well as</span>
+<span class="sd">algorithms for generating them.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-
-<span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Richard Tran, Wenhao Sun, Zihan Xu, Shyue Ping Ong&quot;</span>
 <span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot;Copyright 2014, The Materials Virtual Lab&quot;</span>
 <span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;0.1&quot;</span>
 <span class="n">__maintainer__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong&quot;</span>
@@ -76,27 +75,253 @@
 
 <span class="kn">from</span> <span class="nn">fractions</span> <span class="kn">import</span> <span class="n">gcd</span>
 <span class="kn">import</span> <span class="nn">math</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">logging</span>
 
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy.spatial.distance</span> <span class="kn">import</span> <span class="n">squareform</span>
+<span class="kn">from</span> <span class="nn">scipy.cluster.hierarchy</span> <span class="kn">import</span> <span class="n">linkage</span><span class="p">,</span> <span class="n">fcluster</span>
+
+<span class="kn">from</span> <span class="nn">monty.fractions</span> <span class="kn">import</span> <span class="n">lcm</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="kn">import</span> <span class="n">get_el_sp</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="kn">import</span> <span class="n">Structure</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.lattice</span> <span class="kn">import</span> <span class="n">Lattice</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.sites</span> <span class="kn">import</span> <span class="n">PeriodicSite</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.symmetry.analyzer</span> <span class="kn">import</span> <span class="n">SpacegroupAnalyzer</span>
+<span class="kn">from</span> <span class="nn">pymatgen.util.coord_utils</span> <span class="kn">import</span> <span class="n">in_coord_list</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.structure_matcher</span> <span class="kn">import</span> <span class="n">StructureMatcher</span>
 
 
-<div class="viewcode-block" id="lcm"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.lcm">[docs]</a><span class="k">def</span> <span class="nf">lcm</span><span class="p">(</span><span class="n">numbers</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Return lowest common multiple.&quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">lcm</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">(</span><span class="n">a</span> <span class="o">*</span> <span class="n">b</span><span class="p">)</span> <span class="o">/</span> <span class="n">gcd</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
-    <span class="k">return</span> <span class="nb">reduce</span><span class="p">(</span><span class="n">lcm</span><span class="p">,</span> <span class="n">numbers</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
 
-</div>
+
 <div class="viewcode-block" id="Slab"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.Slab">[docs]</a><span class="k">class</span> <span class="nc">Slab</span><span class="p">(</span><span class="n">Structure</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Subclass of Structure representing a Slab. Implements additional</span>
-<span class="sd">    attributes pertaining to slabs.</span>
+<span class="sd">    attributes pertaining to slabs, but the init method does not</span>
+<span class="sd">    actually implement any algorithm that creates a slab. This is a</span>
+<span class="sd">    DUMMY class who&#39;s init method only holds information about the</span>
+<span class="sd">    slab. Also has additional methods that returns other information</span>
+<span class="sd">    about a slab such as the surface area, normal, and atom adsorption.</span>
+
+<span class="sd">    Note that all Slabs have the surface normal oriented in the c-direction.</span>
+<span class="sd">    This means the lattice vectors a and b are in the surface plane and the c</span>
+<span class="sd">    vector is out of the surface plane (though not necessary perpendicular to</span>
+<span class="sd">    the surface.)</span>
+
+<span class="sd">    .. attribute:: miller_index</span>
+
+<span class="sd">        Miller index of plane parallel to surface.</span>
+
+<span class="sd">    .. attribute:: scale_factor</span>
+
+<span class="sd">        Final computed scale factor that brings the parent cell to the</span>
+<span class="sd">        surface cell.</span>
+
+<span class="sd">    .. attribute:: shift</span>
+
+<span class="sd">        The shift value in Angstrom that indicates how much this</span>
+<span class="sd">        slab has been shifted.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lattice</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">miller_index</span><span class="p">,</span>
+                 <span class="n">oriented_unit_cell</span><span class="p">,</span> <span class="n">shift</span><span class="p">,</span> <span class="n">scale_factor</span><span class="p">,</span>
+                 <span class="n">validate_proximity</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">to_unit_cell</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                 <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">site_properties</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">energy</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Makes a Slab structure, a structure object with additional information</span>
+<span class="sd">        and methods pertaining to slabs.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            lattice (Lattice/3x3 array): The lattice, either as a</span>
+<span class="sd">                :class:`pymatgen.core.lattice.Lattice` or</span>
+<span class="sd">                simply as any 2D array. Each row should correspond to a lattice</span>
+<span class="sd">                vector. E.g., [[10,0,0], [20,10,0], [0,0,30]] specifies a</span>
+<span class="sd">                lattice with lattice vectors [10,0,0], [20,10,0] and [0,0,30].</span>
+<span class="sd">            species ([Specie]): Sequence of species on each site. Can take in</span>
+<span class="sd">                flexible input, including:</span>
+
+<span class="sd">                i.  A sequence of element / specie specified either as string</span>
+<span class="sd">                    symbols, e.g. [&quot;Li&quot;, &quot;Fe2+&quot;, &quot;P&quot;, ...] or atomic numbers,</span>
+<span class="sd">                    e.g., (3, 56, ...) or actual Element or Specie objects.</span>
+
+<span class="sd">                ii. List of dict of elements/species and occupancies, e.g.,</span>
+<span class="sd">                    [{&quot;Fe&quot; : 0.5, &quot;Mn&quot;:0.5}, ...]. This allows the setup of</span>
+<span class="sd">                    disordered structures.</span>
+<span class="sd">            coords (Nx3 array): list of fractional/cartesian coordinates of</span>
+<span class="sd">                each species.</span>
+<span class="sd">            miller_index ([h, k, l]): Miller index of plane parallel to</span>
+<span class="sd">                surface. Note that this is referenced to the input structure. If</span>
+<span class="sd">                you need this to be based on the conventional cell,</span>
+<span class="sd">                you should supply the conventional structure.</span>
+<span class="sd">            oriented_unit_cell (Structure): The oriented_unit_cell from which</span>
+<span class="sd">                this Slab is created (by scaling in the c-direction).</span>
+<span class="sd">            shift (float): The shift in the c-direction applied to get the</span>
+<span class="sd">                termination.</span>
+<span class="sd">            scale_factor (array): scale_factor Final computed scale factor</span>
+<span class="sd">                that brings the parent cell to the surface cell.</span>
+<span class="sd">            validate_proximity (bool): Whether to check if there are sites</span>
+<span class="sd">                that are less than 0.01 Ang apart. Defaults to False.</span>
+<span class="sd">            coords_are_cartesian (bool): Set to True if you are providing</span>
+<span class="sd">                coordinates in cartesian coordinates. Defaults to False.</span>
+<span class="sd">            site_properties (dict): Properties associated with the sites as a</span>
+<span class="sd">                dict of sequences, e.g., {&quot;magmom&quot;:[5,5,5,5]}. The sequences</span>
+<span class="sd">                have to be the same length as the atomic species and</span>
+<span class="sd">                fractional_coords. Defaults to None for no properties.</span>
+<span class="sd">            energy (float): A value for the energy.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">oriented_unit_cell</span> <span class="o">=</span> <span class="n">oriented_unit_cell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">miller_index</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">miller_index</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shift</span> <span class="o">=</span> <span class="n">shift</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale_factor</span> <span class="o">=</span> <span class="n">scale_factor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">energy</span> <span class="o">=</span> <span class="n">energy</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Slab</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
+            <span class="n">lattice</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">validate_proximity</span><span class="o">=</span><span class="n">validate_proximity</span><span class="p">,</span>
+            <span class="n">to_unit_cell</span><span class="o">=</span><span class="n">to_unit_cell</span><span class="p">,</span>
+            <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="n">coords_are_cartesian</span><span class="p">,</span>
+            <span class="n">site_properties</span><span class="o">=</span><span class="n">site_properties</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Slab.get_sorted_structure"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.Slab.get_sorted_structure">[docs]</a>    <span class="k">def</span> <span class="nf">get_sorted_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get a sorted copy of the structure. The parameters have the same</span>
+<span class="sd">        meaning as in list.sort. By default, sites are sorted by the</span>
+<span class="sd">        electronegativity of the species. Note that Slab has to override this</span>
+<span class="sd">        because of the different __init__ args.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            key: Specifies a function of one argument that is used to extract</span>
+<span class="sd">                a comparison key from each list element: key=str.lower. The</span>
+<span class="sd">                default value is None (compare the elements directly).</span>
+<span class="sd">            reverse (bool): If set to True, then the list elements are sorted</span>
+<span class="sd">                as if each comparison were reversed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sites</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="n">reverse</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_sites</span><span class="p">(</span><span class="n">sites</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Slab</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">lattice</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">species_and_occu</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">miller_index</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">shift</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">scale_factor</span><span class="p">,</span> <span class="n">site_properties</span><span class="o">=</span><span class="n">s</span><span class="o">.</span><span class="n">site_properties</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Slab.normal"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.Slab.normal">[docs]</a>    <span class="k">def</span> <span class="nf">normal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the surface normal vector of the slab</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">normal</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">matrix</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">normal</span> <span class="o">/=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">normal</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">normal</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Slab.surface_area"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.Slab.surface_area">[docs]</a>    <span class="k">def</span> <span class="nf">surface_area</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the surface area of the slab</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">matrix</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+</div>
+<div class="viewcode-block" id="Slab.add_adsorbate_atom"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.Slab.add_adsorbate_atom">[docs]</a>    <span class="k">def</span> <span class="nf">add_adsorbate_atom</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">specie</span><span class="p">,</span> <span class="n">distance</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Gets the structure of single atom adsorption.</span>
+<span class="sd">        slab structure from the Slab class(in [0, 0, 1])</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            indices ([int]): Indices of sites on which to put the absorbate.</span>
+<span class="sd">                Absorbed atom will be displaced relative to the center of</span>
+<span class="sd">                these sites.</span>
+<span class="sd">            specie (Specie/Element/str): adsorbed atom species</span>
+<span class="sd">            distance (float): between centers of the adsorbed atom and the</span>
+<span class="sd">                given site in Angstroms.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c">#Let&#39;s do the work in cartesian coords</span>
+        <span class="n">center</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">([</span><span class="bp">self</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">coords</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">indices</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span>
+            <span class="n">indices</span><span class="p">)</span>
+
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">center</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">normal</span> <span class="o">*</span> <span class="n">distance</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">normal</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">specie</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">comp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">composition</span>
+        <span class="n">outs</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s">&quot;Slab Summary (</span><span class="si">%s</span><span class="s">)&quot;</span> <span class="o">%</span> <span class="n">comp</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span>
+            <span class="s">&quot;Reduced Formula: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">comp</span><span class="o">.</span><span class="n">reduced_formula</span><span class="p">,</span>
+            <span class="s">&quot;Miller index: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">miller_index</span><span class="p">,</span> <span class="p">),</span>
+            <span class="s">&quot;Shift: </span><span class="si">%.4f</span><span class="s">, Scale Factor: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shift</span><span class="p">,</span>
+                                               <span class="bp">self</span><span class="o">.</span><span class="n">scale_factor</span><span class="o">.</span><span class="n">__str__</span><span class="p">())]</span>
+        <span class="n">to_s</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="s">&quot;</span><span class="si">%0.6f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">x</span>
+        <span class="n">outs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;abc   : &quot;</span> <span class="o">+</span> <span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">to_s</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+                                           <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">abc</span><span class="p">]))</span>
+        <span class="n">outs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;angles: &quot;</span> <span class="o">+</span> <span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">to_s</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+                                           <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">angles</span><span class="p">]))</span>
+        <span class="n">outs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;Sites ({i})&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)))</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">site</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="n">outs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span> <span class="n">site</span><span class="o">.</span><span class="n">species_string</span><span class="p">,</span>
+                                  <span class="s">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">to_s</span><span class="p">(</span><span class="n">j</span><span class="p">)</span><span class="o">.</span><span class="n">rjust</span><span class="p">(</span><span class="mi">12</span><span class="p">)</span>
+                                            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">site</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">])]))</span>
+        <span class="k">return</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Slab.as_dict"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.Slab.as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">Slab</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span>
+        <span class="n">d</span><span class="p">[</span><span class="s">&quot;@module&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span>
+        <span class="n">d</span><span class="p">[</span><span class="s">&quot;@class&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
+        <span class="n">d</span><span class="p">[</span><span class="s">&quot;oriented_unit_cell&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span>
+        <span class="n">d</span><span class="p">[</span><span class="s">&quot;miller_index&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">miller_index</span>
+        <span class="n">d</span><span class="p">[</span><span class="s">&quot;shift&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shift</span>
+        <span class="n">d</span><span class="p">[</span><span class="s">&quot;scale_factor&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale_factor</span>
+        <span class="n">d</span><span class="p">[</span><span class="s">&quot;energy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">energy</span>
+        <span class="k">return</span> <span class="n">d</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="Slab.from_dict"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.Slab.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
+        <span class="n">lattice</span> <span class="o">=</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s">&quot;lattice&quot;</span><span class="p">])</span>
+        <span class="n">sites</span> <span class="o">=</span> <span class="p">[</span><span class="n">PeriodicSite</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">sd</span><span class="p">,</span> <span class="n">lattice</span><span class="p">)</span> <span class="k">for</span> <span class="n">sd</span> <span class="ow">in</span> <span class="n">d</span><span class="p">[</span><span class="s">&quot;sites&quot;</span><span class="p">]]</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_sites</span><span class="p">(</span><span class="n">sites</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">Slab</span><span class="p">(</span>
+            <span class="n">lattice</span><span class="o">=</span><span class="n">lattice</span><span class="p">,</span>
+            <span class="n">species</span><span class="o">=</span><span class="n">s</span><span class="o">.</span><span class="n">species_and_occu</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="n">s</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">,</span>
+            <span class="n">miller_index</span><span class="o">=</span><span class="n">d</span><span class="p">[</span><span class="s">&quot;miller_index&quot;</span><span class="p">],</span>
+            <span class="n">oriented_unit_cell</span><span class="o">=</span><span class="n">Structure</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s">&quot;oriented_unit_cell&quot;</span><span class="p">]),</span>
+            <span class="n">shift</span><span class="o">=</span><span class="n">d</span><span class="p">[</span><span class="s">&quot;shift&quot;</span><span class="p">],</span> <span class="n">scale_factor</span><span class="o">=</span><span class="n">d</span><span class="p">[</span><span class="s">&quot;scale_factor&quot;</span><span class="p">],</span>
+            <span class="n">site_properties</span><span class="o">=</span><span class="n">s</span><span class="o">.</span><span class="n">site_properties</span><span class="p">,</span> <span class="n">energy</span><span class="o">=</span><span class="n">d</span><span class="p">[</span><span class="s">&quot;energy&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="SlabGenerator"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.SlabGenerator">[docs]</a><span class="k">class</span> <span class="nc">SlabGenerator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class generates different slabs using shift values determined by where a</span>
+<span class="sd">    unique termination can be found along with other criterias such as where a</span>
+<span class="sd">    termination doesn&#39;t break a polyhedral bond. The shift value then indicates</span>
+<span class="sd">    where the slab layer will begin and terminate in the slab-vacuum system.</span>
+
+<span class="sd">    .. attribute:: oriented_unit_cell</span>
+
+<span class="sd">        A unit cell of the parent structure with the miller</span>
+<span class="sd">        index of plane parallel to surface</span>
 
 <span class="sd">    .. attribute:: parent</span>
 
 <span class="sd">        Parent structure from which Slab was derived.</span>
+
+<span class="sd">    .. attribute:: lll_reduce</span>
+
+<span class="sd">        Whether or not the slabs will be orthogonalized</span>
+
+<span class="sd">    .. attribute:: center_slab</span>
+
+<span class="sd">        Whether or not the slabs will be centered between</span>
+<span class="sd">        the vacuum layer</span>
+
+<span class="sd">    .. attribute:: slab_scale_factor</span>
+
+<span class="sd">        Final computed scale factor that brings the parent cell to the</span>
+<span class="sd">        surface cell.</span>
+
+<span class="sd">    .. attribute:: miller_index</span>
+
+<span class="sd">        Miller index of plane parallel to surface.</span>
 
 <span class="sd">    .. attribute:: min_slab_size</span>
 
@@ -106,39 +331,37 @@
 
 <span class="sd">        Minimize size in angstroms of layers containing vacuum</span>
 
-<span class="sd">    .. attribute:: scale_factor</span>
-
-<span class="sd">        Final computed scale factor that brings the parent cell to the</span>
-<span class="sd">        surface cell.</span>
-
-<span class="sd">    .. attribute:: normal</span>
-
-<span class="sd">        Surface normal vector.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">miller_index</span><span class="p">,</span> <span class="n">min_slab_size</span><span class="p">,</span>
-                 <span class="n">min_vacuum_size</span><span class="p">,</span> <span class="n">lll_reduce</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">shift</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial_structure</span><span class="p">,</span> <span class="n">miller_index</span><span class="p">,</span> <span class="n">min_slab_size</span><span class="p">,</span>
+                 <span class="n">min_vacuum_size</span><span class="p">,</span> <span class="n">lll_reduce</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">center_slab</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                 <span class="n">primitive</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Makes a Slab structure. Note that the code will make a slab with</span>
-<span class="sd">        whatever size that is specified, rounded upwards. The a and b lattice</span>
-<span class="sd">        vectors are always in-plane, and the c lattice is always out of plane</span>
-<span class="sd">        (though not necessarily orthogonal).</span>
+<span class="sd">        Calculates the slab scale factor and uses it to generate a unit cell</span>
+<span class="sd">        of the initial structure that has been oriented by its miller index.</span>
+<span class="sd">        Also stores the initial information needed later on to generate a slab.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            structure (Structure): Initial input structure.</span>
+<span class="sd">            initial_structure (Structure): Initial input structure.</span>
 <span class="sd">            miller_index ([h, k, l]): Miller index of plane parallel to</span>
 <span class="sd">                surface. Note that this is referenced to the input structure. If</span>
 <span class="sd">                you need this to be based on the conventional cell,</span>
 <span class="sd">                you should supply the conventional structure.</span>
 <span class="sd">            min_slab_size (float): In Angstroms</span>
-<span class="sd">            min_vacuum_size (float): In Angstroms</span>
+<span class="sd">            min_vac_size (float): In Angstroms</span>
 <span class="sd">            lll_reduce (bool): Whether to perform an LLL reduction on the</span>
 <span class="sd">                eventual structure.</span>
-<span class="sd">            shift (float): In Angstroms (shifting the origin)</span>
+<span class="sd">            center_slab (bool): Whether to center the slab in the cell with</span>
+<span class="sd">                equal vacuum spacing from the top and bottom.</span>
+<span class="sd">            primitive (bool): Whether to reduce any generated slabs to a</span>
+<span class="sd">                primitive cell (this does **not** mean the slab is generated</span>
+<span class="sd">                from a primitive cell, it simply means that after slab</span>
+<span class="sd">                generation, we attempt to find shorter lattice vectors,</span>
+<span class="sd">                which lead to less surface area and smaller cells).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">latt</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">lattice</span>
-        <span class="n">d</span> <span class="o">=</span> <span class="nb">reduce</span><span class="p">(</span><span class="n">gcd</span><span class="p">,</span> <span class="n">miller_index</span><span class="p">)</span>
-        <span class="n">miller_index</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span> <span class="o">/</span> <span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">miller_index</span><span class="p">]</span>
+        <span class="n">latt</span> <span class="o">=</span> <span class="n">initial_structure</span><span class="o">.</span><span class="n">lattice</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="nb">reduce</span><span class="p">(</span><span class="n">gcd</span><span class="p">,</span> <span class="n">miller_index</span><span class="p">))</span>
+        <span class="n">miller_index</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span> <span class="o">/</span> <span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">miller_index</span><span class="p">])</span>
         <span class="c">#Calculate the surface normal using the reciprocal lattice vector.</span>
         <span class="n">recp</span> <span class="o">=</span> <span class="n">latt</span><span class="o">.</span><span class="n">reciprocal_lattice_crystallographic</span>
         <span class="n">normal</span> <span class="o">=</span> <span class="n">recp</span><span class="o">.</span><span class="n">get_cartesian_coords</span><span class="p">(</span><span class="n">miller_index</span><span class="p">)</span>
@@ -147,7 +370,6 @@
         <span class="n">slab_scale_factor</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">non_orth_ind</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">eye</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">)</span>
-        <span class="n">dist</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s">&#39;inf&#39;</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">miller_index</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="c"># Lattice vector is perpendicular to surface normal, i.e.,</span>
@@ -156,15 +378,17 @@
                 <span class="n">slab_scale_factor</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">eye</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c">#Calculate projection of lattice vector onto surface normal.</span>
-                <span class="n">d</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">normal</span><span class="p">,</span> <span class="n">latt</span><span class="o">.</span><span class="n">matrix</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
-                <span class="n">non_orth_ind</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">d</span> <span class="o">&lt;</span> <span class="n">dist</span><span class="p">:</span>
-                    <span class="n">latt_index</span> <span class="o">=</span> <span class="n">i</span>
-                    <span class="n">dist</span> <span class="o">=</span> <span class="n">d</span>
+                <span class="n">d</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">normal</span><span class="p">,</span> <span class="n">latt</span><span class="o">.</span><span class="n">matrix</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span> <span class="o">/</span> <span class="n">latt</span><span class="o">.</span><span class="n">abc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                <span class="n">non_orth_ind</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">i</span><span class="p">,</span> <span class="n">d</span><span class="p">))</span>
+
+        <span class="c"># We want the vector that has maximum magnitude in the</span>
+        <span class="c"># direction of the surface normal as the c-direction.</span>
+        <span class="c"># Results in a more &quot;orthogonal&quot; unit cell.</span>
+        <span class="n">c_index</span><span class="p">,</span> <span class="n">dist</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">non_orth_ind</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="n">t</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
 
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">non_orth_ind</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">lcm_miller</span> <span class="o">=</span> <span class="n">lcm</span><span class="p">([</span><span class="n">miller_index</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">non_orth_ind</span><span class="p">])</span>
-            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">combinations</span><span class="p">(</span><span class="n">non_orth_ind</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span>
+            <span class="n">lcm_miller</span> <span class="o">=</span> <span class="n">lcm</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">miller_index</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">non_orth_ind</span><span class="p">])</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">di</span><span class="p">),</span> <span class="p">(</span><span class="n">j</span><span class="p">,</span> <span class="n">dj</span><span class="p">)</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">combinations</span><span class="p">(</span><span class="n">non_orth_ind</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span>
                 <span class="n">l</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
                 <span class="n">l</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">lcm_miller</span> <span class="o">/</span> <span class="n">miller_index</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
                 <span class="n">l</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">lcm_miller</span> <span class="o">/</span> <span class="n">miller_index</span><span class="p">[</span><span class="n">j</span><span class="p">]))</span>
@@ -172,169 +396,314 @@
                 <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">slab_scale_factor</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
                     <span class="k">break</span>
 
-        <span class="n">nlayers_slab</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">min_slab_size</span> <span class="o">/</span> <span class="n">dist</span><span class="p">))</span>
-        <span class="n">nlayers_vac</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">min_vacuum_size</span> <span class="o">/</span> <span class="n">dist</span><span class="p">))</span>
+        <span class="n">slab_scale_factor</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">eye</span><span class="p">[</span><span class="n">c_index</span><span class="p">])</span>
+
+        <span class="n">slab_scale_factor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">slab_scale_factor</span><span class="p">)</span>
+
+        <span class="c"># Let&#39;s make sure we have a left-handed crystallographic system</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">det</span><span class="p">(</span><span class="n">slab_scale_factor</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">slab_scale_factor</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
+
+        <span class="n">single</span> <span class="o">=</span> <span class="n">initial_structure</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">single</span><span class="o">.</span><span class="n">make_supercell</span><span class="p">(</span><span class="n">slab_scale_factor</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">oriented_unit_cell</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_sites</span><span class="p">(</span><span class="n">single</span><span class="p">,</span>
+                                                       <span class="n">to_unit_cell</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="n">initial_structure</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lll_reduce</span> <span class="o">=</span> <span class="n">lll_reduce</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">center_slab</span> <span class="o">=</span> <span class="n">center_slab</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slab_scale_factor</span> <span class="o">=</span> <span class="n">slab_scale_factor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">miller_index</span> <span class="o">=</span> <span class="n">miller_index</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_vac_size</span> <span class="o">=</span> <span class="n">min_vacuum_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_slab_size</span> <span class="o">=</span> <span class="n">min_slab_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">primitive</span> <span class="o">=</span> <span class="n">primitive</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_normal</span> <span class="o">=</span> <span class="n">normal</span>
+        <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">matrix</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_proj_height</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">normal</span><span class="p">,</span> <span class="n">c</span><span class="p">))</span>
+
+<div class="viewcode-block" id="SlabGenerator.get_slab"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.SlabGenerator.get_slab">[docs]</a>    <span class="k">def</span> <span class="nf">get_slab</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shift</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">energy</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This method takes in shift value for the c lattice direction and</span>
+<span class="sd">        generates a slab based on the given shift. You should rarely use this</span>
+<span class="sd">        method. Instead, it is used by other generation algorithms to obtain</span>
+<span class="sd">        all slabs.</span>
+
+<span class="sd">        Arg:</span>
+<span class="sd">            shift (float): A shift value in Angstrom that determines how much a</span>
+<span class="sd">                slab should be shifted.</span>
+<span class="sd">            tol (float): Tolerance to determine primitive cell.</span>
+<span class="sd">            energy (float): An energy to assign to the slab.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            (Slab) A Slab object with a particular shifted oriented unit cell.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_proj_height</span>
+        <span class="n">nlayers_slab</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">min_slab_size</span> <span class="o">/</span> <span class="n">h</span><span class="p">))</span>
+        <span class="n">nlayers_vac</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">min_vac_size</span> <span class="o">/</span> <span class="n">h</span><span class="p">))</span>
         <span class="n">nlayers</span> <span class="o">=</span> <span class="n">nlayers_slab</span> <span class="o">+</span> <span class="n">nlayers_vac</span>
-        <span class="n">slab_scale_factor</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">eye</span><span class="p">[</span><span class="n">latt_index</span><span class="p">]</span> <span class="o">*</span> <span class="n">nlayers</span><span class="p">)</span>
 
-        <span class="n">slab</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">species</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="o">.</span><span class="n">species_and_occu</span>
+        <span class="n">props</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="o">.</span><span class="n">site_properties</span>
+        <span class="n">props</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="o">*</span> <span class="n">nlayers_slab</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">props</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="n">frac_coords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="o">.</span><span class="n">frac_coords</span>
+        <span class="n">frac_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">frac_coords</span><span class="p">)</span> <span class="o">+</span>\
+                      <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">shift</span><span class="p">])[</span><span class="bp">None</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">frac_coords</span> <span class="o">=</span> <span class="n">frac_coords</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">frac_coords</span><span class="p">)</span>
+        <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">matrix</span>
+        <span class="n">new_lattice</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">nlayers</span> <span class="o">*</span> <span class="n">c</span><span class="p">]</span>
+        <span class="n">frac_coords</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">frac_coords</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="n">nlayers</span>
+        <span class="n">all_coords</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nlayers_slab</span><span class="p">):</span>
+            <span class="n">fcoords</span> <span class="o">=</span> <span class="n">frac_coords</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">fcoords</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="n">i</span> <span class="o">/</span> <span class="n">nlayers</span>
+            <span class="n">all_coords</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">fcoords</span><span class="p">)</span>
 
-        <span class="n">slab</span><span class="o">.</span><span class="n">make_supercell</span><span class="p">(</span><span class="n">slab_scale_factor</span><span class="p">)</span>
-        <span class="n">new_sites</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">slab</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">shift</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">coords</span><span class="p">,</span> <span class="n">normal</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">nlayers_slab</span> <span class="o">*</span> <span class="n">dist</span> <span class="o">+</span> \
-                    <span class="n">shift</span><span class="p">:</span>
-                <span class="n">new_sites</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">site</span><span class="p">)</span>
-        <span class="n">slab</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_sites</span><span class="p">(</span><span class="n">new_sites</span><span class="p">)</span>
+        <span class="n">slab</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">new_lattice</span><span class="p">,</span> <span class="n">species</span> <span class="o">*</span> <span class="n">nlayers_slab</span><span class="p">,</span> <span class="n">all_coords</span><span class="p">,</span>
+                         <span class="n">site_properties</span><span class="o">=</span><span class="n">props</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">lll_reduce</span><span class="p">:</span>
+        <span class="n">scale_factor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">slab_scale_factor</span>
+        <span class="c"># Whether or not to orthogonalize the structure</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lll_reduce</span><span class="p">:</span>
             <span class="n">lll_slab</span> <span class="o">=</span> <span class="n">slab</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">sanitize</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
             <span class="n">mapping</span> <span class="o">=</span> <span class="n">lll_slab</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">find_mapping</span><span class="p">(</span><span class="n">slab</span><span class="o">.</span><span class="n">lattice</span><span class="p">)</span>
-            <span class="n">slab_scale_factor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">mapping</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">slab_scale_factor</span><span class="p">)</span>
+            <span class="n">scale_factor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">mapping</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">scale_factor</span><span class="p">)</span>
             <span class="n">slab</span> <span class="o">=</span> <span class="n">lll_slab</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="n">structure</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">min_slab_size</span> <span class="o">=</span> <span class="n">min_slab_size</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">min_vac_size</span> <span class="o">=</span> <span class="n">min_vacuum_size</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">scale_factor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">slab_scale_factor</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">normal</span> <span class="o">=</span> <span class="n">normal</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">miller_index</span> <span class="o">=</span> <span class="n">miller_index</span>
+        <span class="c"># Whether or not to center the slab layer around the vacuum</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">center_slab</span><span class="p">:</span>
+            <span class="n">avg_c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">slab</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">])</span>
+            <span class="n">slab</span><span class="o">.</span><span class="n">translate_sites</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">slab</span><span class="p">))),</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span> <span class="o">-</span> <span class="n">avg_c</span><span class="p">])</span>
 
-        <span class="nb">super</span><span class="p">(</span><span class="n">Slab</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
-            <span class="n">slab</span><span class="o">.</span><span class="n">lattice</span><span class="p">,</span> <span class="n">slab</span><span class="o">.</span><span class="n">species_and_occu</span><span class="p">,</span> <span class="n">slab</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">,</span>
-            <span class="n">site_properties</span><span class="o">=</span><span class="n">slab</span><span class="o">.</span><span class="n">site_properties</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">primitive</span><span class="p">:</span>
+            <span class="n">prim</span> <span class="o">=</span> <span class="n">slab</span><span class="o">.</span><span class="n">get_primitive_structure</span><span class="p">(</span><span class="n">tolerance</span><span class="o">=</span><span class="n">tol</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">energy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">energy</span> <span class="o">=</span> <span class="n">prim</span><span class="o">.</span><span class="n">volume</span> <span class="o">/</span> <span class="n">slab</span><span class="o">.</span><span class="n">volume</span> <span class="o">*</span> <span class="n">energy</span>
+            <span class="n">slab</span> <span class="o">=</span> <span class="n">prim</span>
 
-    <span class="nd">@property</span>
-<div class="viewcode-block" id="Slab.surface_area"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.Slab.surface_area">[docs]</a>    <span class="k">def</span> <span class="nf">surface_area</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">m</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">matrix</span>
-        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="k">return</span> <span class="n">Slab</span><span class="p">(</span><span class="n">slab</span><span class="o">.</span><span class="n">lattice</span><span class="p">,</span> <span class="n">slab</span><span class="o">.</span><span class="n">species_and_occu</span><span class="p">,</span>
+                    <span class="n">slab</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">miller_index</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="p">,</span> <span class="n">shift</span><span class="p">,</span>
+                    <span class="n">scale_factor</span><span class="p">,</span> <span class="n">site_properties</span><span class="o">=</span><span class="n">slab</span><span class="o">.</span><span class="n">site_properties</span><span class="p">,</span>
+                    <span class="n">energy</span><span class="o">=</span><span class="n">energy</span><span class="p">)</span>
 </div>
-    <span class="nd">@classmethod</span>
-<div class="viewcode-block" id="Slab.adsorb_atom"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.Slab.adsorb_atom">[docs]</a>    <span class="k">def</span> <span class="nf">adsorb_atom</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">structure_a</span><span class="p">,</span> <span class="n">site_a</span><span class="p">,</span> <span class="n">atom</span><span class="p">,</span> <span class="n">distance</span><span class="p">,</span>
-                    <span class="n">surface</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">xyz</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_calculate_possible_shifts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.1</span><span class="p">):</span>
+        <span class="n">frac_coords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="o">.</span><span class="n">frac_coords</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">frac_coords</span><span class="p">)</span>
+
+        <span class="c"># We cluster the sites according to the c coordinates. But we need to</span>
+        <span class="c"># take into account PBC. Let&#39;s compute a fractional c-coordinate</span>
+        <span class="c"># distance matrix that accounts for PBC.</span>
+        <span class="n">dist_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_proj_height</span>
+        <span class="c"># Projection of c lattice vector in</span>
+        <span class="c"># direction of surface normal.</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">combinations</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)),</span> <span class="mi">2</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">!=</span> <span class="n">j</span><span class="p">:</span>
+                <span class="n">cdist</span> <span class="o">=</span> <span class="n">frac_coords</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">frac_coords</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span>
+                <span class="n">cdist</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">cdist</span> <span class="o">-</span> <span class="nb">round</span><span class="p">(</span><span class="n">cdist</span><span class="p">))</span> <span class="o">*</span> <span class="n">h</span>
+                <span class="n">dist_matrix</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">cdist</span>
+                <span class="n">dist_matrix</span><span class="p">[</span><span class="n">j</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">cdist</span>
+
+        <span class="n">condensed_m</span> <span class="o">=</span> <span class="n">squareform</span><span class="p">(</span><span class="n">dist_matrix</span><span class="p">)</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">linkage</span><span class="p">(</span><span class="n">condensed_m</span><span class="p">)</span>
+        <span class="n">clusters</span> <span class="o">=</span> <span class="n">fcluster</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">tol</span><span class="p">,</span> <span class="n">criterion</span><span class="o">=</span><span class="s">&quot;distance&quot;</span><span class="p">)</span>
+
+        <span class="c">#Generate dict of cluster# to c val - doesn&#39;t matter what the c is.</span>
+        <span class="n">c_loc</span> <span class="o">=</span> <span class="p">{</span><span class="n">c</span><span class="p">:</span> <span class="n">frac_coords</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">clusters</span><span class="p">)}</span>
+
+        <span class="c">#Put all c into the unit cell.</span>
+        <span class="n">possible_c</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="o">-</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">c_loc</span><span class="o">.</span><span class="n">values</span><span class="p">())]</span>
+
+        <span class="c"># Calculate the shifts</span>
+        <span class="n">nshifts</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">possible_c</span><span class="p">)</span>
+        <span class="n">shifts</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nshifts</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="n">nshifts</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="c"># There is an additional shift between the first and last c</span>
+                <span class="c"># coordinate. But this needs special handling because of PBC.</span>
+                <span class="n">shift</span> <span class="o">=</span> <span class="p">(</span><span class="n">possible_c</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">possible_c</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">*</span> <span class="mf">0.5</span>
+                <span class="k">if</span> <span class="n">shift</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">shift</span> <span class="o">-=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">shift</span> <span class="o">=</span> <span class="p">(</span><span class="n">possible_c</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">possible_c</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="mf">0.5</span>
+            <span class="n">shifts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">shift</span> <span class="o">-</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">shift</span><span class="p">))</span>
+        <span class="n">shifts</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">shifts</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">shifts</span>
+
+<div class="viewcode-block" id="SlabGenerator.get_slabs"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.SlabGenerator.get_slabs">[docs]</a>    <span class="k">def</span> <span class="nf">get_slabs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bonds</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">max_broken_bonds</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Gets the structure of single atom adsorption.</span>
+<span class="sd">        This method returns a list of slabs that are generated using the list of</span>
+<span class="sd">        shift values from the method, _calculate_possible_shifts(). Before the</span>
+<span class="sd">        shifts are used to create the slabs however, if the user decides to take</span>
+<span class="sd">        into account whether or not a termination will break any polyhedral</span>
+<span class="sd">        structure (bonds != None), this method will filter out any shift values</span>
+<span class="sd">        that do so.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">        structure_a: the slab structure for adsorption</span>
-<span class="sd">        site_a:  given sites for adsorption.</span>
-<span class="sd">             default(xyz=0): site_a = [a, b, c], within [0,1];</span>
-<span class="sd">             xyz=1: site_a = [x, y, z], in Angstroms.</span>
-<span class="sd">        atom: adsorbed atom species</span>
-<span class="sd">        distance: between centers of the adsorbed atom and the given site.</span>
-<span class="sd">             in Angstroms</span>
-<span class="sd">        surface: direction of the surface where atoms are adsorbed to</span>
-<span class="sd">             default: surface = [0, 0, 1]</span>
-<span class="sd">        xyz: default is 0. 1 means site_a = [x, y, z], in Angstroms.</span>
+<span class="sd">            bonds ({(specie1, specie2): max_bond_dist}: bonds are</span>
+<span class="sd">                specified as a dict of tuples: float of specie1, specie2</span>
+<span class="sd">                and the max bonding distance. For example, PO4 groups may be</span>
+<span class="sd">                defined as {(&quot;P&quot;, &quot;O&quot;): 3}.</span>
+<span class="sd">            tol (float): Threshold parameter in fcluster in order to check</span>
+<span class="sd">                if two atoms are lying on the same plane. Default thresh set</span>
+<span class="sd">                to 0.1 Angstrom in the direction of the surface normal.</span>
+<span class="sd">            max_broken_bonds (int): Maximum number of allowable broken bonds</span>
+<span class="sd">                for the slab. Use this to limit # of slabs (some structures</span>
+<span class="sd">                may have a lot of slabs). Defaults to zero, which means no</span>
+<span class="sd">                defined bonds must be broken.</span>
 
+<span class="sd">        Returns:</span>
+<span class="sd">            ([Slab]) List of all possible terminations of a particular surface.</span>
+<span class="sd">            Slabs are sorted by the # of bonds broken.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span> <span class="nn">pymatgen.transformations.site_transformations</span> <span class="kn">import</span> \
-            <span class="n">InsertSitesTransformation</span>
+        <span class="k">def</span> <span class="nf">get_c_ranges</span><span class="p">(</span><span class="n">site1</span><span class="p">,</span> <span class="n">site2</span><span class="p">,</span> <span class="n">bond_dist</span><span class="p">):</span>
+            <span class="n">lattice</span> <span class="o">=</span> <span class="n">site1</span><span class="o">.</span><span class="n">lattice</span>
+            <span class="n">f1</span> <span class="o">=</span> <span class="n">site1</span><span class="o">.</span><span class="n">frac_coords</span>
+            <span class="n">c_ranges</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">dist</span><span class="p">,</span> <span class="n">image</span> <span class="ow">in</span> <span class="n">lattice</span><span class="o">.</span><span class="n">get_all_distance_and_image</span><span class="p">(</span>
+                    <span class="n">f1</span><span class="p">,</span> <span class="n">site2</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">dist</span> <span class="o">&lt;</span> <span class="n">bond_dist</span><span class="p">:</span>
+                    <span class="n">f2</span> <span class="o">=</span> <span class="n">site2</span><span class="o">.</span><span class="n">frac_coords</span> <span class="o">+</span> <span class="n">image</span>
+                    <span class="c"># Checks if the distance between the two species</span>
+                    <span class="c"># is less then the user input bond distance</span>
+                    <span class="n">min_c</span> <span class="o">=</span> <span class="n">f1</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+                    <span class="n">max_c</span> <span class="o">=</span> <span class="n">f2</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+                    <span class="n">c_range</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([</span><span class="n">min_c</span><span class="p">,</span> <span class="n">max_c</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="n">c_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="c"># Takes care of PBC when c coordinate of site</span>
+                        <span class="c"># goes beyond the upper boundary of the cell</span>
+                        <span class="n">c_ranges</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">c_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">))</span>
+                        <span class="n">c_ranges</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="n">c_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+                    <span class="k">elif</span> <span class="n">c_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="c"># Takes care of PBC when c coordinate of site</span>
+                        <span class="c"># is below the lower boundary of the unit cell</span>
+                        <span class="n">c_ranges</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="n">c_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+                        <span class="n">c_ranges</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">c_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">c_ranges</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c_range</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">c_ranges</span>
 
-        <span class="n">lattice_s</span> <span class="o">=</span> <span class="n">structure_a</span><span class="o">.</span><span class="n">lattice</span>
-        <span class="n">abc_s</span> <span class="o">=</span> <span class="n">lattice_s</span><span class="o">.</span><span class="n">abc</span>
-        <span class="c"># a123_s = lattice_s.matrix</span>
-        <span class="n">b123_s</span> <span class="o">=</span> <span class="n">lattice_s</span><span class="o">.</span><span class="n">inv_matrix</span><span class="o">.</span><span class="n">T</span>
-        <span class="c"># print surface</span>
-        <span class="n">vector_o</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">surface</span><span class="p">,</span> <span class="n">b123_s</span><span class="p">)</span>
-        <span class="k">print</span> <span class="n">vector_o</span>
-        <span class="n">lens_v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">vector_o</span><span class="p">,</span> <span class="n">vector_o</span><span class="o">.</span><span class="n">T</span><span class="p">))</span>
-        <span class="n">V_o</span> <span class="o">=</span> <span class="n">vector_o</span> <span class="o">/</span> <span class="n">lens_v</span> <span class="o">*</span> <span class="n">distance</span>
+        <span class="n">bond_c_ranges</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">bonds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="c">#Convert to species first</span>
+            <span class="n">bonds</span> <span class="o">=</span> <span class="p">{(</span><span class="n">get_el_sp</span><span class="p">(</span><span class="n">s1</span><span class="p">),</span> <span class="n">get_el_sp</span><span class="p">(</span><span class="n">s2</span><span class="p">)):</span> <span class="n">dist</span> <span class="k">for</span> <span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">),</span> <span class="n">dist</span> <span class="ow">in</span>
+                     <span class="n">bonds</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+            <span class="k">for</span> <span class="n">s1</span><span class="p">,</span> <span class="n">s2</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">combinations</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span>
+                <span class="c"># Iterates through every possible pair of species in the</span>
+                <span class="c"># oriented unit cell</span>
+                <span class="n">all_sp</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">s1</span><span class="o">.</span><span class="n">species_and_occu</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+                <span class="n">all_sp</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s2</span><span class="o">.</span><span class="n">species_and_occu</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+                <span class="k">for</span> <span class="n">species</span><span class="p">,</span> <span class="n">bond_dist</span> <span class="ow">in</span> <span class="n">bonds</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="c"># Checks if elements in species is in all_sp</span>
+                    <span class="k">if</span> <span class="n">all_sp</span><span class="o">.</span><span class="n">issuperset</span><span class="p">(</span><span class="n">species</span><span class="p">):</span>
+                        <span class="n">bond_c_ranges</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">get_c_ranges</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">,</span> <span class="n">bond_dist</span><span class="p">))</span>
 
-        <span class="k">if</span> <span class="n">xyz</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="c"># site_a = [a, b, c]</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
-                <span class="k">if</span> <span class="n">site_a</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">site_a</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;site_a is outsite the cell.&quot;</span><span class="p">)</span>
-            <span class="n">site_abc</span> <span class="o">=</span> <span class="n">V_o</span> <span class="o">/</span> <span class="n">abc_s</span> <span class="o">+</span> <span class="n">site_a</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c"># site_a = [x, y, z]</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
-                <span class="k">if</span> <span class="n">site_a</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">abc_s</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
-                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;sites_a is outside the cell.&quot;</span><span class="p">)</span>
-            <span class="n">site_a1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">site_a</span><span class="p">)</span>
+        <span class="n">slabs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">shift</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_possible_shifts</span><span class="p">(</span><span class="n">tol</span><span class="o">=</span><span class="n">tol</span><span class="p">):</span>
+            <span class="n">bonds_broken</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">bond_c_ranges</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">shift</span> <span class="o">&lt;=</span> <span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="n">bonds_broken</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">bonds_broken</span> <span class="o">&lt;=</span> <span class="n">max_broken_bonds</span><span class="p">:</span>
+                <span class="c"># For now, set the energy to be equal to no. of broken bonds</span>
+                <span class="c"># per unit cell.</span>
+                <span class="n">slab</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_slab</span><span class="p">(</span><span class="n">shift</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="n">tol</span><span class="p">,</span> <span class="n">energy</span><span class="o">=</span><span class="n">bonds_broken</span><span class="p">)</span>
+                <span class="n">slabs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">slab</span><span class="p">)</span>
 
-            <span class="c"># convert to a1, a2, a3</span>
-            <span class="c">#&lt; site_a2 = np.dot(a123_s, site_a1.T) / abc_s</span>
-            <span class="c">#&lt; site_abc = (V_o+site_a2) / abc_s</span>
-            <span class="n">site_a2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">b123_s</span><span class="p">,</span> <span class="n">site_a1</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
-
-            <span class="n">site_abc</span> <span class="o">=</span> <span class="n">V_o</span><span class="o">/</span><span class="n">abc_s</span><span class="o">+</span><span class="n">site_a2</span>
-
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">site_abc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">site_abc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;wrong distance, atom will be outside the cell.&quot;</span><span class="p">)</span>
-
-
-        <span class="k">print</span> <span class="s">&#39;add_site:&#39;</span><span class="p">,</span> <span class="n">site_abc</span><span class="p">,</span> <span class="n">atom</span>
-
-        <span class="n">ist</span> <span class="o">=</span> <span class="n">InsertSitesTransformation</span><span class="p">(</span><span class="n">species</span><span class="o">=</span><span class="n">atom</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="p">[</span><span class="n">site_abc</span><span class="p">])</span>
-        <span class="n">structure_ad</span> <span class="o">=</span> <span class="n">ist</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">structure_a</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">structure_ad</span>
-
-</div></div>
-<span class="kn">import</span> <span class="nn">unittest</span>
-<span class="kn">from</span> <span class="nn">pymatgen.core.lattice</span> <span class="kn">import</span> <span class="n">Lattice</span>
-
-<div class="viewcode-block" id="SlabTest"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.SlabTest">[docs]</a><span class="k">class</span> <span class="nc">SlabTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
-
-<div class="viewcode-block" id="SlabTest.setUp"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.SlabTest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">cu</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">Lattice</span><span class="o">.</span><span class="n">cubic</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="p">[</span><span class="s">&quot;Cu&quot;</span><span class="p">,</span> <span class="s">&quot;Cu&quot;</span><span class="p">,</span> <span class="s">&quot;Cu&quot;</span><span class="p">,</span> <span class="s">&quot;Cu&quot;</span><span class="p">],</span>
-                            <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span>
-                             <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">]])</span>
-</div>
-<div class="viewcode-block" id="SlabTest.test_init"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.SlabTest.test_init">[docs]</a>    <span class="k">def</span> <span class="nf">test_init</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">for</span> <span class="n">hkl</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="nb">xrange</span><span class="p">(</span><span class="mi">4</span><span class="p">),</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">4</span><span class="p">),</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">4</span><span class="p">)):</span>
-            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">hkl</span><span class="p">):</span>
-                <span class="n">ssize</span> <span class="o">=</span> <span class="mi">6</span>
-                <span class="n">vsize</span> <span class="o">=</span> <span class="mi">10</span>
-                <span class="n">s</span> <span class="o">=</span> <span class="n">Slab</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cu</span><span class="p">,</span> <span class="n">hkl</span><span class="p">,</span> <span class="n">ssize</span><span class="p">,</span> <span class="n">vsize</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">hkl</span> <span class="o">==</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">),</span> <span class="mi">13</span><span class="p">)</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">surface_area</span><span class="p">,</span> <span class="mf">12.727922061357855</span><span class="p">)</span>
-                <span class="n">manual</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cu</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-                <span class="n">manual</span><span class="o">.</span><span class="n">make_supercell</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">scale_factor</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">manual</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">lengths_and_angles</span><span class="p">,</span>
-                                 <span class="n">s</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">lengths_and_angles</span><span class="p">)</span>
-
-        <span class="c"># # For visual debugging</span>
-        <span class="c"># from pymatgen import write_structure</span>
-        <span class="c"># write_structure(s.parent, &quot;cu.cif&quot;)</span>
-        <span class="c"># write_structure(s, &quot;cu_slab_%s_%.3f_%.3f.cif&quot; %</span>
-        <span class="c">#                  (str(hkl), ssize, vsize))</span>
-</div>
-<div class="viewcode-block" id="SlabTest.test_adsorb_atom"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.SlabTest.test_adsorb_atom">[docs]</a>    <span class="k">def</span> <span class="nf">test_adsorb_atom</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">s001</span> <span class="o">=</span> <span class="n">Slab</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cu</span><span class="p">,[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
-        <span class="c"># print s001</span>
-        <span class="c"># O adsorb on 4Cu[0.5, 0.5, 0.25], abc = [3, 3, 12]</span>
-        <span class="c"># 1. test site_a = abc input</span>
-        <span class="n">s001_ad1</span> <span class="o">=</span> <span class="n">Slab</span><span class="o">.</span><span class="n">adsorb_atom</span><span class="p">(</span><span class="n">structure_a</span><span class="o">=</span><span class="n">s001</span><span class="p">,</span> <span class="n">site_a</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">],</span> <span class="n">atom</span><span class="o">=</span> <span class="p">[</span><span class="s">&#39;O&#39;</span><span class="p">],</span>
-                                    <span class="n">distance</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">s001_ad1</span><span class="p">),</span> <span class="mi">9</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">s001_ad1</span><span class="p">)):</span>
-            <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">s001_ad1</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">specie</span><span class="p">)</span> <span class="o">==</span> <span class="s">&#39;O&#39;</span><span class="p">:</span>
-                <span class="k">print</span> <span class="n">s001_ad1</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">frac_coords</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">s001_ad1</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">a</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">s001_ad1</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">b</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">s001_ad1</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">c</span><span class="p">,</span> <span class="mf">0.4166667</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s001_ad1</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">lengths_and_angles</span><span class="p">,</span>
-                                 <span class="n">s001</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">lengths_and_angles</span><span class="p">)</span>
-        <span class="c"># 2. test site_a = xyz input</span>
-        <span class="n">s001_ad2</span> <span class="o">=</span> <span class="n">Slab</span><span class="o">.</span><span class="n">adsorb_atom</span><span class="p">(</span><span class="n">structure_a</span><span class="o">=</span><span class="n">s001</span><span class="p">,</span> <span class="n">site_a</span><span class="o">=</span><span class="p">[</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">atom</span><span class="o">=</span> <span class="p">[</span><span class="s">&#39;O&#39;</span><span class="p">],</span>
-                                    <span class="n">distance</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">xyz</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">s001_ad2</span><span class="p">),</span> <span class="mi">9</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">s001_ad2</span><span class="p">)):</span>
-            <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">s001_ad2</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">specie</span><span class="p">)</span> <span class="o">==</span> <span class="s">&#39;O&#39;</span><span class="p">:</span>
-                <span class="k">print</span> <span class="n">s001_ad2</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">frac_coords</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">s001_ad2</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">a</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">s001_ad2</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">b</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">s001_ad2</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">c</span><span class="p">,</span> <span class="mf">0.4166667</span><span class="p">)</span>
-
+        <span class="c"># Further filters out any surfaces made that might be the same</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">StructureMatcher</span><span class="p">(</span><span class="n">ltol</span><span class="o">=</span><span class="n">tol</span><span class="p">,</span> <span class="n">stol</span><span class="o">=</span><span class="n">tol</span><span class="p">,</span> <span class="n">primitive_cell</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                             <span class="n">scale</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+        <span class="n">slabs</span> <span class="o">=</span> <span class="p">[</span><span class="n">g</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">m</span><span class="o">.</span><span class="n">group_structures</span><span class="p">(</span><span class="n">slabs</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">slabs</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">energy</span><span class="p">)</span>
 
 </div></div>
-<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&quot;__main__&quot;</span><span class="p">:</span>
-    <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+<div class="viewcode-block" id="get_symmetrically_distinct_miller_indices"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.get_symmetrically_distinct_miller_indices">[docs]</a><span class="k">def</span> <span class="nf">get_symmetrically_distinct_miller_indices</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">max_index</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns all symmetrically distinct indices below a certain max-index for</span>
+<span class="sd">    a given structure. Analysis is based on the symmetry of the reciprocal</span>
+<span class="sd">    lattice of the structure.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        structure (Structure): input structure.</span>
+<span class="sd">        max_index (int): The maximum index. For example, a max_index of 1</span>
+<span class="sd">            means that (100), (110), and (111) are returned for the cubic</span>
+<span class="sd">            structure. All other indices are equivalent to one of these.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">recp_lattice</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">reciprocal_lattice_crystallographic</span>
+    <span class="c"># Need to make sure recp lattice is big enough, otherwise symmetry</span>
+    <span class="c"># determination will fail. We set the overall volume to 1.</span>
+    <span class="n">recp_lattice</span> <span class="o">=</span> <span class="n">recp_lattice</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">recp</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">recp_lattice</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;H&quot;</span><span class="p">],</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span>
+
+    <span class="c"># Creates a function that uses the symmetry operations in the</span>
+    <span class="c"># structure to find Miller indices that might give repetitive slabs</span>
+    <span class="n">analyzer</span> <span class="o">=</span> <span class="n">SpacegroupAnalyzer</span><span class="p">(</span><span class="n">recp</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mf">0.001</span><span class="p">)</span>
+    <span class="n">symm_ops</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">get_symmetry_operations</span><span class="p">()</span>
+    <span class="n">unique_millers</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span> <span class="nf">is_already_analyzed</span><span class="p">(</span><span class="n">miller_index</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">symm_ops</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">in_coord_list</span><span class="p">(</span><span class="n">unique_millers</span><span class="p">,</span> <span class="n">op</span><span class="o">.</span><span class="n">operate</span><span class="p">(</span><span class="n">miller_index</span><span class="p">)):</span>
+                <span class="k">return</span> <span class="bp">True</span>
+        <span class="k">return</span> <span class="bp">False</span>
+
+    <span class="n">r</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="n">max_index</span><span class="p">,</span> <span class="n">max_index</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">miller</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">r</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">i</span> <span class="o">!=</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">miller</span><span class="p">]):</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="nb">reduce</span><span class="p">(</span><span class="n">gcd</span><span class="p">,</span> <span class="n">miller</span><span class="p">))</span>
+            <span class="n">miller</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span> <span class="o">/</span> <span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">miller</span><span class="p">])</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">is_already_analyzed</span><span class="p">(</span><span class="n">miller</span><span class="p">):</span>
+                <span class="n">unique_millers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">miller</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">unique_millers</span>
+
+</div>
+<div class="viewcode-block" id="generate_all_slabs"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.generate_all_slabs">[docs]</a><span class="k">def</span> <span class="nf">generate_all_slabs</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">max_index</span><span class="p">,</span> <span class="n">min_slab_size</span><span class="p">,</span> <span class="n">min_vacuum_size</span><span class="p">,</span>
+                       <span class="n">bonds</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">max_broken_bonds</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                       <span class="n">lll_reduce</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                       <span class="n">center_slab</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">primitive</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A function that finds all different slabs up to a certain miller index.</span>
+<span class="sd">    Slabs oriented under certain Miller indices that are equivalent to other</span>
+<span class="sd">    slabs in other Miller indices are filtered out using symmetry operations</span>
+<span class="sd">    to get rid of any repetitive slabs. For example, under symmetry operations,</span>
+<span class="sd">    CsCl has equivalent slabs in the (0,0,1), (0,1,0), and (1,0,0) direction.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        structure (Structure): Initial input structure.</span>
+<span class="sd">        max_index (int): The maximum Miller index to go up to.</span>
+<span class="sd">        symprec (float): Tolerance for symmetry finding. Defaults to 1e-3,</span>
+<span class="sd">            which is fairly strict and works well for properly refined</span>
+<span class="sd">            structures with atoms in the proper symmetry coordinates. For</span>
+<span class="sd">            structures with slight deviations from their proper atomic</span>
+<span class="sd">            positions (e.g., structures relaxed with electronic structure</span>
+<span class="sd">            codes), a looser tolerance of 0.1 (the value used in Materials</span>
+<span class="sd">            Project) is often needed.</span>
+<span class="sd">        lll_reduce (bool): Whether to perform an LLL reduction on the</span>
+<span class="sd">            eventual structure.</span>
+<span class="sd">        center_slab (bool): Whether to center the slab in the cell with</span>
+<span class="sd">            equal vacuum spacing from the top and bottom.</span>
+<span class="sd">        primitive (bool): Whether to reduce any generated slabs to a</span>
+<span class="sd">            primitive cell (this does **not** mean the slab is generated</span>
+<span class="sd">            from a primitive cell, it simply means that after slab</span>
+<span class="sd">            generation, we attempt to find shorter lattice vectors,</span>
+<span class="sd">            which lead to less surface area and smaller cells).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">all_slabs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">miller</span> <span class="ow">in</span> <span class="n">get_symmetrically_distinct_miller_indices</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span>
+                                                            <span class="n">max_index</span><span class="p">):</span>
+        <span class="n">gen</span> <span class="o">=</span> <span class="n">SlabGenerator</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">miller</span><span class="p">,</span> <span class="n">min_slab_size</span><span class="p">,</span>
+                            <span class="n">min_vacuum_size</span><span class="p">,</span> <span class="n">lll_reduce</span><span class="o">=</span><span class="n">lll_reduce</span><span class="p">,</span>
+                            <span class="n">center_slab</span><span class="o">=</span><span class="n">center_slab</span><span class="p">,</span> <span class="n">primitive</span><span class="o">=</span><span class="n">primitive</span><span class="p">)</span>
+        <span class="n">slabs</span> <span class="o">=</span> <span class="n">gen</span><span class="o">.</span><span class="n">get_slabs</span><span class="p">(</span><span class="n">bonds</span><span class="o">=</span><span class="n">bonds</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="n">tol</span><span class="p">,</span>
+                              <span class="n">max_broken_bonds</span><span class="o">=</span><span class="n">max_broken_bonds</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">slabs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s"> has </span><span class="si">%d</span><span class="s"> slabs... &quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">miller</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">slabs</span><span class="p">)))</span>
+            <span class="n">all_slabs</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">slabs</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">all_slabs</span></div>
 </pre></div>
 
           </div>
@@ -368,7 +737,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 3.0.6 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 3.0.8 documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

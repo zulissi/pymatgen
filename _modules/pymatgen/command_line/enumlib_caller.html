@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.command_line.enumlib_caller &mdash; pymatgen 3.0.8 documentation</title>
+    <title>pymatgen.command_line.enumlib_caller &mdash; pymatgen 3.0.9 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '3.0.8',
+        VERSION:     '3.0.9',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.0.8 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.9 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 3.0.8 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 3.0.9 documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -132,7 +132,7 @@
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">min_cell_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">max_cell_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
                  <span class="n">symm_prec</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">enum_precision_parameter</span><span class="o">=</span><span class="mf">0.001</span><span class="p">,</span>
-                 <span class="n">refine_structure</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+                 <span class="n">refine_structure</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">check_ordered_symmetry</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initializes the adapter with a structure and some parameters.</span>
 
@@ -153,6 +153,14 @@
 <span class="sd">                issues in enumlib. If you are already starting from an</span>
 <span class="sd">                experimental cif, refinement should have already been done and</span>
 <span class="sd">                it is not necessary. Defaults to False.</span>
+<span class="sd">            check_ordered_symmetry (bool): Whether to check the symmetry of</span>
+<span class="sd">                the ordered sites. If the symmetry of the ordered sites is</span>
+<span class="sd">                lower, the lowest symmetry ordered sites is included in the</span>
+<span class="sd">                enumeration. This is important if the ordered sites break</span>
+<span class="sd">                symmetry in a way that is important getting possible</span>
+<span class="sd">                structures. But sometimes including ordered sites</span>
+<span class="sd">                slows down enumeration to the point that it cannot be</span>
+<span class="sd">                completed. Switch to False in those cases. Defaults to True.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">refine_structure</span><span class="p">:</span>
             <span class="n">finder</span> <span class="o">=</span> <span class="n">SpacegroupAnalyzer</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">symm_prec</span><span class="p">)</span>
@@ -163,6 +171,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">max_cell_size</span> <span class="o">=</span> <span class="n">max_cell_size</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">symm_prec</span> <span class="o">=</span> <span class="n">symm_prec</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">enum_precision_parameter</span> <span class="o">=</span> <span class="n">enum_precision_parameter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_ordered_symmetry</span> <span class="o">=</span> <span class="n">check_ordered_symmetry</span>
 
     <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -264,15 +273,16 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">ordered_sites</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">to_add</span> <span class="o">=</span> <span class="p">[]</span>
 
-        <span class="k">for</span> <span class="n">sites</span> <span class="ow">in</span> <span class="n">ordered_sites</span><span class="p">:</span>
-            <span class="n">temp_sites</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">curr_sites</span><span class="p">)</span> <span class="o">+</span> <span class="n">sites</span>
-            <span class="n">sgnum</span> <span class="o">=</span> <span class="n">get_sg_info</span><span class="p">(</span><span class="n">temp_sites</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">sgnum</span> <span class="o">&lt;</span> <span class="n">min_sgnum</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Adding {} to sites to be ordered. &quot;</span>
-                             <span class="s">&quot;New sgnum {}&quot;</span>
-                             <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sites</span><span class="p">,</span> <span class="n">sgnum</span><span class="p">))</span>
-                <span class="n">to_add</span> <span class="o">=</span> <span class="n">sites</span>
-                <span class="n">min_sgnum</span> <span class="o">=</span> <span class="n">sgnum</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_ordered_symmetry</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">sites</span> <span class="ow">in</span> <span class="n">ordered_sites</span><span class="p">:</span>
+                <span class="n">temp_sites</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">curr_sites</span><span class="p">)</span> <span class="o">+</span> <span class="n">sites</span>
+                <span class="n">sgnum</span> <span class="o">=</span> <span class="n">get_sg_info</span><span class="p">(</span><span class="n">temp_sites</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">sgnum</span> <span class="o">&lt;</span> <span class="n">min_sgnum</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Adding {} to sites to be ordered. &quot;</span>
+                                 <span class="s">&quot;New sgnum {}&quot;</span>
+                                 <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sites</span><span class="p">,</span> <span class="n">sgnum</span><span class="p">))</span>
+                    <span class="n">to_add</span> <span class="o">=</span> <span class="n">sites</span>
+                    <span class="n">min_sgnum</span> <span class="o">=</span> <span class="n">sgnum</span>
 
         <span class="k">for</span> <span class="n">sites</span> <span class="ow">in</span> <span class="n">ordered_sites</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">sites</span> <span class="o">==</span> <span class="n">to_add</span><span class="p">:</span>
@@ -303,19 +313,22 @@
         <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;{} {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">min_cell_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_cell_size</span><span class="p">))</span>
         <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enum_precision_parameter</span><span class="p">))</span>
         <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;partial&quot;</span><span class="p">)</span>
+
+        <span class="n">ndisordered</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">disordered_sites</span><span class="p">])</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="n">ndisordered</span> <span class="c">#10 ** int(math.ceil(math.log10(ndisordered)))</span>
         <span class="c">#To get a reasonable number of structures, we fix concentrations to the</span>
         <span class="c">#range expected in the original structure.</span>
         <span class="n">total_amounts</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">index_amounts</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">amt</span> <span class="ow">in</span> <span class="n">index_amounts</span><span class="p">:</span>
             <span class="n">conc</span> <span class="o">=</span> <span class="n">amt</span> <span class="o">/</span> <span class="n">total_amounts</span>
-            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">conc</span> <span class="o">*</span> <span class="mi">1000</span> <span class="o">-</span> <span class="nb">round</span><span class="p">(</span><span class="n">conc</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mf">1e-5</span><span class="p">:</span>
-                <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;{} {} {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">conc</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">)),</span>
-                                                <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">conc</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">)),</span>
-                                                <span class="mi">1000</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">conc</span> <span class="o">*</span> <span class="n">base</span> <span class="o">-</span> <span class="nb">round</span><span class="p">(</span><span class="n">conc</span> <span class="o">*</span> <span class="n">base</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mf">1e-5</span><span class="p">:</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;{} {} {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">conc</span> <span class="o">*</span> <span class="n">base</span><span class="p">)),</span>
+                                                <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">conc</span> <span class="o">*</span> <span class="n">base</span><span class="p">)),</span>
+                                                <span class="n">base</span><span class="p">))</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">min_conc</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">conc</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">))</span>
+                <span class="n">min_conc</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">conc</span> <span class="o">*</span> <span class="n">base</span><span class="p">))</span>
                 <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;{} {} {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">min_conc</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">min_conc</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
-                                                <span class="mi">1000</span><span class="p">))</span>
+                                                <span class="n">base</span><span class="p">))</span>
         <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&quot;Generated input file:</span><span class="se">\n</span><span class="s">{}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output</span><span class="p">)))</span>
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s">&quot;struct_enum.in&quot;</span><span class="p">,</span> <span class="s">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
@@ -423,7 +436,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 3.0.8 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 3.0.9 documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.vaspio.vasp_output &mdash; pymatgen 3.0.10 documentation</title>
+    <title>pymatgen.io.vaspio.vasp_output &mdash; pymatgen 3.0.13 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '3.0.10',
+        VERSION:     '3.0.13',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -23,9 +23,9 @@
     <script type="text/javascript" src="../../../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
-    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.0.10 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.13 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -35,8 +35,8 @@
 </script>
 
   </head>
-  <body>
-    <div class="related">
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -45,15 +45,15 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 3.0.10 documentation</a> &raquo;</li>
-          <li><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 3.0.13 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <h1>Source code for pymatgen.io.vaspio.vasp_output</h1><div class="highlight"><pre>
 <span class="c"># coding: utf-8</span>
@@ -66,7 +66,7 @@
 
 
 <span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong, Geoffroy Hautier, Rickard Armiento, &quot;</span> <span class="o">+</span> \
-    <span class="s">&quot;Vincent L Chevrier, Ioannis Petousis&quot;</span>
+    <span class="s">&quot;Vincent L Chevrier, Ioannis Petousis, Stephen Dacek&quot;</span>
 <span class="n">__credits__</span> <span class="o">=</span> <span class="s">&quot;Anubhav Jain&quot;</span>
 <span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot;Copyright 2011, The Materials Project&quot;</span>
 <span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;1.2&quot;</span>
@@ -87,23 +87,24 @@
 <span class="kn">from</span> <span class="nn">xml.etree.cElementTree</span> <span class="kn">import</span> <span class="n">iterparse</span>
 
 <span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="nb">map</span><span class="p">,</span> <span class="nb">zip</span>
+<span class="kn">from</span> <span class="nn">six</span> <span class="kn">import</span> <span class="n">string_types</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 
 <span class="kn">from</span> <span class="nn">monty.io</span> <span class="kn">import</span> <span class="n">zopen</span><span class="p">,</span> <span class="n">reverse_readfile</span>
 <span class="kn">from</span> <span class="nn">monty.json</span> <span class="kn">import</span> <span class="n">jsanitize</span>
 
-
 <span class="kn">from</span> <span class="nn">pymatgen.util.io_utils</span> <span class="kn">import</span> <span class="n">clean_lines</span><span class="p">,</span> <span class="n">micro_pyawk</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="kn">import</span> <span class="n">Structure</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.units</span> <span class="kn">import</span> <span class="n">unitized</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.composition</span> <span class="kn">import</span> <span class="n">Composition</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="kn">import</span> <span class="n">Element</span>
 <span class="kn">from</span> <span class="nn">pymatgen.electronic_structure.core</span> <span class="kn">import</span> <span class="n">Spin</span><span class="p">,</span> <span class="n">Orbital</span>
 <span class="kn">from</span> <span class="nn">pymatgen.electronic_structure.dos</span> <span class="kn">import</span> <span class="n">CompleteDos</span><span class="p">,</span> <span class="n">Dos</span>
 <span class="kn">from</span> <span class="nn">pymatgen.electronic_structure.bandstructure</span> <span class="kn">import</span> <span class="n">BandStructure</span><span class="p">,</span> \
     <span class="n">BandStructureSymmLine</span><span class="p">,</span> <span class="n">get_reconstructed_band_structure</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.lattice</span> <span class="kn">import</span> <span class="n">Lattice</span>
-<span class="kn">from</span> <span class="nn">pymatgen.io.vaspio.vasp_input</span> <span class="kn">import</span> <span class="n">Incar</span><span class="p">,</span> <span class="n">Kpoints</span><span class="p">,</span> <span class="n">Poscar</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.vaspio.vasp_input</span> <span class="kn">import</span> <span class="n">Incar</span><span class="p">,</span> <span class="n">Kpoints</span><span class="p">,</span> <span class="n">Poscar</span><span class="p">,</span> <span class="n">Potcar</span>
 <span class="kn">from</span> <span class="nn">pymatgen.entries.computed_entries</span> <span class="kn">import</span> \
     <span class="n">ComputedEntry</span><span class="p">,</span> <span class="n">ComputedStructureEntry</span>
 <span class="kn">from</span> <span class="nn">pymatgen.serializers.json_coders</span> <span class="kn">import</span> <span class="n">PMGSONable</span>
@@ -240,6 +241,12 @@
 <span class="sd">            eigenvalues. Defaults to False. Set to True to obtain projected</span>
 <span class="sd">            eigenvalues. **Note that this can take an extreme amount of time</span>
 <span class="sd">            and memory.** So use this wisely.</span>
+<span class="sd">        parse_potcar_file (bool/str): Whether to parse the potcar file to read the</span>
+<span class="sd">            potcar hashes for the potcar_spec attribute. Defaults to True,</span>
+<span class="sd">            where no hashes will be determined and the potcar_spec dictionaries</span>
+<span class="sd">            will read {&quot;symbol&quot;: ElSymbol, &quot;hash&quot;: None}. By Default, looks in</span>
+<span class="sd">            the same directory as the vasprun.xml, with same extensions as</span>
+<span class="sd">             Vasprun.xml. If a string is provided, looks at that filepath</span>
 
 <span class="sd">    **Vasp results**</span>
 
@@ -359,7 +366,8 @@
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">ionic_step_skip</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
                  <span class="n">ionic_step_offset</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">parse_dos</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
-                 <span class="n">parse_eigen</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">parse_projected_eigen</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+                 <span class="n">parse_eigen</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">parse_projected_eigen</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                 <span class="n">parse_potcar_file</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ionic_step_skip</span> <span class="o">=</span> <span class="n">ionic_step_skip</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ionic_step_offset</span> <span class="o">=</span> <span class="n">ionic_step_offset</span>
@@ -389,6 +397,9 @@
                             <span class="n">parse_projected_eigen</span><span class="o">=</span><span class="n">parse_projected_eigen</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">nionic_steps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ionic_steps</span><span class="p">)</span>
 
+            <span class="k">if</span> <span class="n">parse_potcar_file</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_potcar_spec</span><span class="p">(</span><span class="n">parse_potcar_file</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">_parse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">parse_dos</span><span class="p">,</span> <span class="n">parse_eigen</span><span class="p">,</span> <span class="n">parse_projected_eigen</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">efermi</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">eigenvalues</span> <span class="o">=</span> <span class="bp">None</span>
@@ -413,6 +424,9 @@
                 <span class="k">elif</span> <span class="n">tag</span> <span class="o">==</span> <span class="s">&quot;atominfo&quot;</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">atomic_symbols</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">potcar_symbols</span> <span class="o">=</span> \
                         <span class="bp">self</span><span class="o">.</span><span class="n">_parse_atominfo</span><span class="p">(</span><span class="n">elem</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">potcar_spec</span> <span class="o">=</span> <span class="p">[{</span><span class="s">&quot;titel&quot;</span><span class="p">:</span> <span class="n">p</span><span class="p">,</span>
+                                         <span class="s">&quot;hash&quot;</span><span class="p">:</span> <span class="bp">None</span><span class="p">}</span> <span class="k">for</span>
+                                        <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">potcar_symbols</span><span class="p">]</span>
             <span class="k">if</span> <span class="n">tag</span> <span class="o">==</span> <span class="s">&quot;calculation&quot;</span><span class="p">:</span>
                 <span class="n">parsed_header</span> <span class="o">=</span> <span class="bp">True</span>
                 <span class="n">ionic_steps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_parse_calculation</span><span class="p">(</span><span class="n">elem</span><span class="p">))</span>
@@ -436,40 +450,40 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">vasp_version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generator</span><span class="p">[</span><span class="s">&quot;version&quot;</span><span class="p">]</span>
 
     <span class="nd">@property</span>
-<div class="viewcode-block" id="Vasprun.structures"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.structures">[docs]</a>    <span class="k">def</span> <span class="nf">structures</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">structures</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">step</span><span class="p">[</span><span class="s">&quot;structure&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ionic_steps</span><span class="p">]</span>
-</div>
+
     <span class="nd">@property</span>
-<div class="viewcode-block" id="Vasprun.epsilon_static"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.epsilon_static">[docs]</a>    <span class="k">def</span> <span class="nf">epsilon_static</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">epsilon_static</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Property only available for DFPT calculations.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ionic_steps</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;epsilon&quot;</span><span class="p">,</span> <span class="p">[])</span>
-</div>
+
     <span class="nd">@property</span>
-<div class="viewcode-block" id="Vasprun.epsilon_static_wolfe"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.epsilon_static_wolfe">[docs]</a>    <span class="k">def</span> <span class="nf">epsilon_static_wolfe</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">epsilon_static_wolfe</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Property only available for DFPT calculations.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ionic_steps</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;epsilon_rpa&quot;</span><span class="p">,</span> <span class="p">[])</span>
-</div>
+
     <span class="nd">@property</span>
-<div class="viewcode-block" id="Vasprun.epsilon_ionic"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.epsilon_ionic">[docs]</a>    <span class="k">def</span> <span class="nf">epsilon_ionic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">epsilon_ionic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Property only available for DFPT calculations and when IBRION=5, 6, 7 or 8.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ionic_steps</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;epsilon_ion&quot;</span><span class="p">,</span> <span class="p">[])</span>
-</div>
+
     <span class="nd">@property</span>
-<div class="viewcode-block" id="Vasprun.lattice"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.lattice">[docs]</a>    <span class="k">def</span> <span class="nf">lattice</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">lattice</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">final_structure</span><span class="o">.</span><span class="n">lattice</span>
-</div>
+
     <span class="nd">@property</span>
-<div class="viewcode-block" id="Vasprun.lattice_rec"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.lattice_rec">[docs]</a>    <span class="k">def</span> <span class="nf">lattice_rec</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">lattice_rec</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">final_structure</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">reciprocal_lattice</span>
-</div>
+
     <span class="nd">@property</span>
-<div class="viewcode-block" id="Vasprun.converged_electronic"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.converged_electronic">[docs]</a>    <span class="k">def</span> <span class="nf">converged_electronic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">converged_electronic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Checks that electronic step convergence has been reached in the final</span>
 <span class="sd">        ionic step</span>
@@ -482,37 +496,37 @@
                 <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
             <span class="k">return</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s">&quot;NELM&quot;</span><span class="p">]</span>
         <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">final_esteps</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s">&quot;NELM&quot;</span><span class="p">]</span>
-</div>
+
     <span class="nd">@property</span>
-<div class="viewcode-block" id="Vasprun.converged_ionic"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.converged_ionic">[docs]</a>    <span class="k">def</span> <span class="nf">converged_ionic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">converged_ionic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Checks that ionic step convergence has been reached, i.e. that vasp</span>
 <span class="sd">        exited before reaching the max ionic steps for a relaxation run</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">nsw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;NSW&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">nsw</span> <span class="o">&lt;=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ionic_steps</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">nsw</span>
-</div>
+
     <span class="nd">@property</span>
-<div class="viewcode-block" id="Vasprun.converged"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.converged">[docs]</a>    <span class="k">def</span> <span class="nf">converged</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">converged</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns true if a relaxation run is converged.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">converged_electronic</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">converged_ionic</span>
-</div>
+
     <span class="nd">@property</span>
     <span class="nd">@unitized</span><span class="p">(</span><span class="s">&quot;eV&quot;</span><span class="p">)</span>
-<div class="viewcode-block" id="Vasprun.final_energy"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.final_energy">[docs]</a>    <span class="k">def</span> <span class="nf">final_energy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">final_energy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Final energy from the vasp run.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ionic_steps</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s">&quot;electronic_steps&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s">&quot;e_wo_entrp&quot;</span><span class="p">]</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ionic_steps</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s">&quot;electronic_steps&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s">&quot;e_0_energy&quot;</span><span class="p">]</span>
         <span class="k">except</span> <span class="p">(</span><span class="ne">IndexError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">):</span>
             <span class="c"># not all calculations have a total energy, i.e. GW</span>
             <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
-</div>
+
     <span class="nd">@property</span>
-<div class="viewcode-block" id="Vasprun.complete_dos"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.complete_dos">[docs]</a>    <span class="k">def</span> <span class="nf">complete_dos</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">complete_dos</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        A complete dos object which incorporates the total dos and all</span>
 <span class="sd">        projected dos.</span>
@@ -520,9 +534,9 @@
         <span class="n">final_struct</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">final_structure</span>
         <span class="n">pdoss</span> <span class="o">=</span> <span class="p">{</span><span class="n">final_struct</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span> <span class="n">pdos</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">pdos</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pdos</span><span class="p">)}</span>
         <span class="k">return</span> <span class="n">CompleteDos</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">final_structure</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tdos</span><span class="p">,</span> <span class="n">pdoss</span><span class="p">)</span>
-</div>
+
     <span class="nd">@property</span>
-<div class="viewcode-block" id="Vasprun.hubbards"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.hubbards">[docs]</a>    <span class="k">def</span> <span class="nf">hubbards</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">hubbards</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Hubbard U values used if a vasprun is a GGA+U run. {} otherwise.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -539,9 +553,9 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">VaspParserError</span><span class="p">(</span><span class="s">&quot;Length of U value parameters and atomic &quot;</span>
                                   <span class="s">&quot;symbols are mismatched&quot;</span><span class="p">)</span>
-</div>
+
     <span class="nd">@property</span>
-<div class="viewcode-block" id="Vasprun.run_type"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.run_type">[docs]</a>    <span class="k">def</span> <span class="nf">run_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">run_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns the run type. Currently supports only GGA and HF calcs.</span>
 
@@ -553,23 +567,23 @@
             <span class="k">return</span> <span class="s">&quot;HF&quot;</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="s">&quot;GGA&quot;</span>
-</div>
+
     <span class="nd">@property</span>
-<div class="viewcode-block" id="Vasprun.is_hubbard"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.is_hubbard">[docs]</a>    <span class="k">def</span> <span class="nf">is_hubbard</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">is_hubbard</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        True if run is a DFT+U run.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hubbards</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">False</span>
         <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hubbards</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="o">&gt;</span> <span class="mf">1e-8</span>
-</div>
+
     <span class="nd">@property</span>
-<div class="viewcode-block" id="Vasprun.is_spin"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.is_spin">[docs]</a>    <span class="k">def</span> <span class="nf">is_spin</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">is_spin</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        True if run is spin-polarized.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;ISPIN&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span>
-</div>
+
 <div class="viewcode-block" id="Vasprun.get_computed_entry"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.get_computed_entry">[docs]</a>    <span class="k">def</span> <span class="nf">get_computed_entry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inc_structure</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
                            <span class="n">data</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -590,7 +604,7 @@
 <span class="sd">            ComputedStructureEntry/ComputedEntry</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">param_names</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;is_hubbard&quot;</span><span class="p">,</span> <span class="s">&quot;hubbards&quot;</span><span class="p">,</span> <span class="s">&quot;potcar_symbols&quot;</span><span class="p">,</span>
-                       <span class="s">&quot;run_type&quot;</span><span class="p">}</span>
+                       <span class="s">&quot;potcar_spec&quot;</span><span class="p">,</span> <span class="s">&quot;run_type&quot;</span><span class="p">}</span>
         <span class="k">if</span> <span class="n">parameters</span><span class="p">:</span>
             <span class="n">param_names</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
         <span class="n">params</span> <span class="o">=</span> <span class="p">{</span><span class="n">p</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">param_names</span><span class="p">}</span>
@@ -748,7 +762,7 @@
                                  <span class="n">projections</span><span class="o">=</span><span class="n">p_eigenvals</span><span class="p">)</span>
 </div>
     <span class="nd">@property</span>
-<div class="viewcode-block" id="Vasprun.eigenvalue_band_properties"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.eigenvalue_band_properties">[docs]</a>    <span class="k">def</span> <span class="nf">eigenvalue_band_properties</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">eigenvalue_band_properties</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Band properties from the eigenvalues as a tuple,</span>
 <span class="sd">        (band gap, cbm, vbm, is_band_gap_direct).</span>
@@ -766,6 +780,36 @@
                     <span class="n">cbm</span> <span class="o">=</span> <span class="n">eigenval</span>
                     <span class="n">cbm_kpoint</span> <span class="o">=</span> <span class="n">k</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="n">cbm</span> <span class="o">-</span> <span class="n">vbm</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">cbm</span><span class="p">,</span> <span class="n">vbm</span><span class="p">,</span> <span class="n">vbm_kpoint</span> <span class="o">==</span> <span class="n">cbm_kpoint</span>
+
+<div class="viewcode-block" id="Vasprun.update_potcar_spec"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.update_potcar_spec">[docs]</a>    <span class="k">def</span> <span class="nf">update_potcar_spec</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">get_potcar_in_path</span><span class="p">(</span><span class="n">p</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">p</span><span class="p">)):</span>
+                <span class="k">if</span> <span class="s">&#39;POTCAR&#39;</span> <span class="ow">in</span> <span class="n">fn</span><span class="p">:</span>
+                    <span class="n">pc</span> <span class="o">=</span> <span class="n">Potcar</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">fn</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="p">{</span><span class="n">d</span><span class="o">.</span><span class="n">header</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">pc</span><span class="p">}</span> <span class="o">==</span> \
+                            <span class="p">{</span><span class="n">sym</span> <span class="k">for</span> <span class="n">sym</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">potcar_symbols</span><span class="p">}:</span>
+                        <span class="k">return</span> <span class="n">pc</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&quot;No POTCAR file with matching TITEL fields&quot;</span>
+                          <span class="s">&quot; was found in {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">p</span><span class="p">)))</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">string_types</span><span class="p">):</span>
+            <span class="k">if</span> <span class="s">&quot;POTCAR&quot;</span> <span class="ow">in</span> <span class="n">path</span><span class="p">:</span>
+                <span class="n">potcar</span> <span class="o">=</span> <span class="n">Potcar</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+                <span class="k">if</span> <span class="p">{</span><span class="n">d</span><span class="o">.</span><span class="n">TITEL</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">potcar</span><span class="p">}</span> <span class="o">!=</span> \
+                        <span class="p">{</span><span class="n">sym</span> <span class="k">for</span> <span class="n">sym</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">potcar_symbols</span><span class="p">}:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Potcar TITELs do not match Vasprun&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">potcar</span> <span class="o">=</span> <span class="n">get_potcar_in_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">and</span> <span class="n">path</span><span class="p">:</span>
+            <span class="n">potcar</span> <span class="o">=</span> <span class="n">get_potcar_in_path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">potcar</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="k">if</span> <span class="n">potcar</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">potcar_spec</span> <span class="o">=</span> <span class="p">[{</span><span class="s">&quot;titel&quot;</span><span class="p">:</span> <span class="n">sym</span><span class="p">,</span> <span class="s">&quot;hash&quot;</span><span class="p">:</span> <span class="n">ps</span><span class="o">.</span><span class="n">get_potcar_hash</span><span class="p">()}</span>
+                                <span class="k">for</span> <span class="n">sym</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">potcar_symbols</span>
+                                <span class="k">for</span> <span class="n">ps</span> <span class="ow">in</span> <span class="n">potcar</span> <span class="k">if</span>
+                                <span class="n">ps</span><span class="o">.</span><span class="n">symbol</span> <span class="o">==</span> <span class="n">sym</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">1</span><span class="p">]]</span>
 </div>
 <div class="viewcode-block" id="Vasprun.as_dict"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Vasprun.as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -806,6 +850,7 @@
                        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">actual_kpoints</span><span class="p">))]</span>
         <span class="n">vin</span><span class="p">[</span><span class="s">&quot;kpoints&quot;</span><span class="p">][</span><span class="s">&quot;actual_points&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">actual_kpts</span>
         <span class="n">vin</span><span class="p">[</span><span class="s">&quot;potcar&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">potcar_symbols</span><span class="p">]</span>
+        <span class="n">vin</span><span class="p">[</span><span class="s">&quot;potcar_spec&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">potcar_spec</span>
         <span class="n">vin</span><span class="p">[</span><span class="s">&quot;potcar_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot; &quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">potcar_symbols</span><span class="p">]</span>
         <span class="n">vin</span><span class="p">[</span><span class="s">&quot;parameters&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
         <span class="n">vin</span><span class="p">[</span><span class="s">&quot;lattice_rec&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_rec</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span>
@@ -882,8 +927,20 @@
             <span class="k">elif</span> <span class="n">a</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s">&quot;name&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;atomtypes&quot;</span><span class="p">:</span>
                 <span class="n">potcar_symbols</span> <span class="o">=</span> <span class="p">[</span><span class="n">rc</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">&quot;c&quot;</span><span class="p">)[</span><span class="mi">4</span><span class="p">]</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
                                   <span class="k">for</span> <span class="n">rc</span> <span class="ow">in</span> <span class="n">a</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;set&quot;</span><span class="p">)]</span>
+
+        <span class="c"># ensure atomic symbols are valid elements</span>
+        <span class="k">def</span> <span class="nf">parse_atomic_symbol</span><span class="p">(</span><span class="n">symbol</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">Element</span><span class="p">(</span><span class="n">symbol</span><span class="p">))</span>
+            <span class="c"># vasprun.xml uses X instead of Xe for xenon</span>
+            <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">symbol</span> <span class="o">==</span> <span class="s">&quot;X&quot;</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="s">&quot;Xe&quot;</span>
+                <span class="k">raise</span> <span class="n">e</span>
+
         <span class="n">elem</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">atomic_symbols</span><span class="p">,</span> <span class="n">potcar_symbols</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">parse_atomic_symbol</span><span class="p">(</span><span class="n">sym</span><span class="p">)</span> <span class="k">for</span>
+                <span class="n">sym</span> <span class="ow">in</span> <span class="n">atomic_symbols</span><span class="p">],</span> <span class="n">potcar_symbols</span>
 
     <span class="k">def</span> <span class="nf">_parse_kpoints</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elem</span><span class="p">):</span>
         <span class="n">e</span> <span class="o">=</span> <span class="n">elem</span>
@@ -1596,7 +1653,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_distance_matrix</span> <span class="o">=</span> <span class="p">{}</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">distance_matrix</span> <span class="k">else</span> <span class="n">distance_matrix</span>
 
     <span class="nd">@property</span>
-<div class="viewcode-block" id="VolumetricData.spin_data"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.VolumetricData.spin_data">[docs]</a>    <span class="k">def</span> <span class="nf">spin_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">spin_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        The data decomposed into actual spin data as {spin: data}.</span>
 <span class="sd">        Essentially, this provides the actual Spin.up and Spin.down data</span>
@@ -1611,7 +1668,7 @@
                                           <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;diff&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_spin_data</span> <span class="o">=</span> <span class="n">spin_data</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_spin_data</span>
-</div>
+
 <div class="viewcode-block" id="VolumetricData.get_axis_grid"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.VolumetricData.get_axis_grid">[docs]</a>    <span class="k">def</span> <span class="nf">get_axis_grid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ind</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns the grid for a particular axis.</span>
@@ -1954,19 +2011,19 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_nb_bands</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">][</span><span class="s">&quot;bands&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
 
     <span class="nd">@property</span>
-<div class="viewcode-block" id="Procar.nb_bands"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Procar.nb_bands">[docs]</a>    <span class="k">def</span> <span class="nf">nb_bands</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">nb_bands</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        returns the number of bands in the band structure</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nb_bands</span>
-</div>
+
     <span class="nd">@property</span>
-<div class="viewcode-block" id="Procar.nb_kpoints"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Procar.nb_kpoints">[docs]</a>    <span class="k">def</span> <span class="nf">nb_kpoints</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">nb_kpoints</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns the number of k-points in the band structure calculation</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nb_kpoints</span>
-</div>
+
 <div class="viewcode-block" id="Procar.get_projection_on_elements"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Procar.get_projection_on_elements">[docs]</a>    <span class="k">def</span> <span class="nf">get_projection_on_elements</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Method returning a dictionary of projections on elements.</span>
@@ -2121,7 +2178,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">ionic_steps</span> <span class="o">=</span> <span class="n">ionic_steps</span>
 
     <span class="nd">@property</span>
-<div class="viewcode-block" id="Oszicar.all_energies"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Oszicar.all_energies">[docs]</a>    <span class="k">def</span> <span class="nf">all_energies</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">all_energies</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Compilation of all energies from all electronic steps and ionic steps</span>
 <span class="sd">        as a tuple of list of energies, e.g.,</span>
@@ -2133,15 +2190,15 @@
             <span class="n">energies</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ionic_steps</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s">&quot;F&quot;</span><span class="p">])</span>
             <span class="n">all_energies</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">energies</span><span class="p">))</span>
         <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">all_energies</span><span class="p">)</span>
-</div>
+
     <span class="nd">@property</span>
     <span class="nd">@unitized</span><span class="p">(</span><span class="s">&quot;eV&quot;</span><span class="p">)</span>
-<div class="viewcode-block" id="Oszicar.final_energy"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Oszicar.final_energy">[docs]</a>    <span class="k">def</span> <span class="nf">final_energy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">final_energy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Final energy from run.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ionic_steps</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s">&quot;F&quot;</span><span class="p">]</span>
-</div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">ionic_steps</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s">&quot;E0&quot;</span><span class="p">]</span>
+
 <div class="viewcode-block" id="Oszicar.as_dict"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Oszicar.as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">{</span><span class="s">&quot;electronic_steps&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">electronic_steps</span><span class="p">,</span>
                 <span class="s">&quot;ionic_steps&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">ionic_steps</span><span class="p">}</span>
@@ -2284,9 +2341,9 @@
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar">
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
-<div id="searchbox" style="display: none">
+<div id="searchbox" style="display: none" role="search">
   <h3>Quick search</h3>
     <form class="search" action="../../../../search.html" method="get">
       <input type="text" name="q" />
@@ -2303,7 +2360,7 @@
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="related">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -2312,14 +2369,14 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../../index.html">pymatgen 3.0.10 documentation</a> &raquo;</li>
-          <li><a href="../../../index.html" >Module code</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 3.0.13 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>
 
-    <div class="footer">
+    <div class="footer" role="contentinfo">
         &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Geoffroy Hautier, William Davidson Richard, Stephen Dacek, Sai Jayaraman, Michael Kocher, Dan Gunter, Shreyas Cholia, Vincent L Chevrier, Rickard Armiento.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

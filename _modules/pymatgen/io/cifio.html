@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.cifio &mdash; pymatgen 3.0.10 documentation</title>
+    <title>pymatgen.io.cifio &mdash; pymatgen 3.0.13 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '3.0.10',
+        VERSION:     '3.0.13',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -23,9 +23,9 @@
     <script type="text/javascript" src="../../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
-    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.0.10 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 3.0.13 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -35,8 +35,8 @@
 </script>
 
   </head>
-  <body>
-    <div class="related">
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -45,15 +45,15 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 3.0.10 documentation</a> &raquo;</li>
-          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.0.13 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <h1>Source code for pymatgen.io.cifio</h1><div class="highlight"><pre>
 <span class="c"># coding: utf-8</span>
@@ -84,21 +84,35 @@
 <span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="nb">zip</span><span class="p">,</span> <span class="n">cStringIO</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
-
-<span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="kn">import</span> <span class="n">Element</span><span class="p">,</span> <span class="n">Specie</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">inspect</span> <span class="kn">import</span> <span class="n">getargspec</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">groupby</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="kn">import</span> <span class="n">Element</span><span class="p">,</span> <span class="n">Specie</span><span class="p">,</span> <span class="n">get_el_sp</span><span class="p">,</span> <span class="n">PeriodicTable</span>
 <span class="kn">from</span> <span class="nn">monty.io</span> <span class="kn">import</span> <span class="n">zopen</span>
 <span class="kn">from</span> <span class="nn">pymatgen.util.coord_utils</span> <span class="kn">import</span> <span class="n">in_coord_list_pbc</span>
 <span class="kn">from</span> <span class="nn">monty.string</span> <span class="kn">import</span> <span class="n">remove_non_ascii</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.lattice</span> <span class="kn">import</span> <span class="n">Lattice</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="kn">import</span> <span class="n">Structure</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.composition</span> <span class="kn">import</span> <span class="n">Composition</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.operations</span> <span class="kn">import</span> <span class="n">SymmOp</span>
+<span class="kn">from</span> <span class="nn">pymatgen.symmetry.groups</span> <span class="kn">import</span> <span class="n">SpaceGroup</span><span class="p">,</span> <span class="n">SYMM_DATA</span><span class="p">,</span> <span class="n">TRANSLATIONS</span>
 <span class="kn">from</span> <span class="nn">pymatgen.symmetry.analyzer</span> <span class="kn">import</span> <span class="n">SpacegroupAnalyzer</span>
+
+<span class="n">ptable</span> <span class="o">=</span> <span class="n">PeriodicTable</span><span class="p">()</span>
+
+<span class="n">sub_spgrp</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">,</span> <span class="s">r&quot;[\s_]&quot;</span><span class="p">,</span> <span class="s">&quot;&quot;</span><span class="p">)</span>
+
+<span class="n">space_groups</span> <span class="o">=</span> <span class="p">{</span><span class="n">sub_spgrp</span><span class="p">(</span><span class="n">k</span><span class="p">):</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span>
+                <span class="n">SYMM_DATA</span><span class="p">[</span><span class="s">&#39;space_group_encoding&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()}</span>
+
+<span class="n">space_groups</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">sub_spgrp</span><span class="p">(</span><span class="n">k</span><span class="p">):</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span>
+                <span class="n">SYMM_DATA</span><span class="p">[</span><span class="s">&#39;space_group_encoding&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()})</span>
 
 
 <div class="viewcode-block" id="CifBlock"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.cifio.CifBlock">[docs]</a><span class="k">class</span> <span class="nc">CifBlock</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    
+
     <span class="n">maxlen</span> <span class="o">=</span> <span class="mi">70</span>  <span class="c"># not quite 80 so we can deal with semicolons and things</span>
-    
+
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">loops</span><span class="p">,</span> <span class="n">header</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Object for storing cif data. All data is stored in a single dictionary.</span>
@@ -110,7 +124,7 @@
 <span class="sd">            data: dict or OrderedDict of data to go into the cif. Values should</span>
 <span class="sd">                    be convertible to string, or lists of these if the key is</span>
 <span class="sd">                    in a loop</span>
-<span class="sd">            loops: list of lists of keys, grouped by which loop they should </span>
+<span class="sd">            loops: list of lists of keys, grouped by which loop they should</span>
 <span class="sd">                    appear in</span>
 <span class="sd">            header: name of the block (appears after the data_ on the first</span>
 <span class="sd">                line)</span>
@@ -190,7 +204,7 @@
         <span class="n">string</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&quot;^\s*</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="s">&quot;&quot;</span><span class="p">,</span> <span class="n">string</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">MULTILINE</span><span class="p">)</span>
         <span class="c">#remove non_ascii</span>
         <span class="n">string</span> <span class="o">=</span> <span class="n">remove_non_ascii</span><span class="p">(</span><span class="n">string</span><span class="p">)</span>
-        
+
         <span class="c">#since line breaks in .cif files are mostly meaningless,</span>
         <span class="c">#break up into a stream of tokens to parse, rejoining multiline</span>
         <span class="c">#strings (between semicolons)</span>
@@ -217,8 +231,9 @@
                 <span class="n">ml</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">p</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">l</span><span class="p">):</span>
-                    <span class="n">q</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>  <span class="c"># s is tuple. location of the data in the tuple</span>
-                                 <span class="c"># depends on whether it was quoted in the input</span>
+                    <span class="c"># s is tuple. location of the data in the tuple</span>
+                    <span class="c"># depends on whether it was quoted in the input</span>
+                    <span class="n">q</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">q</span>
 
     <span class="nd">@classmethod</span>
@@ -281,7 +296,7 @@
     <span class="nd">@classmethod</span>
 <div class="viewcode-block" id="CifFile.from_string"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.cifio.CifFile.from_string">[docs]</a>    <span class="k">def</span> <span class="nf">from_string</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">string</span><span class="p">):</span>
         <span class="n">d</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
-        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;^data_&quot;</span><span class="p">,</span> <span class="s">&quot;x</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">+</span><span class="n">string</span><span class="p">,</span> 
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;^data_&quot;</span><span class="p">,</span> <span class="s">&quot;x</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">+</span><span class="n">string</span><span class="p">,</span>
                           <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">MULTILINE</span> <span class="o">|</span> <span class="n">re</span><span class="o">.</span><span class="n">DOTALL</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]:</span>
             <span class="n">c</span> <span class="o">=</span> <span class="n">CifBlock</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="s">&quot;data_&quot;</span><span class="o">+</span><span class="n">x</span><span class="p">)</span>
             <span class="n">d</span><span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">header</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span>
@@ -327,74 +342,201 @@
         <span class="n">stream</span> <span class="o">=</span> <span class="n">cStringIO</span><span class="p">(</span><span class="n">cif_string</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="n">occupancy_tolerance</span><span class="p">)</span>
 </div>
-    <span class="k">def</span> <span class="nf">_unique_coords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coord_in</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_unique_coords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coords_in</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Generate unique coordinates using coord and symmetry positions.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">coords</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">symmetry_operations</span><span class="p">:</span>
-            <span class="n">coord</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">operate</span><span class="p">(</span><span class="n">coord_in</span><span class="p">)</span>
-            <span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">i</span> <span class="o">-</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">coord</span><span class="p">])</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">in_coord_list_pbc</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">coord</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">):</span>
-                <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">coord</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">tmp_coord</span> <span class="ow">in</span> <span class="n">coords_in</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">symmetry_operations</span><span class="p">:</span>
+                <span class="n">coord</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">operate</span><span class="p">(</span><span class="n">tmp_coord</span><span class="p">)</span>
+                <span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">i</span> <span class="o">-</span> <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">coord</span><span class="p">])</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">in_coord_list_pbc</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">coord</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">):</span>
+                    <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">coord</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">coords</span>
 
-    <span class="k">def</span> <span class="nf">_get_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">primitive</span><span class="p">):</span>
+<div class="viewcode-block" id="CifParser.get_lattice"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.cifio.CifParser.get_lattice">[docs]</a>    <span class="k">def</span> <span class="nf">get_lattice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">length_strings</span><span class="o">=</span><span class="p">(</span><span class="s">&quot;a&quot;</span><span class="p">,</span> <span class="s">&quot;b&quot;</span><span class="p">,</span> <span class="s">&quot;c&quot;</span><span class="p">),</span>
+                    <span class="n">angle_strings</span><span class="o">=</span><span class="p">(</span><span class="s">&quot;alpha&quot;</span><span class="p">,</span> <span class="s">&quot;beta&quot;</span><span class="p">,</span> <span class="s">&quot;gamma&quot;</span><span class="p">),</span> <span class="n">lattice_type</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Generate structure from part of the cif.</span>
+<span class="sd">        Generate the lattice from the provided lattice parameters. In</span>
+<span class="sd">        the absence of all six lattice parameters, the crystal system</span>
+<span class="sd">        and necessary parameters are parsed</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">lengths</span> <span class="o">=</span> <span class="p">[</span><span class="n">str2float</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;_cell_length_&quot;</span> <span class="o">+</span> <span class="n">i</span><span class="p">])</span>
-                   <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;a&quot;</span><span class="p">,</span> <span class="s">&quot;b&quot;</span><span class="p">,</span> <span class="s">&quot;c&quot;</span><span class="p">]]</span>
-        <span class="n">angles</span> <span class="o">=</span> <span class="p">[</span><span class="n">str2float</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;_cell_angle_&quot;</span> <span class="o">+</span> <span class="n">i</span><span class="p">])</span>
-                  <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;alpha&quot;</span><span class="p">,</span> <span class="s">&quot;beta&quot;</span><span class="p">,</span> <span class="s">&quot;gamma&quot;</span><span class="p">]]</span>
-        <span class="n">lattice</span> <span class="o">=</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">from_lengths_and_angles</span><span class="p">(</span><span class="n">lengths</span><span class="p">,</span> <span class="n">angles</span><span class="p">)</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">sympos</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s">&quot;_symmetry_equiv_pos_as_xyz&quot;</span><span class="p">]</span>
+
+            <span class="n">lengths</span> <span class="o">=</span> <span class="p">[</span><span class="n">str2float</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;_cell_length_&quot;</span> <span class="o">+</span> <span class="n">i</span><span class="p">])</span>
+                           <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">length_strings</span><span class="p">]</span>
+            <span class="n">angles</span> <span class="o">=</span> <span class="p">[</span><span class="n">str2float</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;_cell_angle_&quot;</span> <span class="o">+</span> <span class="n">i</span><span class="p">])</span>
+                           <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">angle_strings</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">lattice_type</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">from_lengths_and_angles</span><span class="p">(</span><span class="n">lengths</span><span class="p">,</span> <span class="n">angles</span><span class="p">)</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">Lattice</span><span class="p">,</span> <span class="n">lattice_type</span><span class="p">)(</span><span class="o">*</span><span class="p">(</span><span class="n">lengths</span><span class="o">+</span><span class="n">angles</span><span class="p">))</span>
+
         <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">sympos</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s">&quot;_symmetry_equiv_pos_as_xyz_&quot;</span><span class="p">]</span>
-            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
-                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&quot;No _symmetry_equiv_pos_as_xyz type key found. &quot;</span>
-                              <span class="s">&quot;Defaulting to P1.&quot;</span><span class="p">)</span>
-                <span class="n">sympos</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;x, y, z&#39;</span><span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">symmetry_operations</span> <span class="o">=</span> <span class="p">[</span><span class="n">SymmOp</span><span class="o">.</span><span class="n">from_xyz_string</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sympos</span><span class="p">]</span>
+            <span class="c">#Missing Key search for cell setting</span>
+            <span class="k">for</span> <span class="n">lattice_lable</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;_symmetry_cell_setting&quot;</span><span class="p">,</span>
+                                  <span class="s">&quot;_space_group_crystal_system&quot;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">lattice_lable</span><span class="p">):</span>
+                    <span class="n">lattice_type</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">lattice_lable</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+                    <span class="k">try</span><span class="p">:</span>
 
-        <span class="k">def</span> <span class="nf">parse_symbol</span><span class="p">(</span><span class="n">sym</span><span class="p">):</span>
-            <span class="c"># capitalization conventions are not strictly followed, eg Cu will be CU</span>
-            <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s">&quot;([A-Za-z]*)&quot;</span><span class="p">,</span> <span class="n">sym</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
-                <span class="k">return</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)[:</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">capitalize</span><span class="p">()</span>
-            <span class="k">return</span> <span class="s">&quot;&quot;</span>
+                        <span class="n">required_args</span> <span class="o">=</span> <span class="n">getargspec</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">Lattice</span><span class="p">,</span>
+                                                               <span class="n">lattice_type</span><span class="p">)</span>
+                                                        <span class="p">)</span><span class="o">.</span><span class="n">args</span>
 
+                        <span class="n">lengths</span> <span class="o">=</span> <span class="p">(</span><span class="n">l</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">length_strings</span> <span class="k">if</span> <span class="n">l</span> <span class="ow">in</span>
+                                                        <span class="n">required_args</span><span class="p">)</span>
+                        <span class="n">angles</span> <span class="o">=</span> <span class="p">(</span><span class="n">a</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">angle_strings</span> <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span>
+                                                        <span class="n">required_args</span><span class="p">)</span>
+                        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_lattice</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">lengths</span><span class="p">,</span> <span class="n">angles</span><span class="p">,</span>
+                                                <span class="n">lattice_type</span><span class="o">=</span><span class="n">lattice_type</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">AttributeError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+                        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span>
+
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="CifParser.get_symops"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.cifio.CifParser.get_symops">[docs]</a>    <span class="k">def</span> <span class="nf">get_symops</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        In order to generate symmetry equivalent positions, the symmetry</span>
+<span class="sd">        operations are parsed. If the symops are not present, the space</span>
+<span class="sd">        group symbol is parsed, and symops are generated.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">symops</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">symmetry_label</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;_symmetry_equiv_pos_as_xyz&quot;</span><span class="p">,</span>
+                               <span class="s">&quot;_symmetry_equiv_pos_as_xyz_&quot;</span><span class="p">,</span>
+                               <span class="s">&quot;_space_group_symop_operation_xyz&quot;</span><span class="p">,</span>
+                               <span class="s">&quot;_space_group_symop_operation_xyz_&quot;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">symmetry_label</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">symops</span> <span class="o">=</span> <span class="p">[</span><span class="n">SymmOp</span><span class="o">.</span><span class="n">from_xyz_string</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+                              <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">symmetry_label</span><span class="p">)]</span>
+                    <span class="k">break</span>
+                <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                    <span class="k">continue</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">symops</span><span class="p">:</span>
+            <span class="c"># Try to parse symbol</span>
+            <span class="k">for</span> <span class="n">symmetry_label</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;_symmetry_space_group_name_H-M&quot;</span><span class="p">,</span>
+                                   <span class="s">&quot;_symmetry_space_group_name_H_M&quot;</span><span class="p">,</span>
+                                   <span class="s">&quot;_symmetry_space_group_name_H-M_&quot;</span><span class="p">,</span>
+                                   <span class="s">&quot;_symmetry_space_group_name_H_M_&quot;</span><span class="p">,</span>
+                                   <span class="s">&quot;_space_group_name_Hall&quot;</span><span class="p">,</span>
+                                   <span class="s">&quot;_space_group_name_Hall_&quot;</span><span class="p">,</span>
+                                   <span class="s">&quot;_space_group_name_H-M_alt&quot;</span><span class="p">,</span>
+                                   <span class="s">&quot;_space_group_name_H-M_alt_&quot;</span><span class="p">,</span>
+                                   <span class="s">&quot;_symmetry_space_group_name_hall&quot;</span><span class="p">,</span>
+                                   <span class="s">&quot;_symmetry_space_group_name_hall_&quot;</span><span class="p">,</span>
+                                   <span class="s">&quot;_symmetry_space_group_name_h-m&quot;</span><span class="p">,</span>
+                                   <span class="s">&quot;_symmetry_space_group_name_h-m_&quot;</span><span class="p">]:</span>
+
+                <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">symmetry_label</span><span class="p">):</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">spg</span> <span class="o">=</span> <span class="n">space_groups</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">sub_spgrp</span><span class="p">(</span>
+                                        <span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">symmetry_label</span><span class="p">)))</span>
+                        <span class="k">if</span> <span class="n">spg</span><span class="p">:</span>
+                            <span class="n">symops</span> <span class="o">=</span> <span class="n">SpaceGroup</span><span class="p">(</span><span class="n">spg</span><span class="p">)</span><span class="o">.</span><span class="n">symmetry_ops</span>
+                            <span class="k">break</span>
+                    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                        <span class="k">continue</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">symops</span><span class="p">:</span>
+            <span class="c"># Try to parse International number</span>
+            <span class="k">for</span> <span class="n">symmetry_label</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&quot;_space_group_IT_number&quot;</span><span class="p">,</span>
+                                   <span class="s">&quot;_space_group_IT_number_&quot;</span><span class="p">,</span>
+                                   <span class="s">&quot;_symmetry_Int_Tables_number&quot;</span><span class="p">,</span>
+                                   <span class="s">&quot;_symmetry_Int_Tables_number_&quot;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">symmetry_label</span><span class="p">):</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">symops</span> <span class="o">=</span> <span class="n">SpaceGroup</span><span class="o">.</span><span class="n">from_int_number</span><span class="p">(</span><span class="n">str2float</span><span class="p">(</span>
+                            <span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">symmetry_label</span><span class="p">)))</span><span class="o">.</span><span class="n">symmetry_ops</span>
+                        <span class="k">break</span>
+                    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                        <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">symops</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&quot;No _symmetry_equiv_pos_as_xyz type key found. &quot;</span>
+                          <span class="s">&quot;Defaulting to P1.&quot;</span><span class="p">)</span>
+            <span class="n">symops</span> <span class="o">=</span> <span class="p">[</span><span class="n">SymmOp</span><span class="o">.</span><span class="n">from_xyz_string</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">[</span><span class="s">&#39;x&#39;</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">,</span> <span class="s">&#39;z&#39;</span><span class="p">]]</span>
+
+        <span class="k">return</span> <span class="n">symops</span>
+</div>
+<div class="viewcode-block" id="CifParser.parse_oxi_states"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.cifio.CifParser.parse_oxi_states">[docs]</a>    <span class="k">def</span> <span class="nf">parse_oxi_states</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parse oxidation states from data dictionary</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">oxi_states</span> <span class="o">=</span> <span class="p">{</span>
-                <span class="n">data</span><span class="p">[</span><span class="s">&quot;_atom_type_symbol&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">]:</span>
+            <span class="n">oxi_states</span> <span class="o">=</span> <span class="p">{</span> <span class="n">data</span><span class="p">[</span><span class="s">&quot;_atom_type_symbol&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">]:</span>
                 <span class="n">str2float</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;_atom_type_oxidation_number&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">])</span>
                 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;_atom_type_symbol&quot;</span><span class="p">]))}</span>
+            <span class="c">#attempt to strip oxidation state from _atom_type_symbol</span>
+            <span class="c"># in case the label does not contain an oxidation state</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;_atom_type_symbol&quot;</span><span class="p">]):</span>
+                <span class="n">oxi_states</span><span class="p">[</span><span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">r&quot;\d?[\+,\-]?$&quot;</span><span class="p">,</span> <span class="s">&quot;&quot;</span><span class="p">,</span> <span class="n">symbol</span><span class="p">)]</span> <span class="o">=</span> \
+                    <span class="n">str2float</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;_atom_type_oxidation_number&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">])</span>
+
         <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">):</span>
             <span class="n">oxi_states</span> <span class="o">=</span> <span class="bp">None</span>
 
+        <span class="k">return</span> <span class="n">oxi_states</span>
+</div>
+    <span class="k">def</span> <span class="nf">_get_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">primitive</span><span class="p">,</span> <span class="n">substitution_dictionary</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate structure from part of the cif.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Symbols often representing</span>
+        <span class="c">#common representations for elements/water in cif files</span>
+        <span class="n">special_symbols</span> <span class="o">=</span> <span class="p">{</span><span class="s">&quot;D&quot;</span><span class="p">:</span><span class="s">&quot;D&quot;</span><span class="p">,</span> <span class="s">&quot;Hw&quot;</span><span class="p">:</span><span class="s">&quot;H&quot;</span><span class="p">,</span> <span class="s">&quot;Ow&quot;</span><span class="p">:</span><span class="s">&quot;O&quot;</span><span class="p">,</span> <span class="s">&quot;Wat&quot;</span><span class="p">:</span><span class="s">&quot;O&quot;</span><span class="p">,</span> <span class="s">&quot;wat&quot;</span><span class="p">:</span> <span class="s">&quot;O&quot;</span><span class="p">}</span>
+        <span class="n">elements</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">ptable</span><span class="o">.</span><span class="n">all_elements</span><span class="p">)</span>
+
+        <span class="n">lattice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_lattice</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">symmetry_operations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_symops</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">oxi_states</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_oxi_states</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
         <span class="n">coord_to_species</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+
+        <span class="k">def</span> <span class="nf">parse_symbol</span><span class="p">(</span><span class="n">sym</span><span class="p">):</span>
+
+            <span class="k">if</span> <span class="n">substitution_dictionary</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">substitution_dictionary</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">sym</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">r&quot;w?[A-Z][a-z]*&quot;</span><span class="p">,</span> <span class="n">sym</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">m</span> <span class="ow">and</span> <span class="n">m</span> <span class="o">!=</span> <span class="s">&quot;?&quot;</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">return</span> <span class="s">&quot;&quot;</span>
+
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;_atom_site_label&quot;</span><span class="p">])):</span>
             <span class="n">symbol</span> <span class="o">=</span> <span class="n">parse_symbol</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;_atom_site_label&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">])</span>
 
+            <span class="k">if</span> <span class="n">symbol</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">symbol</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">elements</span> <span class="ow">and</span> <span class="n">symbol</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">special_symbols</span><span class="p">:</span>
+                    <span class="n">symbol</span> <span class="o">=</span> <span class="n">symbol</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">continue</span>
             <span class="c"># make sure symbol was properly parsed from _atom_site_label</span>
             <span class="c"># otherwise get it from _atom_site_type_symbol</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">Element</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="n">special_symbols</span><span class="p">:</span>
+                    <span class="n">get_el_sp</span><span class="p">(</span><span class="n">special_symbols</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">symbol</span><span class="p">))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">Element</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
-                <span class="n">symbol</span> <span class="o">=</span> <span class="n">parse_symbol</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;_atom_site_type_symbol&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">])</span>
-
-            <span class="k">if</span> <span class="n">oxi_states</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
                 <span class="c"># sometimes the site doesn&#39;t have the type_symbol.</span>
                 <span class="c"># we then hope the type_symbol can be parsed from the label</span>
                 <span class="k">if</span> <span class="s">&quot;_atom_site_type_symbol&quot;</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-                    <span class="n">k</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s">&quot;_atom_site_type_symbol&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+                    <span class="n">symbol</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s">&quot;_atom_site_type_symbol&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">oxi_states</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="n">special_symbols</span><span class="p">:</span>
+                    <span class="n">el</span> <span class="o">=</span> <span class="n">get_el_sp</span><span class="p">(</span><span class="n">special_symbols</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span> <span class="o">+</span>
+                                   <span class="nb">str</span><span class="p">(</span><span class="n">oxi_states</span><span class="p">[</span><span class="n">symbol</span><span class="p">]))</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="n">k</span> <span class="o">=</span> <span class="n">symbol</span>
-                <span class="n">el</span> <span class="o">=</span> <span class="n">Specie</span><span class="p">(</span><span class="n">symbol</span><span class="p">,</span> <span class="n">oxi_states</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+                    <span class="n">el</span> <span class="o">=</span> <span class="n">Specie</span><span class="p">(</span><span class="n">symbol</span><span class="p">,</span> <span class="n">oxi_states</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">symbol</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">el</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span>
+
+                <span class="n">el</span> <span class="o">=</span> <span class="n">get_el_sp</span><span class="p">(</span><span class="n">special_symbols</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span> <span class="k">if</span> \
+                            <span class="n">symbol</span> <span class="ow">in</span> <span class="n">special_symbols</span> <span class="k">else</span> <span class="n">symbol</span><span class="p">)</span>
+
             <span class="n">x</span> <span class="o">=</span> <span class="n">str2float</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;_atom_site_fract_x&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">])</span>
             <span class="n">y</span> <span class="o">=</span> <span class="n">str2float</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;_atom_site_fract_y&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">])</span>
             <span class="n">z</span> <span class="o">=</span> <span class="n">str2float</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;_atom_site_fract_z&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">])</span>
@@ -409,25 +551,40 @@
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">coord_to_species</span><span class="p">[</span><span class="n">coord</span><span class="p">][</span><span class="n">el</span><span class="p">]</span> <span class="o">=</span> <span class="n">occu</span>
 
+
+        <span class="n">coord_to_species</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">Composition</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+                            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">coord_to_species</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
         <span class="n">allspecies</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">allcoords</span> <span class="o">=</span> <span class="p">[]</span>
 
-        <span class="k">for</span> <span class="n">coord</span><span class="p">,</span> <span class="n">species</span> <span class="ow">in</span> <span class="n">coord_to_species</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="n">coords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unique_coords</span><span class="p">(</span><span class="n">coord</span><span class="p">)</span>
-            <span class="n">allcoords</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
-            <span class="n">allspecies</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span> <span class="o">*</span> <span class="p">[</span><span class="n">species</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">coord_to_species</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">species</span><span class="p">,</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">groupby</span><span class="p">(</span>
+                    <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">coord_to_species</span><span class="o">.</span><span class="n">items</span><span class="p">()),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+                    <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
 
-        <span class="c">#rescale occupancies if necessary</span>
-        <span class="k">for</span> <span class="n">species</span> <span class="ow">in</span> <span class="n">allspecies</span><span class="p">:</span>
-            <span class="n">totaloccu</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">species</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
-            <span class="k">if</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="n">totaloccu</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_occupancy_tolerance</span><span class="p">:</span>
-                <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="n">species</span><span class="p">):</span>
-                    <span class="n">species</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span> <span class="o">/</span> <span class="n">totaloccu</span>
+                <span class="n">tmp_coords</span> <span class="o">=</span> <span class="p">[</span><span class="n">site</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">group</span><span class="p">]</span>
 
-        <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="n">allspecies</span><span class="p">,</span> <span class="n">allcoords</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">primitive</span><span class="p">:</span>
-            <span class="n">struct</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">get_primitive_structure</span><span class="p">()</span><span class="o">.</span><span class="n">get_reduced_structure</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">struct</span><span class="o">.</span><span class="n">get_sorted_structure</span><span class="p">()</span>
+                <span class="n">coords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unique_coords</span><span class="p">(</span><span class="n">tmp_coords</span><span class="p">)</span>
+
+                <span class="n">allcoords</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
+                <span class="n">allspecies</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span> <span class="o">*</span> <span class="p">[</span><span class="n">species</span><span class="p">])</span>
+
+            <span class="c">#rescale occupancies if necessary</span>
+            <span class="k">for</span> <span class="n">species</span> <span class="ow">in</span> <span class="n">allspecies</span><span class="p">:</span>
+                <span class="n">totaloccu</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">species</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+                <span class="k">if</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="n">totaloccu</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_occupancy_tolerance</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="n">species</span><span class="p">):</span>
+                        <span class="n">species</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span> <span class="o">/</span> <span class="n">totaloccu</span>
+
+        <span class="k">if</span> <span class="n">allspecies</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">allspecies</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">allcoords</span><span class="p">):</span>
+
+            <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="n">allspecies</span><span class="p">,</span> <span class="n">allcoords</span><span class="p">)</span>
+            <span class="n">struct</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">get_sorted_structure</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="n">primitive</span><span class="p">:</span>
+                <span class="n">struct</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">get_primitive_structure</span><span class="p">()</span>
+                <span class="n">struct</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">get_reduced_structure</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">struct</span>
 
 <div class="viewcode-block" id="CifParser.get_structures"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.cifio.CifParser.get_structures">[docs]</a>    <span class="k">def</span> <span class="nf">get_structures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">primitive</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -444,13 +601,14 @@
         <span class="n">structures</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cif</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">structures</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_structure</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">primitive</span><span class="p">))</span>
-            <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+                <span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_structure</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">primitive</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">s</span><span class="p">:</span>
+                    <span class="n">structures</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">KeyError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
                 <span class="c"># Warn the user (Errors should never pass silently)</span>
                 <span class="c"># A user reported a problem with cif files produced by Avogadro</span>
                 <span class="c"># in which the atomic coordinates are in Cartesian coords.</span>
                 <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">))</span>
-
         <span class="k">return</span> <span class="n">structures</span>
 </div>
 <div class="viewcode-block" id="CifParser.as_dict"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.cifio.CifParser.as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -462,35 +620,28 @@
         <span class="k">return</span> <span class="n">d</span>
 
 </div></div>
-<div class="viewcode-block" id="CifWriter"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.cifio.CifWriter">[docs]</a><span class="k">class</span> <span class="nc">CifWriter</span><span class="p">:</span>
+<div class="viewcode-block" id="CifWriter"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.cifio.CifWriter">[docs]</a><span class="k">class</span> <span class="nc">CifWriter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A wrapper around CifFile to write CIF files from pymatgen structures.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        struct (Structure): A pymatgen.core.structure.Structure object.</span>
-<span class="sd">        find_spacegroup (bool): Whether to find spacegroup.</span>
-<span class="sd">            If so, spacegroup information is written.</span>
+<span class="sd">        struct (Structure): structure to write</span>
+<span class="sd">        symprec (float): If not none, finds the symmetry of the structure</span>
+<span class="sd">            and writes the cif with symmetry information. Passes symprec</span>
+<span class="sd">            to the SpacegroupAnalyzer</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">struct</span><span class="p">,</span> <span class="n">find_spacegroup</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Args:</span>
-<span class="sd">            struct (Structure): structure to write</span>
-<span class="sd">            find_spacegroup (bool): whether to try to determine the spacegroup</span>
-<span class="sd">            symprec (float): If not none, finds the symmetry of the structure and</span>
-<span class="sd">                writes the cif with symmetry information. Passes symprec to the</span>
-<span class="sd">                SpacegroupAnalyzer</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">struct</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="n">format_str</span> <span class="o">=</span> <span class="s">&quot;{:.8f}&quot;</span>
-        
+
         <span class="n">block</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
         <span class="n">loops</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">latt</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">lattice</span>
         <span class="n">comp</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">composition</span>
         <span class="n">no_oxi_comp</span> <span class="o">=</span> <span class="n">comp</span><span class="o">.</span><span class="n">element_composition</span>
         <span class="n">spacegroup</span> <span class="o">=</span> <span class="p">(</span><span class="s">&quot;P 1&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">find_spacegroup</span><span class="p">:</span>
-            <span class="n">sf</span> <span class="o">=</span> <span class="n">SpacegroupAnalyzer</span><span class="p">(</span><span class="n">struct</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">symprec</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">sf</span> <span class="o">=</span> <span class="n">SpacegroupAnalyzer</span><span class="p">(</span><span class="n">struct</span><span class="p">,</span> <span class="n">symprec</span><span class="p">)</span>
             <span class="n">spacegroup</span> <span class="o">=</span> <span class="p">(</span><span class="n">sf</span><span class="o">.</span><span class="n">get_spacegroup_symbol</span><span class="p">(),</span>
                           <span class="n">sf</span><span class="o">.</span><span class="n">get_spacegroup_number</span><span class="p">())</span>
         <span class="n">block</span><span class="p">[</span><span class="s">&quot;_symmetry_space_group_name_H-M&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">spacegroup</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -517,7 +668,24 @@
             <span class="n">block</span><span class="p">[</span><span class="s">&quot;_symmetry_equiv_pos_as_xyz&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s">&quot;x, y, z&quot;</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">sf</span> <span class="o">=</span> <span class="n">SpacegroupAnalyzer</span><span class="p">(</span><span class="n">struct</span><span class="p">,</span> <span class="n">symprec</span><span class="p">)</span>
-            <span class="n">ops</span> <span class="o">=</span> <span class="p">[</span><span class="n">op</span><span class="o">.</span><span class="n">as_xyz_string</span><span class="p">()</span> <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">sf</span><span class="o">.</span><span class="n">get_symmetry_operations</span><span class="p">()]</span>
+
+            <span class="k">def</span> <span class="nf">round_symm_trans</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
+
+                <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">TRANSLATIONS</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">i</span> <span class="o">-</span> <span class="n">t</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">symprec</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="n">t</span>
+                <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">i</span> <span class="o">%</span> <span class="mi">1</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">symprec</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="mi">0</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&quot;Invalid translation!&quot;</span><span class="p">)</span>
+
+            <span class="n">symmops</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">sf</span><span class="o">.</span><span class="n">get_symmetry_operations</span><span class="p">():</span>
+                <span class="n">v</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">translation_vector</span>
+                <span class="n">v</span> <span class="o">=</span> <span class="p">[</span><span class="n">round_symm_trans</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">v</span><span class="p">]</span>
+                <span class="n">symmops</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">SymmOp</span><span class="o">.</span><span class="n">from_rotation_and_translation</span><span class="p">(</span>
+                    <span class="n">op</span><span class="o">.</span><span class="n">rotation_matrix</span><span class="p">,</span> <span class="n">v</span><span class="p">))</span>
+
+            <span class="n">ops</span> <span class="o">=</span> <span class="p">[</span><span class="n">op</span><span class="o">.</span><span class="n">as_xyz_string</span><span class="p">()</span> <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">symmops</span><span class="p">]</span>
             <span class="n">block</span><span class="p">[</span><span class="s">&quot;_symmetry_equiv_pos_site_id&quot;</span><span class="p">]</span> <span class="o">=</span> \
                 <span class="p">[</span><span class="s">&quot;</span><span class="si">%d</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">ops</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
             <span class="n">block</span><span class="p">[</span><span class="s">&quot;_symmetry_equiv_pos_as_xyz&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ops</span>
@@ -531,7 +699,7 @@
                 <span class="p">(</span><span class="n">el</span><span class="o">.</span><span class="n">__str__</span><span class="p">(),</span> <span class="nb">float</span><span class="p">(</span><span class="n">el</span><span class="o">.</span><span class="n">oxi_state</span><span class="p">))</span>
                 <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">comp</span><span class="o">.</span><span class="n">elements</span><span class="p">)])</span>
         <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
-            <span class="n">symbol_to_oxinum</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">([(</span><span class="n">el</span><span class="o">.</span><span class="n">symbol</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> 
+            <span class="n">symbol_to_oxinum</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">([(</span><span class="n">el</span><span class="o">.</span><span class="n">symbol</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span>
                                             <span class="nb">sorted</span><span class="p">(</span><span class="n">comp</span><span class="o">.</span><span class="n">elements</span><span class="p">)])</span>
             <span class="n">contains_oxidation</span> <span class="o">=</span> <span class="bp">False</span>
         <span class="k">if</span> <span class="n">contains_oxidation</span><span class="p">:</span>
@@ -618,9 +786,9 @@
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar">
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
-<div id="searchbox" style="display: none">
+<div id="searchbox" style="display: none" role="search">
   <h3>Quick search</h3>
     <form class="search" action="../../../search.html" method="get">
       <input type="text" name="q" />
@@ -637,7 +805,7 @@
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="related">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -646,14 +814,14 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 3.0.10 documentation</a> &raquo;</li>
-          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.0.13 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>
 
-    <div class="footer">
+    <div class="footer" role="contentinfo">
         &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Geoffroy Hautier, William Davidson Richard, Stephen Dacek, Sai Jayaraman, Michael Kocher, Dan Gunter, Shreyas Cholia, Vincent L Chevrier, Rickard Armiento.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

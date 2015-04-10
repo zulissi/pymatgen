@@ -2303,7 +2303,74 @@
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">coords_str</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">l</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">structures</span> <span class="o">=</span> <span class="n">structures</span>
+</div>
+<div class="viewcode-block" id="Dynmat"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Dynmat">[docs]</a><span class="k">class</span> <span class="nc">Dynmat</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Object for reading a DYNMAT file.</span>
 
+<span class="sd">    Args:</span>
+<span class="sd">        filename: Name of file containing DYNMAT.</span>
+
+<span class="sd">    .. attribute:: data</span>
+
+<span class="sd">        A nested dict containing the DYNMAT data of the form::</span>
+<span class="sd">        [atom &lt;int&gt;][disp &lt;int&gt;][&#39;dispvec&#39;] =</span>
+<span class="sd">            displacement vector (part of first line in dynmat block, e.g. &quot;0.01 0 0&quot;)</span>
+<span class="sd">        [atom &lt;int&gt;][disp &lt;int&gt;][&#39;dynmat&#39;] =</span>
+<span class="sd">                &lt;list&gt; list of dynmat lines for this atom and this displacement</span>
+
+<span class="sd">    Authors: Patrick Huck</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">zopen</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&quot;rt&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">lines</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">clean_lines</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">()))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_nspecs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_natoms</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ndisps</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_masses</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">lines</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
+            <span class="n">atom</span><span class="p">,</span> <span class="n">disp</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">l</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lines</span><span class="p">[</span><span class="mi">2</span><span class="p">:]):</span>
+                <span class="n">v</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()))</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">i</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_natoms</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+                    <span class="n">atom</span><span class="p">,</span> <span class="n">disp</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">v</span><span class="p">[:</span><span class="mi">2</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="n">atom</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">atom</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+                    <span class="k">if</span> <span class="n">disp</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">atom</span><span class="p">]:</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">atom</span><span class="p">][</span><span class="n">disp</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">atom</span><span class="p">][</span><span class="n">disp</span><span class="p">][</span><span class="s">&#39;dispvec&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="s">&#39;dynmat&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">atom</span><span class="p">][</span><span class="n">disp</span><span class="p">]:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">atom</span><span class="p">][</span><span class="n">disp</span><span class="p">][</span><span class="s">&#39;dynmat&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">atom</span><span class="p">][</span><span class="n">disp</span><span class="p">][</span><span class="s">&#39;dynmat&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Dynmat.get_phonon_frequencies"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Dynmat.get_phonon_frequencies">[docs]</a>    <span class="k">def</span> <span class="nf">get_phonon_frequencies</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;calculate phonon frequencies&quot;&quot;&quot;</span>
+        <span class="c"># TODO: the following is most likely not correct or suboptimal</span>
+        <span class="c"># hence for demonstration purposes only</span>
+        <span class="n">frequencies</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v0</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">v1</span> <span class="ow">in</span> <span class="n">v0</span><span class="o">.</span><span class="n">itervalues</span><span class="p">():</span>
+                <span class="n">vec</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">abs</span><span class="p">,</span> <span class="n">v1</span><span class="p">[</span><span class="s">&#39;dynmat&#39;</span><span class="p">][</span><span class="n">k</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+                <span class="n">frequency</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">vec</span><span class="p">))</span> <span class="o">*</span> <span class="mf">2.</span><span class="o">*</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="mf">15.633302</span> <span class="c"># THz</span>
+                <span class="n">frequencies</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">frequency</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">frequencies</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">nspecs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;returns the number of species&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nspecs</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">natoms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;returns the number of atoms&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_natoms</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">ndisps</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;returns the number of displacements&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ndisps</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">masses</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;returns the list of atomic masses&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_masses</span><span class="p">)</span>
 </div>
 <div class="viewcode-block" id="get_adjusted_fermi_level"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.get_adjusted_fermi_level">[docs]</a><span class="k">def</span> <span class="nf">get_adjusted_fermi_level</span><span class="p">(</span><span class="n">efermi</span><span class="p">,</span> <span class="n">cbm</span><span class="p">,</span> <span class="n">band_structure</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -2376,7 +2443,7 @@
 
     <div class="footer" role="contentinfo">
         &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Geoffroy Hautier, William Davidson Richard, Stephen Dacek, Sai Jayaraman, Michael Kocher, Dan Gunter, Shreyas Cholia, Vincent L Chevrier, Rickard Armiento.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.1.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

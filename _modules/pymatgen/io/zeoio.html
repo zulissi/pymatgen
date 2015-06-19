@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.zeoio &mdash; pymatgen 3.0.13 documentation</title>
+    <title>pymatgen.io.zeoio &mdash; pymatgen 3.1.0 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '3.0.13',
+        VERSION:     '3.1.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.0.13 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 3.1.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.0.13 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.1.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -74,6 +74,7 @@
 <span class="n">__email__</span> <span class="o">=</span> <span class="s">&quot;bkmedasani@lbl.gov&quot;</span>
 <span class="n">__data__</span> <span class="o">=</span> <span class="s">&quot;Aug 2, 2013&quot;</span>
 
+<span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">re</span>
 
 <span class="kn">from</span> <span class="nn">monty.io</span> <span class="kn">import</span> <span class="n">zopen</span>
@@ -413,6 +414,62 @@
         <span class="n">to_unit_cell</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">site_properties</span><span class="o">=</span><span class="p">{</span><span class="s">&quot;voronoi_radius&quot;</span><span class="p">:</span> <span class="n">prop</span><span class="p">})</span>
 
     <span class="k">return</span> <span class="n">vor_node_struct</span>
+</div>
+<span class="nd">@requires</span><span class="p">(</span><span class="n">zeo_found</span><span class="p">,</span>
+            <span class="s">&quot;get_voronoi_nodes requires Zeo++ cython extension to be &quot;</span>
+            <span class="s">&quot;installed. Please contact developers of Zeo++ to obtain it.&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="get_free_sphere_params"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.zeoio.get_free_sphere_params">[docs]</a><span class="k">def</span> <span class="nf">get_free_sphere_params</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">rad_dict</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">probe_rad</span><span class="o">=</span><span class="mf">0.1</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Analyze the void space in the input structure using voronoi decomposition</span>
+<span class="sd">    Calls Zeo++ for Voronoi decomposition.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        structure: pymatgen.core.structure.Structure</span>
+<span class="sd">        rad_dict (optional): Dictionary of radii of elements in structure.</span>
+<span class="sd">            If not given, Zeo++ default values are used.</span>
+<span class="sd">            Note: Zeo++ uses atomic radii of elements.</span>
+<span class="sd">            For ionic structures, pass rad_dict with ionic radii</span>
+<span class="sd">        probe_rad (optional): Sampling probe radius in Angstroms. Default is</span>
+<span class="sd">            0.1 A</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        voronoi nodes as pymatgen.core.structure.Strucutre within the</span>
+<span class="sd">        unit cell defined by the lattice of input structure</span>
+<span class="sd">        voronoi face centers as pymatgen.core.structure.Strucutre within the</span>
+<span class="sd">        unit cell defined by the lattice of input structure</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">with</span> <span class="n">ScratchDir</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">):</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="s">&quot;temp_zeo1&quot;</span>
+        <span class="n">zeo_inp_filename</span> <span class="o">=</span> <span class="n">name</span> <span class="o">+</span> <span class="s">&quot;.cssr&quot;</span>
+        <span class="n">ZeoCssr</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span><span class="o">.</span><span class="n">write_file</span><span class="p">(</span><span class="n">zeo_inp_filename</span><span class="p">)</span>
+        <span class="n">rad_file</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">rad_flag</span> <span class="o">=</span> <span class="bp">False</span>
+
+        <span class="k">if</span> <span class="n">rad_dict</span><span class="p">:</span>
+            <span class="n">rad_file</span> <span class="o">=</span> <span class="n">name</span> <span class="o">+</span> <span class="s">&quot;.rad&quot;</span>
+            <span class="n">rad_flag</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">rad_file</span><span class="p">,</span> <span class="s">&#39;w+&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="n">rad_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="n">fp</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;{} {}</span><span class="se">\n</span><span class="s">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">el</span><span class="p">,</span> <span class="n">rad_dict</span><span class="p">[</span><span class="n">el</span><span class="p">]</span><span class="o">.</span><span class="n">real</span><span class="p">))</span>
+
+        <span class="n">atmnet</span> <span class="o">=</span> <span class="n">AtomNetwork</span><span class="o">.</span><span class="n">read_from_CSSR</span><span class="p">(</span>
+                <span class="n">zeo_inp_filename</span><span class="p">,</span> <span class="n">rad_flag</span><span class="o">=</span><span class="n">rad_flag</span><span class="p">,</span> <span class="n">rad_file</span><span class="o">=</span><span class="n">rad_file</span><span class="p">)</span>
+        <span class="n">out_file</span> <span class="o">=</span> <span class="s">&quot;temp.res&quot;</span>
+        <span class="n">atmnet</span><span class="o">.</span><span class="n">calculate_free_sphere_parameters</span><span class="p">(</span><span class="n">out_file</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">out_file</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getsize</span><span class="p">(</span><span class="n">out_file</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">out_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+                <span class="n">output</span> <span class="o">=</span> <span class="n">fp</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="s">&quot;&quot;</span> 
+    <span class="n">fields</span> <span class="o">=</span>  <span class="p">[</span><span class="n">val</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">output</span><span class="o">.</span><span class="n">split</span><span class="p">()][</span><span class="mi">1</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">fields</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">field</span><span class="p">)</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">]</span>
+        <span class="n">free_sphere_params</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;inc_sph_max_dia&#39;</span><span class="p">:</span><span class="n">fields</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                              <span class="s">&#39;free_sph_max_dia&#39;</span><span class="p">:</span><span class="n">fields</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                              <span class="s">&#39;inc_sph_along_free_sph_path_max_dia&#39;</span><span class="p">:</span><span class="n">fields</span><span class="p">[</span><span class="mi">2</span><span class="p">]}</span>
+    <span class="k">return</span> <span class="n">free_sphere_params</span>
+
 
 <span class="c"># Deprecated. Not needed anymore</span></div>
 <div class="viewcode-block" id="get_void_volume_surfarea"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.zeoio.get_void_volume_surfarea">[docs]</a><span class="k">def</span> <span class="nf">get_void_volume_surfarea</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">rad_dict</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">chan_rad</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span>
@@ -506,7 +563,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.0.13 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.1.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

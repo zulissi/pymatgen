@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.vaspio.vasp_output &mdash; pymatgen 3.0.13 documentation</title>
+    <title>pymatgen.io.vaspio.vasp_output &mdash; pymatgen 3.1.0 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '3.0.13',
+        VERSION:     '3.1.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.0.13 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 3.1.0 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 3.0.13 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 3.1.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -92,6 +92,7 @@
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 
 <span class="kn">from</span> <span class="nn">monty.io</span> <span class="kn">import</span> <span class="n">zopen</span><span class="p">,</span> <span class="n">reverse_readfile</span>
+<span class="kn">from</span> <span class="nn">monty.re</span> <span class="kn">import</span> <span class="n">regrep</span>
 <span class="kn">from</span> <span class="nn">monty.json</span> <span class="kn">import</span> <span class="n">jsanitize</span>
 
 <span class="kn">from</span> <span class="nn">pymatgen.util.io_utils</span> <span class="kn">import</span> <span class="n">clean_lines</span><span class="p">,</span> <span class="n">micro_pyawk</span>
@@ -1023,15 +1024,23 @@
         <span class="n">pdoss</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">partial</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;partial&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">partial</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">orbs</span> <span class="o">=</span> <span class="p">[</span><span class="n">ss</span><span class="o">.</span><span class="n">text</span> <span class="k">for</span> <span class="n">ss</span> <span class="ow">in</span> <span class="n">partial</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;array&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">&quot;field&quot;</span><span class="p">)]</span>
+            <span class="n">orbs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">lm</span> <span class="o">=</span> <span class="nb">any</span><span class="p">([</span><span class="s">&quot;x&quot;</span> <span class="ow">in</span> <span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">orbs</span><span class="p">])</span>
             <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">partial</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;array&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;set&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">&quot;set&quot;</span><span class="p">):</span>
                 <span class="n">pdos</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
+
                 <span class="k">for</span> <span class="n">ss</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s">&quot;set&quot;</span><span class="p">):</span>
                     <span class="n">spin</span> <span class="o">=</span> <span class="n">Spin</span><span class="o">.</span><span class="n">up</span> <span class="k">if</span> <span class="n">ss</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s">&quot;comment&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;spin 1&quot;</span> <span class="k">else</span> \
                         <span class="n">Spin</span><span class="o">.</span><span class="n">down</span>
                     <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">_parse_varray</span><span class="p">(</span><span class="n">ss</span><span class="p">))</span>
                     <span class="n">nrow</span><span class="p">,</span> <span class="n">ncol</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span>
                     <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">ncol</span><span class="p">):</span>
-                        <span class="n">pdos</span><span class="p">[</span><span class="n">Orbital</span><span class="o">.</span><span class="n">from_vasp_index</span><span class="p">(</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)][</span><span class="n">spin</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="n">lm</span><span class="p">:</span>
+                            <span class="n">orb</span> <span class="o">=</span> <span class="n">Orbital</span><span class="o">.</span><span class="n">from_vasp_index</span><span class="p">(</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">orb</span> <span class="o">=</span> <span class="n">orbs</span><span class="p">[</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+                        <span class="n">pdos</span><span class="p">[</span><span class="n">orb</span><span class="p">][</span><span class="n">spin</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span>
                 <span class="n">pdoss</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pdos</span><span class="p">)</span>
         <span class="n">elem</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">Dos</span><span class="p">(</span><span class="n">efermi</span><span class="p">,</span> <span class="n">energies</span><span class="p">,</span> <span class="n">tdensities</span><span class="p">),</span> \
@@ -1202,7 +1211,71 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">efermi</span> <span class="o">=</span> <span class="n">efermi</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">nelect</span> <span class="o">=</span> <span class="n">nelect</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">total_mag</span> <span class="o">=</span> <span class="n">total_mag</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{}</span>
 
+<div class="viewcode-block" id="Outcar.read_pattern"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Outcar.read_pattern">[docs]</a>    <span class="k">def</span> <span class="nf">read_pattern</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patterns</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">terminate_on_match</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+                     <span class="n">postprocess</span><span class="o">=</span><span class="nb">str</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        General pattern reading. Uses monty&#39;s regrep method. Takes the same</span>
+<span class="sd">        arguments.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            patterns (dict): A dict of patterns, e.g.,</span>
+<span class="sd">                {&quot;energy&quot;: &quot;energy\(sigma-&gt;0\)\s+=\s+([\d\-\.]+)&quot;}.</span>
+<span class="sd">            reverse (bool): Read files in reverse. Defaults to false. Useful for</span>
+<span class="sd">                large files, esp OUTCARs, especially when used with</span>
+<span class="sd">                terminate_on_match.</span>
+<span class="sd">            terminate_on_match (bool): Whether to terminate when there is at</span>
+<span class="sd">                least one match in each key in pattern.</span>
+<span class="sd">            postprocess (callable): A post processing function to convert all</span>
+<span class="sd">                matches. Defaults to str, i.e., no change.</span>
+
+<span class="sd">        Renders accessible:</span>
+<span class="sd">            Any attribute in patterns. For example,</span>
+<span class="sd">            {&quot;energy&quot;: &quot;energy\(sigma-&gt;0\)\s+=\s+([\d\-\.]+)&quot;} will set the</span>
+<span class="sd">            value of self.data[&quot;energy&quot;] = [[-1234], [-3453], ...], to the</span>
+<span class="sd">            results from regex and postprocess. Note that the returned values</span>
+<span class="sd">            are lists of lists, because you can grep multiple items on one line.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">matches</span> <span class="o">=</span> <span class="n">regrep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="n">patterns</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="n">reverse</span><span class="p">,</span>
+                         <span class="n">terminate_on_match</span><span class="o">=</span><span class="n">terminate_on_match</span><span class="p">,</span>
+                         <span class="n">postprocess</span><span class="o">=</span><span class="n">postprocess</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">patterns</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">matches</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="p">[])]</span>
+</div>
+<div class="viewcode-block" id="Outcar.read_neb"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Outcar.read_neb">[docs]</a>    <span class="k">def</span> <span class="nf">read_neb</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">terminate_on_match</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reads NEB data. This only works with OUTCARs from both normal</span>
+<span class="sd">        VASP NEB calculations or from the CI NEB method implemented by</span>
+<span class="sd">        Henkelman et al.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            reverse (bool): Read files in reverse. Defaults to false. Useful for</span>
+<span class="sd">                large files, esp OUTCARs, especially when used with</span>
+<span class="sd">                terminate_on_match. Defaults to True here since we usually</span>
+<span class="sd">                want only the final value.</span>
+<span class="sd">            terminate_on_match (bool): Whether to terminate when there is at</span>
+<span class="sd">                least one match in each key in pattern. Defaults to True here</span>
+<span class="sd">                since we usually want only the final value.</span>
+
+<span class="sd">        Renders accessible:</span>
+<span class="sd">            tangent_force - Final tangent force.</span>
+<span class="sd">            energy - Final energy.</span>
+<span class="sd">            These can be accessed under Outcar.data[key]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">patterns</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&quot;energy&quot;</span><span class="p">:</span> <span class="s">&quot;energy\(sigma-&gt;0\)\s+=\s+([\d\-\.]+)&quot;</span><span class="p">,</span>
+            <span class="s">&quot;tangent_force&quot;</span><span class="p">:</span> <span class="s">&quot;(NEB: projections on to tangent \(&quot;</span> \
+                <span class="s">&quot;spring, REAL\)\s+\S+|tangential force \(eV/A\))\s+([&quot;</span>
+                                   <span class="s">&quot;\d\-\.]+)&quot;</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">read_pattern</span><span class="p">(</span><span class="n">patterns</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="n">reverse</span><span class="p">,</span>
+                          <span class="n">terminate_on_match</span><span class="o">=</span><span class="n">terminate_on_match</span><span class="p">,</span>
+                          <span class="n">postprocess</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;energy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;energy&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&quot;tangent_force&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;tangent_force&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s">&quot;tangent_force&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>
+</div>
 <div class="viewcode-block" id="Outcar.read_igpar"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Outcar.read_igpar">[docs]</a>    <span class="k">def</span> <span class="nf">read_igpar</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Renders accessible:</span>
@@ -1443,7 +1516,6 @@
 
         <span class="k">except</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;LEPSILON OUTCAR could not be parsed.&quot;</span><span class="p">)</span>
-
 </div>
 <div class="viewcode-block" id="Outcar.read_lepsilon_ionic"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Outcar.read_lepsilon_ionic">[docs]</a>    <span class="k">def</span> <span class="nf">read_lepsilon_ionic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c"># variables to be filled</span>
@@ -1531,7 +1603,6 @@
 
         <span class="k">except</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&quot;ionic part of LEPSILON OUTCAR could not be parsed.&quot;</span><span class="p">)</span>
-
 </div>
 <div class="viewcode-block" id="Outcar.read_lcalcpol"><a class="viewcode-back" href="../../../../pymatgen.io.vaspio.html#pymatgen.io.vaspio.vasp_output.Outcar.read_lcalcpol">[docs]</a>    <span class="k">def</span> <span class="nf">read_lcalcpol</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c"># variables to be filled</span>
@@ -2436,7 +2507,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 3.0.13 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 3.1.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

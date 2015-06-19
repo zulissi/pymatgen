@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.core.surface &mdash; pymatgen 3.0.13 documentation</title>
+    <title>pymatgen.core.surface &mdash; pymatgen 3.1.0 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '3.0.13',
+        VERSION:     '3.1.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.0.13 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 3.1.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.0.13 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.1.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -368,7 +368,7 @@
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial_structure</span><span class="p">,</span> <span class="n">miller_index</span><span class="p">,</span> <span class="n">min_slab_size</span><span class="p">,</span>
                  <span class="n">min_vacuum_size</span><span class="p">,</span> <span class="n">lll_reduce</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">center_slab</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
-                 <span class="n">primitive</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+                 <span class="n">primitive</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">max_normal_search</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Calculates the slab scale factor and uses it to generate a unit cell</span>
 <span class="sd">        of the initial structure that has been oriented by its miller index.</span>
@@ -391,6 +391,18 @@
 <span class="sd">                from a primitive cell, it simply means that after slab</span>
 <span class="sd">                generation, we attempt to find shorter lattice vectors,</span>
 <span class="sd">                which lead to less surface area and smaller cells).</span>
+<span class="sd">            max_normal_search (int): If set to a positive integer, the code will</span>
+<span class="sd">                conduct a search for a normal lattice vector that is as</span>
+<span class="sd">                perpendicular to the surface as possible by considering</span>
+<span class="sd">                multiples linear combinations of lattice vectors up to</span>
+<span class="sd">                max_normal_search. This has no bearing on surface energies,</span>
+<span class="sd">                but may be useful as a preliminary step to generating slabs</span>
+<span class="sd">                for absorption and other sizes. It is typical that this will</span>
+<span class="sd">                not be the smallest possible cell for simulation. Normality</span>
+<span class="sd">                is not guaranteed, but the oriented cell will have the c</span>
+<span class="sd">                vector as normal as possible (within the search range) to the</span>
+<span class="sd">                surface. A value of up to the max absolute Miller index is</span>
+<span class="sd">                usually sufficient.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">latt</span> <span class="o">=</span> <span class="n">initial_structure</span><span class="o">.</span><span class="n">lattice</span>
         <span class="n">d</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="nb">reduce</span><span class="p">(</span><span class="n">gcd</span><span class="p">,</span> <span class="n">miller_index</span><span class="p">))</span>
@@ -429,7 +441,23 @@
                 <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">slab_scale_factor</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
                     <span class="k">break</span>
 
-        <span class="n">slab_scale_factor</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">eye</span><span class="p">[</span><span class="n">c_index</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">max_normal_search</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">slab_scale_factor</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">eye</span><span class="p">[</span><span class="n">c_index</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">index_range</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="n">max_normal_search</span><span class="p">,</span> <span class="n">max_normal_search</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="n">candidates</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="n">index_range</span><span class="p">,</span> <span class="n">index_range</span><span class="p">,</span>
+                                             <span class="n">index_range</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">k</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">latt</span><span class="o">.</span><span class="n">matrix</span><span class="p">,</span> <span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">])</span>
+                <span class="n">l</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+                <span class="n">cosine</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">normal</span><span class="p">)</span> <span class="o">/</span> <span class="n">l</span><span class="p">)</span>
+                <span class="n">candidates</span><span class="o">.</span><span class="n">append</span><span class="p">(((</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">),</span> <span class="n">cosine</span><span class="p">,</span> <span class="n">l</span><span class="p">))</span>
+            <span class="c"># We want the indices with the maximum absolute cosine,</span>
+            <span class="c"># but smallest possible length.</span>
+            <span class="n">m</span><span class="p">,</span> <span class="n">cosine</span><span class="p">,</span> <span class="n">l</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">candidates</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="o">-</span><span class="n">l</span><span class="p">))</span>
+            <span class="n">slab_scale_factor</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
 
         <span class="n">slab_scale_factor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">slab_scale_factor</span><span class="p">)</span>
 
@@ -770,7 +798,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.0.13 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.1.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

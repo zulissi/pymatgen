@@ -1131,6 +1131,9 @@
 <span class="sd">        &quot;Maximum memory used (kb)&quot;, &quot;Average memory used (kb)&quot;,</span>
 <span class="sd">        &quot;User time (sec)&quot;.</span>
 
+<span class="sd">    .. attribute:: elastic_tensor</span>
+<span class="sd">        Total elastic moduli (Kbar) is given in a 6x6 array matrix.</span>
+
 <span class="sd">    One can then call a specific reader depending on the type of run being</span>
 <span class="sd">    performed. These are currently: read_igpar(), read_lepsilon() and</span>
 <span class="sd">    read_lcalcpol(), read_core_state_eign().</span>
@@ -1151,11 +1154,14 @@
         <span class="n">total_mag</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="n">nelect</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="n">efermi</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">elastic_tensor</span> <span class="o">=</span> <span class="bp">None</span>
 
         <span class="n">time_patt</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&quot;\((sec|kb)\)&quot;</span><span class="p">)</span>
         <span class="n">efermi_patt</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&quot;E-fermi\s*:\s*(\S+)&quot;</span><span class="p">)</span>
         <span class="n">nelect_patt</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&quot;number of electron\s+(\S+)\s+&quot;</span>
                                  <span class="s">&quot;magnetization\s+(\S+)&quot;</span><span class="p">)</span>
+        <span class="n">etensor_patt</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&quot;[X-Z][X-Z]+\s+-?\d+&quot;</span><span class="p">)</span>
+        
         <span class="n">all_lines</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">reverse_readfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filename</span><span class="p">):</span>
             <span class="n">clean</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
@@ -1225,12 +1231,28 @@
                     <span class="n">run_stats</span><span class="p">[</span><span class="s">&#39;cores&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
                     <span class="k">break</span>
 
+        <span class="c"># 6x6 tensor matrix for TOTAL ELASTIC MODULI</span>
+        <span class="n">tensor_matrix</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">tag</span> <span class="o">=</span> <span class="s">&quot;TOTAL ELASTIC MODULI (kBar)&quot;</span>
+        <span class="k">if</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">all_lines</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">clean</span> <span class="ow">in</span> <span class="n">all_lines</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">etensor_patt</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">clean</span><span class="p">):</span>
+                    <span class="n">tok</span> <span class="o">=</span> <span class="n">clean</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                    <span class="n">tok</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                    <span class="n">tok</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">tok</span><span class="p">]</span>
+                    <span class="n">tensor_matrix</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tok</span><span class="p">)</span>
+            <span class="n">total_elm</span> <span class="o">=</span> <span class="p">[</span><span class="n">tensor_matrix</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">18</span><span class="p">,</span> <span class="mi">24</span><span class="p">)]</span>
+            <span class="n">elastic_tensor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">total_elm</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">pass</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">run_stats</span> <span class="o">=</span> <span class="n">run_stats</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">magnetization</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">mag</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">charge</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">charge</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">efermi</span> <span class="o">=</span> <span class="n">efermi</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">nelect</span> <span class="o">=</span> <span class="n">nelect</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">total_mag</span> <span class="o">=</span> <span class="n">total_mag</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">elastic_tensor</span> <span class="o">=</span> <span class="n">elastic_tensor</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="p">{}</span>
 
 <div class="viewcode-block" id="Outcar.read_pattern"><a class="viewcode-back" href="../../../../pymatgen.io.vasp.html#pymatgen.io.vasp.outputs.Outcar.read_pattern">[docs]</a>    <span class="k">def</span> <span class="nf">read_pattern</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patterns</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">terminate_on_match</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>

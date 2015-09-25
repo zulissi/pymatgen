@@ -23,7 +23,7 @@
     <script type="text/javascript" src="../../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
-    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
     <link rel="top" title="pymatgen 3.2.1 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
@@ -35,8 +35,8 @@
 </script>
 
   </head>
-  <body role="document">
-    <div class="related" role="navigation" aria-label="related navigation">
+  <body>
+    <div class="related">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -45,15 +45,15 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.2.1 documentation</a> &raquo;</li>
-          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+        <li><a href="../../../index.html">pymatgen 3.2.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body" role="main">
+          <div class="body">
             
   <h1>Source code for pymatgen.io.nwchem</h1><div class="highlight"><pre>
 <span class="c"># coding: utf-8</span>
@@ -64,8 +64,17 @@
 
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">This module implements input and output processing from Nwchem.</span>
-<span class="sd">&quot;&quot;&quot;</span>
 
+<span class="sd">2015/09/21 - Xin Chen (chenxin13@mails.tsinghua.edu.cn):</span>
+
+<span class="sd">    NwOutput will read new kinds of data:</span>
+<span class="sd">        1. normal hessian matrix.       [&quot;hessian&quot;]</span>
+<span class="sd">        2. projected hessian matrix.    [&quot;projected_hessian&quot;]</span>
+<span class="sd">        3. normal frequencies.          [&quot;normal_frequencies&quot;]</span>
+
+<span class="sd">    For backward compatibility, the key for accessing the projected frequencies</span>
+<span class="sd">    is still &#39;frequencies&#39;.</span>
+<span class="sd">&quot;&quot;&quot;</span>
 
 <span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong&quot;</span>
 <span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot;Copyright 2012, The Materials Project&quot;</span>
@@ -73,6 +82,7 @@
 <span class="n">__maintainer__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong&quot;</span>
 <span class="n">__email__</span> <span class="o">=</span> <span class="s">&quot;shyuep@gmail.com&quot;</span>
 <span class="n">__date__</span> <span class="o">=</span> <span class="s">&quot;6/5/13&quot;</span>
+
 
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">from</span> <span class="nn">string</span> <span class="kn">import</span> <span class="n">Template</span>
@@ -360,12 +370,12 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">memory_options</span> <span class="o">=</span> <span class="n">memory_options</span>
 
     <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">molecule</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="NwInput.molecule"><a class="viewcode-back" href="../../../pymatgen.io.html#pymatgen.io.nwchem.NwInput.molecule">[docs]</a>    <span class="k">def</span> <span class="nf">molecule</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns molecule associated with this GaussianInput.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mol</span>
-
+</div>
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">o</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">memory_options</span><span class="p">:</span>
@@ -550,21 +560,12 @@
 
     <span class="k">def</span> <span class="nf">_parse_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output</span><span class="p">):</span>
         <span class="n">energy_patt</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&quot;Total \w+ energy\s+=\s+([\.\-\d]+)&quot;</span><span class="p">)</span>
-
-        <span class="c">#In cosmo solvation results; gas phase energy = -152.5044774212</span>
-
         <span class="n">energy_gas_patt</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&quot;gas phase energy\s+=\s+([\.\-\d]+)&quot;</span><span class="p">)</span>
-
-        <span class="c">#In cosmo solvation results; sol phase energy = -152.5044774212</span>
-
         <span class="n">energy_sol_patt</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&quot;sol phase energy\s+=\s+([\.\-\d]+)&quot;</span><span class="p">)</span>
-
         <span class="n">coord_patt</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&quot;\d+\s+(\w+)\s+[\.\-\d]+\s+([\.\-\d]+)\s+&quot;</span>
                                 <span class="s">&quot;([\.\-\d]+)\s+([\.\-\d]+)&quot;</span><span class="p">)</span>
-
         <span class="n">lat_vector_patt</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&quot;a[123]=&lt;\s+([\.\-\d]+)\s+&quot;</span>
                                      <span class="s">&quot;([\.\-\d]+)\s+([\.\-\d]+)\s+&gt;&quot;</span><span class="p">)</span>
-
         <span class="n">corrections_patt</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&quot;([\w\-]+ correction to \w+)\s+=&quot;</span>
                                       <span class="s">&quot;\s+([\.\-\d]+)&quot;</span><span class="p">)</span>
         <span class="n">preamble_patt</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&quot;(No. of atoms|No. of electrons&quot;</span>
@@ -576,9 +577,21 @@
             <span class="s">&quot;geom_binvr: #indep variables incorrect&quot;</span><span class="p">:</span> <span class="s">&quot;autoz error&quot;</span><span class="p">,</span>
             <span class="s">&quot;dft optimize failed&quot;</span><span class="p">:</span> <span class="s">&quot;Geometry optimization failed&quot;</span><span class="p">}</span>
 
+        <span class="c"># A function for conveting 1.222D0 to 1.222e0.</span>
+        <span class="n">fd2e</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span> <span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&quot;D&quot;</span><span class="p">,</span> <span class="s">&quot;e&quot;</span><span class="p">)</span>
+
+        <span class="c"># A simple function for check if the given one is an ``int string``.</span>
+        <span class="n">is_int</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">s</span> <span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;.&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span>
+
+        <span class="n">parse_hess</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">parse_proj_hess</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">hessian</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">projected_hessian</span> <span class="o">=</span> <span class="bp">None</span>
+
         <span class="n">data</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">energies</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">frequencies</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">normal_frequencies</span> <span class="o">=</span> <span class="bp">None</span>
         <span class="n">corrections</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">molecules</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">structures</span> <span class="o">=</span> <span class="p">[]</span>
@@ -591,6 +604,7 @@
         <span class="n">parse_geom</span> <span class="o">=</span> <span class="bp">False</span>
         <span class="n">parse_freq</span> <span class="o">=</span> <span class="bp">False</span>
         <span class="n">parse_bset</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">parse_projected_freq</span> <span class="o">=</span> <span class="bp">False</span>
         <span class="n">job_type</span> <span class="o">=</span> <span class="s">&quot;&quot;</span>
         <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">output</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">):</span>
             <span class="k">for</span> <span class="n">e</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">error_defs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
@@ -619,14 +633,27 @@
                                         <span class="nb">float</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">3</span><span class="p">))])</span>
             <span class="k">if</span> <span class="n">parse_freq</span><span class="p">:</span>
                 <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">frequencies</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">normal_frequencies</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                         <span class="k">continue</span>
                     <span class="k">else</span><span class="p">:</span>
                         <span class="n">parse_freq</span> <span class="o">=</span> <span class="bp">False</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">vibs</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">vib</span><span class="p">)</span> <span class="k">for</span> <span class="n">vib</span> <span class="ow">in</span> <span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]]</span>
                     <span class="n">num_vibs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">vibs</span><span class="p">)</span>
-                    <span class="k">for</span> <span class="n">mode</span><span class="p">,</span> <span class="n">dis</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">frequencies</span><span class="p">[</span><span class="o">-</span><span class="n">num_vibs</span><span class="p">:],</span> <span class="n">vibs</span><span class="p">):</span>
+                    <span class="k">for</span> <span class="n">mode</span><span class="p">,</span> <span class="n">dis</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">normal_frequencies</span><span class="p">[</span><span class="o">-</span><span class="n">num_vibs</span><span class="p">:],</span> <span class="n">vibs</span><span class="p">):</span>
+                        <span class="n">mode</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dis</span><span class="p">)</span>
+
+            <span class="k">elif</span> <span class="n">parse_projected_freq</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">frequencies</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">parse_projected_freq</span> <span class="o">=</span> <span class="bp">False</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">vibs</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">vib</span><span class="p">)</span> <span class="k">for</span> <span class="n">vib</span> <span class="ow">in</span> <span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]]</span>
+                    <span class="n">num_vibs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">vibs</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">mode</span><span class="p">,</span> <span class="n">dis</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+                            <span class="n">frequencies</span><span class="p">[</span><span class="o">-</span><span class="n">num_vibs</span><span class="p">:],</span> <span class="n">vibs</span><span class="p">):</span>
                         <span class="n">mode</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dis</span><span class="p">)</span>
 
             <span class="k">elif</span> <span class="n">parse_bset</span><span class="p">:</span>
@@ -641,6 +668,51 @@
                         <span class="n">bset_header</span> <span class="o">=</span> <span class="n">toks</span>
                         <span class="n">bset_header</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
                         <span class="n">bset_header</span> <span class="o">=</span> <span class="p">[</span><span class="n">h</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">bset_header</span><span class="p">]</span>
+
+            <span class="k">elif</span> <span class="n">parse_hess</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;&quot;</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">hessian</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">l</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;----------&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                    <span class="n">parse_hess</span> <span class="o">=</span> <span class="bp">False</span>
+                    <span class="k">continue</span>
+                <span class="n">toks</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">toks</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">row</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">toks</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="n">is_int</span><span class="p">(</span><span class="n">toks</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                        <span class="k">continue</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">vals</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">fd2e</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">toks</span><span class="p">[</span><span class="mi">1</span><span class="p">:]]</span>
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="k">print</span><span class="p">(</span><span class="n">l</span><span class="p">)</span>
+                        <span class="k">raise</span> <span class="n">e</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">hessian</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">row</span><span class="p">:</span>
+                        <span class="n">hessian</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">hessian</span><span class="p">[</span><span class="n">row</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span>
+
+            <span class="k">elif</span> <span class="n">parse_proj_hess</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">==</span> <span class="s">&quot;&quot;</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">nat3</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">hessian</span><span class="p">)</span>
+                <span class="n">toks</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">toks</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">row</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">toks</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="n">is_int</span><span class="p">(</span><span class="n">toks</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                        <span class="k">continue</span>
+                    <span class="n">vals</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">fd2e</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">toks</span><span class="p">[</span><span class="mi">1</span><span class="p">:]]</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">projected_hessian</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">row</span><span class="p">:</span>
+                        <span class="n">projected_hessian</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">projected_hessian</span><span class="p">[</span><span class="n">row</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">projected_hessian</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">==</span> <span class="n">nat3</span><span class="p">:</span>
+                        <span class="n">parse_proj_hess</span> <span class="o">=</span> <span class="bp">False</span>
+
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">m</span> <span class="o">=</span> <span class="n">energy_patt</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">l</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
@@ -674,11 +746,29 @@
                 <span class="k">elif</span> <span class="n">l</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;Summary of </span><span class="se">\&quot;</span><span class="s">ao basis</span><span class="se">\&quot;</span><span class="s">&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
                     <span class="n">parse_bset</span> <span class="o">=</span> <span class="bp">True</span>
                 <span class="k">elif</span> <span class="n">l</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;P.Frequency&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
-                    <span class="n">parse_freq</span> <span class="o">=</span> <span class="bp">True</span>
-                    <span class="k">if</span> <span class="ow">not</span> <span class="n">frequencies</span><span class="p">:</span>
+                    <span class="n">parse_projected_freq</span> <span class="o">=</span> <span class="bp">True</span>
+                    <span class="k">if</span> <span class="n">frequencies</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
                         <span class="n">frequencies</span> <span class="o">=</span> <span class="p">[]</span>
-                    <span class="n">frequencies</span><span class="o">.</span><span class="n">extend</span><span class="p">([(</span><span class="nb">float</span><span class="p">(</span><span class="n">freq</span><span class="p">),</span> <span class="p">[])</span> <span class="k">for</span> <span class="n">freq</span>
-                                        <span class="ow">in</span> <span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]])</span>
+                    <span class="n">toks</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]</span>
+                    <span class="n">frequencies</span><span class="o">.</span><span class="n">extend</span><span class="p">([(</span><span class="nb">float</span><span class="p">(</span><span class="n">freq</span><span class="p">),</span> <span class="p">[])</span> <span class="k">for</span> <span class="n">freq</span> <span class="ow">in</span> <span class="n">toks</span><span class="p">])</span>
+
+                <span class="k">elif</span> <span class="n">l</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;Frequency&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                    <span class="n">toks</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">toks</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">toks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s">&quot;Frequency&quot;</span><span class="p">:</span>
+                        <span class="n">parse_freq</span> <span class="o">=</span> <span class="bp">True</span>
+                        <span class="k">if</span> <span class="n">normal_frequencies</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                            <span class="n">normal_frequencies</span> <span class="o">=</span> <span class="p">[]</span>
+                        <span class="n">normal_frequencies</span><span class="o">.</span><span class="n">extend</span><span class="p">([(</span><span class="nb">float</span><span class="p">(</span><span class="n">freq</span><span class="p">),</span> <span class="p">[])</span> <span class="k">for</span> <span class="n">freq</span>
+                                                   <span class="ow">in</span> <span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]])</span>
+
+                <span class="k">elif</span> <span class="n">l</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;MASS-WEIGHTED NUCLEAR HESSIAN&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                    <span class="n">parse_hess</span> <span class="o">=</span> <span class="bp">True</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">hessian</span><span class="p">:</span>
+                        <span class="n">hessian</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">elif</span> <span class="n">l</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;MASS-WEIGHTED PROJECTED HESSIAN&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                    <span class="n">parse_proj_hess</span> <span class="o">=</span> <span class="bp">True</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">projected_hessian</span><span class="p">:</span>
+                        <span class="n">projected_hessian</span> <span class="o">=</span> <span class="p">[]</span>
                 <span class="k">elif</span> <span class="n">job_type</span> <span class="o">==</span> <span class="s">&quot;&quot;</span> <span class="ow">and</span> <span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&quot;NWChem&quot;</span><span class="p">):</span>
                     <span class="n">job_type</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
                     <span class="k">if</span> <span class="n">job_type</span> <span class="o">==</span> <span class="s">&quot;NWChem DFT Module&quot;</span> <span class="ow">and</span> \
@@ -689,9 +779,24 @@
                     <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
                         <span class="n">corrections</span><span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span> <span class="o">=</span> <span class="n">FloatWithUnit</span><span class="p">(</span>
                             <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="s">&quot;kJ mol^-1&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s">&quot;eV atom^-1&quot;</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="n">frequencies</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">freq</span><span class="p">,</span> <span class="n">mode</span> <span class="ow">in</span> <span class="n">frequencies</span><span class="p">:</span>
                 <span class="n">mode</span><span class="p">[:]</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="nb">iter</span><span class="p">(</span><span class="n">mode</span><span class="p">)]</span><span class="o">*</span><span class="mi">3</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">normal_frequencies</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">freq</span><span class="p">,</span> <span class="n">mode</span> <span class="ow">in</span> <span class="n">normal_frequencies</span><span class="p">:</span>
+                <span class="n">mode</span><span class="p">[:]</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="nb">iter</span><span class="p">(</span><span class="n">mode</span><span class="p">)]</span><span class="o">*</span><span class="mi">3</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">hessian</span><span class="p">:</span>
+            <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">hessian</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+                    <span class="n">hessian</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">hessian</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">i</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">projected_hessian</span><span class="p">:</span>
+            <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">projected_hessian</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+                    <span class="n">projected_hessian</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">projected_hessian</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">i</span><span class="p">])</span>
+
         <span class="n">data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s">&quot;job_type&quot;</span><span class="p">:</span> <span class="n">job_type</span><span class="p">,</span> <span class="s">&quot;energies&quot;</span><span class="p">:</span> <span class="n">energies</span><span class="p">,</span>
                      <span class="s">&quot;corrections&quot;</span><span class="p">:</span> <span class="n">corrections</span><span class="p">,</span>
                      <span class="s">&quot;molecules&quot;</span><span class="p">:</span> <span class="n">molecules</span><span class="p">,</span>
@@ -699,7 +804,10 @@
                      <span class="s">&quot;basis_set&quot;</span><span class="p">:</span> <span class="n">basis_set</span><span class="p">,</span>
                      <span class="s">&quot;errors&quot;</span><span class="p">:</span> <span class="n">errors</span><span class="p">,</span>
                      <span class="s">&quot;has_error&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">errors</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span>
-                     <span class="s">&quot;frequencies&quot;</span><span class="p">:</span> <span class="n">frequencies</span><span class="p">})</span>
+                     <span class="s">&quot;frequencies&quot;</span><span class="p">:</span> <span class="n">frequencies</span><span class="p">,</span>
+                     <span class="s">&quot;normal_frequencies&quot;</span><span class="p">:</span> <span class="n">normal_frequencies</span><span class="p">,</span>
+                     <span class="s">&quot;hessian&quot;</span><span class="p">:</span> <span class="n">hessian</span><span class="p">,</span>
+                     <span class="s">&quot;projected_hessian&quot;</span><span class="p">:</span> <span class="n">projected_hessian</span><span class="p">})</span>
 
         <span class="k">return</span> <span class="n">data</span></div>
 </pre></div>
@@ -707,9 +815,9 @@
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+      <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
-<div id="searchbox" style="display: none" role="search">
+<div id="searchbox" style="display: none">
   <h3>Quick search</h3>
     <form class="search" action="../../../search.html" method="get">
       <input type="text" name="q" />
@@ -726,7 +834,7 @@
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="related" role="navigation" aria-label="related navigation">
+    <div class="related">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -735,14 +843,14 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.2.1 documentation</a> &raquo;</li>
-          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &raquo;</li> 
+        <li><a href="../../../index.html">pymatgen 3.2.1 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>
 
-    <div class="footer" role="contentinfo">
+    <div class="footer">
         &copy; Copyright 2011, Shyue Ping Ong, Anubhav Jain, Geoffroy Hautier, William Davidson Richard, Stephen Dacek, Sai Jayaraman, Michael Kocher, Dan Gunter, Shreyas Cholia, Vincent L Chevrier, Rickard Armiento.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.1.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

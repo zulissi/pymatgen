@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.core.surface &mdash; pymatgen 3.2.1 documentation</title>
+    <title>pymatgen.core.surface &mdash; pymatgen 3.2.3 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '3.2.1',
+        VERSION:     '3.2.3',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.2.1 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 3.2.3 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 3.2.1 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 3.2.3 documentation</a> &raquo;</li>
           <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -628,6 +628,33 @@
         <span class="n">shifts</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">shifts</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">shifts</span>
 
+    <span class="k">def</span> <span class="nf">_get_c_ranges</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bonds</span><span class="p">):</span>
+        <span class="n">c_ranges</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="n">bonds</span> <span class="o">=</span> <span class="p">{(</span><span class="n">get_el_sp</span><span class="p">(</span><span class="n">s1</span><span class="p">),</span> <span class="n">get_el_sp</span><span class="p">(</span><span class="n">s2</span><span class="p">)):</span> <span class="n">dist</span> <span class="k">for</span> <span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">),</span> <span class="n">dist</span> <span class="ow">in</span>
+                 <span class="n">bonds</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">sp1</span><span class="p">,</span> <span class="n">sp2</span><span class="p">),</span> <span class="n">bond_dist</span> <span class="ow">in</span> <span class="n">bonds</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">sp1</span> <span class="ow">in</span> <span class="n">site</span><span class="o">.</span><span class="n">species_and_occu</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">nn</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="o">.</span><span class="n">get_neighbors</span><span class="p">(</span>
+                            <span class="n">site</span><span class="p">,</span> <span class="n">bond_dist</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="n">sp2</span> <span class="ow">in</span> <span class="n">nn</span><span class="o">.</span><span class="n">species_and_occu</span><span class="p">:</span>
+                            <span class="n">c_range</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">sorted</span><span class="p">([</span><span class="n">site</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+                                                    <span class="n">nn</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">[</span><span class="mi">2</span><span class="p">]]))</span>
+                            <span class="k">if</span> <span class="n">c_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                                <span class="c"># Takes care of PBC when c coordinate of site</span>
+                                <span class="c"># goes beyond the upper boundary of the cell</span>
+                                <span class="n">c_ranges</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">c_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">))</span>
+                                <span class="n">c_ranges</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="n">c_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+                            <span class="k">elif</span> <span class="n">c_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                                <span class="c"># Takes care of PBC when c coordinate of site</span>
+                                <span class="c"># is below the lower boundary of the unit cell</span>
+                                <span class="n">c_ranges</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="n">c_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+                                <span class="n">c_ranges</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">c_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+                            <span class="k">elif</span> <span class="n">c_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">c_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                                <span class="n">c_ranges</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">c_range</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">c_ranges</span>
+
+
 <div class="viewcode-block" id="SlabGenerator.get_slabs"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.SlabGenerator.get_slabs">[docs]</a>    <span class="k">def</span> <span class="nf">get_slabs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bonds</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">max_broken_bonds</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        This method returns a list of slabs that are generated using the list of</span>
@@ -654,52 +681,12 @@
 <span class="sd">            ([Slab]) List of all possible terminations of a particular surface.</span>
 <span class="sd">            Slabs are sorted by the # of bonds broken.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">def</span> <span class="nf">get_c_ranges</span><span class="p">(</span><span class="n">site1</span><span class="p">,</span> <span class="n">site2</span><span class="p">,</span> <span class="n">bond_dist</span><span class="p">):</span>
-            <span class="n">lattice</span> <span class="o">=</span> <span class="n">site1</span><span class="o">.</span><span class="n">lattice</span>
-            <span class="n">f1</span> <span class="o">=</span> <span class="n">site1</span><span class="o">.</span><span class="n">frac_coords</span>
-            <span class="n">c_ranges</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="n">dist</span><span class="p">,</span> <span class="n">image</span> <span class="ow">in</span> <span class="n">lattice</span><span class="o">.</span><span class="n">get_all_distance_and_image</span><span class="p">(</span>
-                    <span class="n">f1</span><span class="p">,</span> <span class="n">site2</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">):</span>
-                <span class="k">if</span> <span class="n">dist</span> <span class="o">&lt;</span> <span class="n">bond_dist</span><span class="p">:</span>
-                    <span class="n">f2</span> <span class="o">=</span> <span class="n">site2</span><span class="o">.</span><span class="n">frac_coords</span> <span class="o">+</span> <span class="n">image</span>
-                    <span class="c"># Checks if the distance between the two species</span>
-                    <span class="c"># is less then the user input bond distance</span>
-                    <span class="n">min_c</span> <span class="o">=</span> <span class="n">f1</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
-                    <span class="n">max_c</span> <span class="o">=</span> <span class="n">f2</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
-                    <span class="n">c_range</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([</span><span class="n">min_c</span><span class="p">,</span> <span class="n">max_c</span><span class="p">])</span>
-                    <span class="k">if</span> <span class="n">c_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-                        <span class="c"># Takes care of PBC when c coordinate of site</span>
-                        <span class="c"># goes beyond the upper boundary of the cell</span>
-                        <span class="n">c_ranges</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">c_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">1</span><span class="p">))</span>
-                        <span class="n">c_ranges</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="n">c_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
-                    <span class="k">elif</span> <span class="n">c_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
-                        <span class="c"># Takes care of PBC when c coordinate of site</span>
-                        <span class="c"># is below the lower boundary of the unit cell</span>
-                        <span class="n">c_ranges</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="n">c_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
-                        <span class="n">c_ranges</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">c_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="n">c_ranges</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c_range</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">c_ranges</span>
-
-        <span class="n">bond_c_ranges</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">if</span> <span class="n">bonds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-            <span class="c">#Convert to species first</span>
-            <span class="n">bonds</span> <span class="o">=</span> <span class="p">{(</span><span class="n">get_el_sp</span><span class="p">(</span><span class="n">s1</span><span class="p">),</span> <span class="n">get_el_sp</span><span class="p">(</span><span class="n">s2</span><span class="p">)):</span> <span class="n">dist</span> <span class="k">for</span> <span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">),</span> <span class="n">dist</span> <span class="ow">in</span>
-                     <span class="n">bonds</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
-            <span class="k">for</span> <span class="n">s1</span><span class="p">,</span> <span class="n">s2</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">combinations</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="p">,</span> <span class="mi">2</span><span class="p">):</span>
-                <span class="c"># Iterates through every possible pair of species in the</span>
-                <span class="c"># oriented unit cell</span>
-                <span class="n">all_sp</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">s1</span><span class="o">.</span><span class="n">species_and_occu</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-                <span class="n">all_sp</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">s2</span><span class="o">.</span><span class="n">species_and_occu</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-                <span class="k">for</span> <span class="n">species</span><span class="p">,</span> <span class="n">bond_dist</span> <span class="ow">in</span> <span class="n">bonds</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                    <span class="c"># Checks if elements in species is in all_sp</span>
-                    <span class="k">if</span> <span class="n">all_sp</span><span class="o">.</span><span class="n">issuperset</span><span class="p">(</span><span class="n">species</span><span class="p">):</span>
-                        <span class="n">bond_c_ranges</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">get_c_ranges</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">,</span> <span class="n">bond_dist</span><span class="p">))</span>
+        <span class="n">c_ranges</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span> <span class="k">if</span> <span class="n">bonds</span> <span class="ow">is</span> <span class="bp">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_c_ranges</span><span class="p">(</span><span class="n">bonds</span><span class="p">)</span>
 
         <span class="n">slabs</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">shift</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_possible_shifts</span><span class="p">(</span><span class="n">tol</span><span class="o">=</span><span class="n">tol</span><span class="p">):</span>
             <span class="n">bonds_broken</span> <span class="o">=</span> <span class="mi">0</span>
-            <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">bond_c_ranges</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">c_ranges</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">shift</span> <span class="o">&lt;=</span> <span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
                     <span class="n">bonds_broken</span> <span class="o">+=</span> <span class="mi">1</span>
             <span class="k">if</span> <span class="n">bonds_broken</span> <span class="o">&lt;=</span> <span class="n">max_broken_bonds</span><span class="p">:</span>
@@ -758,7 +745,7 @@
 
 </div>
 <div class="viewcode-block" id="generate_all_slabs"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.surface.generate_all_slabs">[docs]</a><span class="k">def</span> <span class="nf">generate_all_slabs</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">max_index</span><span class="p">,</span> <span class="n">min_slab_size</span><span class="p">,</span> <span class="n">min_vacuum_size</span><span class="p">,</span>
-                       <span class="n">bonds</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">max_broken_bonds</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                       <span class="n">bonds</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">,</span> <span class="n">max_broken_bonds</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                        <span class="n">lll_reduce</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">center_slab</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">primitive</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
                        <span class="n">max_normal_search</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -774,13 +761,19 @@
 <span class="sd">                crystallographic definitions, you should supply a conventional</span>
 <span class="sd">                unit cell structure.</span>
 <span class="sd">        max_index (int): The maximum Miller index to go up to.</span>
-<span class="sd">        symprec (float): Tolerance for symmetry finding. Defaults to 1e-3,</span>
-<span class="sd">            which is fairly strict and works well for properly refined</span>
-<span class="sd">            structures with atoms in the proper symmetry coordinates. For</span>
-<span class="sd">            structures with slight deviations from their proper atomic</span>
-<span class="sd">            positions (e.g., structures relaxed with electronic structure</span>
-<span class="sd">            codes), a looser tolerance of 0.1 (the value used in Materials</span>
-<span class="sd">            Project) is often needed.</span>
+<span class="sd">        min_slab_size (float): In Angstroms</span>
+<span class="sd">        min_vac_size (float): In Angstroms</span>
+<span class="sd">        bonds ({(specie1, specie2): max_bond_dist}: bonds are</span>
+<span class="sd">            specified as a dict of tuples: float of specie1, specie2</span>
+<span class="sd">            and the max bonding distance. For example, PO4 groups may be</span>
+<span class="sd">            defined as {(&quot;P&quot;, &quot;O&quot;): 3}.</span>
+<span class="sd">        tol (float): Threshold parameter in fcluster in order to check</span>
+<span class="sd">            if two atoms are lying on the same plane. Default thresh set</span>
+<span class="sd">            to 0.1 Angstrom in the direction of the surface normal.</span>
+<span class="sd">        max_broken_bonds (int): Maximum number of allowable broken bonds</span>
+<span class="sd">            for the slab. Use this to limit # of slabs (some structures</span>
+<span class="sd">            may have a lot of slabs). Defaults to zero, which means no</span>
+<span class="sd">            defined bonds must be broken.</span>
 <span class="sd">        lll_reduce (bool): Whether to perform an LLL reduction on the</span>
 <span class="sd">            eventual structure.</span>
 <span class="sd">        center_slab (bool): Whether to center the slab in the cell with</span>
@@ -850,7 +843,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li><a href="../../../index.html">pymatgen 3.2.1 documentation</a> &raquo;</li>
+        <li><a href="../../../index.html">pymatgen 3.2.3 documentation</a> &raquo;</li>
           <li><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

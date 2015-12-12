@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.analysis.ewald &mdash; pymatgen 3.2.8 documentation</title>
+    <title>pymatgen.analysis.ewald &mdash; pymatgen 3.2.9 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '3.2.8',
+        VERSION:     '3.2.9',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.2.8 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 3.2.9 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.2.8 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.2.9 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -83,7 +83,7 @@
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 
-<span class="kn">from</span> <span class="nn">pymatgen.core.physical_constants</span> <span class="kn">import</span> <span class="n">ELECTRON_CHARGE</span><span class="p">,</span> <span class="n">EPSILON_0</span>
+<span class="kn">import</span> <span class="nn">scipy.constants</span> <span class="kn">as</span> <span class="nn">constants</span>
 
 
 <div class="viewcode-block" id="EwaldSummation"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.ewald.EwaldSummation">[docs]</a><span class="k">class</span> <span class="nc">EwaldSummation</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -101,10 +101,10 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="c"># Converts unit of q*q/r into eV</span>
-    <span class="n">CONV_FACT</span> <span class="o">=</span> <span class="mf">1e10</span> <span class="o">*</span> <span class="n">ELECTRON_CHARGE</span> <span class="o">/</span> <span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="n">pi</span> <span class="o">*</span> <span class="n">EPSILON_0</span><span class="p">)</span>
+    <span class="n">CONV_FACT</span> <span class="o">=</span> <span class="mf">1e10</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">e</span> <span class="o">/</span> <span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="n">pi</span> <span class="o">*</span> <span class="n">constants</span><span class="o">.</span><span class="n">epsilon_0</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">real_space_cut</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">recip_space_cut</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
-                 <span class="n">eta</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">acc_factor</span><span class="o">=</span><span class="mf">8.0</span><span class="p">):</span>
+                 <span class="n">eta</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">acc_factor</span><span class="o">=</span><span class="mf">12.0</span><span class="p">,</span> <span class="n">w</span><span class="o">=</span><span class="mi">1</span><span class="o">/</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span><span class="p">)):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initializes and calculates the Ewald sum. Default convergence</span>
 <span class="sd">        parameters have been specified, but you can override them if you wish.</span>
@@ -124,15 +124,21 @@
 <span class="sd">                determine automatically.</span>
 <span class="sd">            acc_factor (float): No. of significant figures each sum is</span>
 <span class="sd">                converged to.</span>
+<span class="sd">            w (float): Weight parameter, w, has been included that represents</span>
+<span class="sd">                the relative computational expense of calculating a term in</span>
+<span class="sd">                real and reciprocal space. Default of 0.7 reproduces result</span>
+<span class="sd">                similar to GULP 4.2. This has little effect on the total</span>
+<span class="sd">                energy, but may influence speed of computation in large</span>
+<span class="sd">                systems. Note that this parameter is used only when the</span>
+<span class="sd">                cutoffs are set to None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_s</span> <span class="o">=</span> <span class="n">structure</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_vol</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">volume</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_acc_factor</span> <span class="o">=</span> <span class="n">acc_factor</span>
-
         <span class="c"># set screening length</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_eta</span> <span class="o">=</span> <span class="n">eta</span> <span class="k">if</span> <span class="n">eta</span> \
-            <span class="k">else</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.01</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vol</span><span class="p">)</span> <span class="o">**</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="n">pi</span>
+            <span class="k">else</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span> <span class="o">*</span> <span class="n">w</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_vol</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span> <span class="o">**</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="n">pi</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_sqrt_eta</span> <span class="o">=</span> <span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_eta</span><span class="p">)</span>
 
         <span class="c"># acc factor used to automatically determine the optimal real and</span>
@@ -309,41 +315,42 @@
         <span class="n">recip_nn</span> <span class="o">=</span> <span class="n">rcp_latt</span><span class="o">.</span><span class="n">get_points_in_sphere</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
                                                  <span class="bp">self</span><span class="o">.</span><span class="n">_gmax</span><span class="p">)</span>
 
-        <span class="n">frac_to_cart</span> <span class="o">=</span> <span class="n">rcp_latt</span><span class="o">.</span><span class="n">get_cartesian_coords</span>
+        <span class="n">frac_coords</span> <span class="o">=</span> <span class="p">[</span><span class="n">fcoords</span> <span class="k">for</span> <span class="p">(</span><span class="n">fcoords</span><span class="p">,</span> <span class="n">dist</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span> <span class="ow">in</span> <span class="n">recip_nn</span> <span class="k">if</span> <span class="n">dist</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">gs</span> <span class="o">=</span> <span class="n">rcp_latt</span><span class="o">.</span><span class="n">get_cartesian_coords</span><span class="p">(</span><span class="n">frac_coords</span><span class="p">)</span>
+        <span class="n">g2s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">gs</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">expvals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">g2s</span> <span class="o">/</span> <span class="p">(</span><span class="mi">4</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eta</span><span class="p">))</span>
+        <span class="n">grs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">gs</span><span class="p">[:,</span> <span class="bp">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">coords</span><span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="p">:],</span> <span class="mi">2</span><span class="p">)</span>
 
         <span class="n">oxistates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_oxi_states</span><span class="p">)</span>
+
         <span class="c">#create array where q_2[i,j] is qi * qj</span>
         <span class="n">qiqj</span> <span class="o">=</span> <span class="n">oxistates</span><span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="n">oxistates</span><span class="p">[:,</span> <span class="bp">None</span><span class="p">]</span>
 
-        <span class="k">for</span> <span class="p">(</span><span class="n">fcoords</span><span class="p">,</span> <span class="n">dist</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span> <span class="ow">in</span> <span class="n">recip_nn</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">dist</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="k">continue</span>
-            <span class="n">gvect</span> <span class="o">=</span> <span class="n">frac_to_cart</span><span class="p">(</span><span class="n">fcoords</span><span class="p">)</span>
-            <span class="n">gsquare</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">gvect</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="c">#calculate the structure factor</span>
+        <span class="n">sreals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">oxistates</span><span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">grs</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">simags</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">oxistates</span><span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">grs</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
 
-            <span class="n">expval</span> <span class="o">=</span> <span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">1.0</span> <span class="o">*</span> <span class="n">gsquare</span> <span class="o">/</span> <span class="p">(</span><span class="mf">4.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eta</span><span class="p">))</span>
-
-            <span class="n">gvectdot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">gvect</span><span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="n">coords</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-
-            <span class="c">#calculate the structure factor</span>
-            <span class="n">sreal</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">oxistates</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">gvectdot</span><span class="p">))</span>
-            <span class="n">simag</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">oxistates</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">gvectdot</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">g</span><span class="p">,</span> <span class="n">g2</span><span class="p">,</span> <span class="n">gr</span><span class="p">,</span> <span class="n">expval</span><span class="p">,</span> <span class="n">sreal</span><span class="p">,</span> <span class="n">simag</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">gs</span><span class="p">,</span> <span class="n">g2s</span><span class="p">,</span> <span class="n">grs</span><span class="p">,</span> <span class="n">expvals</span><span class="p">,</span>
+                                                   <span class="n">sreals</span><span class="p">,</span> <span class="n">simags</span><span class="p">):</span>
 
             <span class="c">#create array where exparg[i,j] is gvectdot[i] - gvectdot[j]</span>
-            <span class="n">exparg</span> <span class="o">=</span> <span class="n">gvectdot</span><span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">gvectdot</span><span class="p">[:,</span> <span class="bp">None</span><span class="p">]</span>
+            <span class="n">exparg</span> <span class="o">=</span> <span class="n">gr</span><span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">gr</span><span class="p">[:,</span> <span class="bp">None</span><span class="p">]</span>
 
             <span class="c">#uses the identity sin(x)+cos(x) = 2**0.5 sin(x + pi/4)</span>
             <span class="n">sfactor</span> <span class="o">=</span> <span class="n">qiqj</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">exparg</span> <span class="o">+</span> <span class="n">pi</span> <span class="o">/</span> <span class="mi">4</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">**</span> <span class="mf">0.5</span>
 
-            <span class="n">erecip</span> <span class="o">+=</span> <span class="n">expval</span> <span class="o">/</span> <span class="n">gsquare</span> <span class="o">*</span> <span class="n">sfactor</span>
-            <span class="n">pref</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">expval</span> <span class="o">/</span> <span class="n">gsquare</span> <span class="o">*</span> <span class="n">oxistates</span>
-            <span class="n">factor</span> <span class="o">=</span> <span class="n">prefactor</span> <span class="o">*</span> <span class="n">pref</span> <span class="o">*</span> \
-                <span class="p">(</span><span class="n">sreal</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">gvectdot</span><span class="p">)</span>
-                 <span class="o">-</span> <span class="n">simag</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">gvectdot</span><span class="p">))</span> <span class="o">*</span> <span class="n">EwaldSummation</span><span class="o">.</span><span class="n">CONV_FACT</span>
+            <span class="n">erecip</span> <span class="o">+=</span> <span class="n">expval</span> <span class="o">/</span> <span class="n">g2</span> <span class="o">*</span> <span class="n">sfactor</span>
+            <span class="n">pref</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">expval</span> <span class="o">/</span> <span class="n">g2</span> <span class="o">*</span> <span class="n">oxistates</span>
+            <span class="n">factor</span> <span class="o">=</span> <span class="n">prefactor</span> <span class="o">*</span> <span class="n">pref</span> <span class="o">*</span> <span class="p">(</span>
+                <span class="n">sreal</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">gr</span><span class="p">)</span> <span class="o">-</span> <span class="n">simag</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">gr</span><span class="p">))</span>
 
-            <span class="n">forces</span> <span class="o">+=</span> <span class="n">factor</span><span class="p">[:,</span> <span class="bp">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">gvect</span><span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="p">:]</span>
+            <span class="n">forces</span> <span class="o">+=</span> <span class="n">factor</span><span class="p">[:,</span> <span class="bp">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">g</span><span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="p">:]</span>
 
-        <span class="k">return</span> <span class="n">erecip</span> <span class="o">*</span> <span class="n">prefactor</span> <span class="o">*</span> <span class="n">EwaldSummation</span><span class="o">.</span><span class="n">CONV_FACT</span><span class="p">,</span> <span class="n">forces</span>
+        <span class="n">forces</span> <span class="o">*=</span> <span class="n">EwaldSummation</span><span class="o">.</span><span class="n">CONV_FACT</span>
+        <span class="n">erecip</span> <span class="o">*=</span> <span class="n">prefactor</span> <span class="o">*</span> <span class="n">EwaldSummation</span><span class="o">.</span><span class="n">CONV_FACT</span>
+
+        <span class="k">return</span> <span class="n">erecip</span><span class="p">,</span> <span class="n">forces</span>
 
     <span class="k">def</span> <span class="nf">_calc_real_and_point</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -357,16 +364,18 @@
         <span class="n">coords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_coords</span>
         <span class="n">numsites</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_s</span><span class="o">.</span><span class="n">num_sites</span>
         <span class="n">ereal</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">numsites</span><span class="p">,</span> <span class="n">numsites</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">)</span>
-        <span class="n">epoint</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">numsites</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">)</span>
+
         <span class="n">forces</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">numsites</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">)</span>
+
+        <span class="n">qs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_oxi_states</span><span class="p">)</span>
+
+        <span class="n">epoint</span> <span class="o">=</span> <span class="n">qs</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="o">-</span><span class="mf">1.0</span> <span class="o">*</span> <span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_eta</span> <span class="o">/</span> <span class="n">pi</span><span class="p">)</span> <span class="o">+</span> \
+                 <span class="n">qs</span> <span class="o">*</span> <span class="n">pi</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vol</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eta</span><span class="p">)</span>  <span class="c"># jellum term</span>
+
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">numsites</span><span class="p">):</span>
-            <span class="n">nn</span> <span class="o">=</span> <span class="n">all_nn</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>  <span class="c"># self._s.get_neighbors(site, self._rmax)</span>
+            <span class="n">nn</span> <span class="o">=</span> <span class="n">all_nn</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
             <span class="n">num_neighbors</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">nn</span><span class="p">)</span>
-            <span class="n">qi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_oxi_states</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-            <span class="n">epoint</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">qi</span> <span class="o">*</span> <span class="n">qi</span>
-            <span class="n">epoint</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*=</span> <span class="o">-</span><span class="mf">1.0</span> <span class="o">*</span> <span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_eta</span> <span class="o">/</span> <span class="n">pi</span><span class="p">)</span>
-            <span class="c"># add jellium term</span>
-            <span class="n">epoint</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">qi</span> <span class="o">*</span> <span class="n">pi</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vol</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eta</span><span class="p">)</span>
+            <span class="n">qi</span> <span class="o">=</span> <span class="n">qs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
 
             <span class="n">rij</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">num_neighbors</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">)</span>
             <span class="n">qj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">num_neighbors</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">)</span>
@@ -375,7 +384,7 @@
 
             <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="p">(</span><span class="n">site</span><span class="p">,</span> <span class="n">dist</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">nn</span><span class="p">):</span>
                 <span class="n">rij</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">dist</span>
-                <span class="n">qj</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_oxi_states</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+                <span class="n">qj</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">qs</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
                 <span class="n">js</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">j</span>
                 <span class="n">ncoords</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">site</span><span class="o">.</span><span class="n">coords</span>
 
@@ -715,7 +724,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.2.8 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.2.9 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

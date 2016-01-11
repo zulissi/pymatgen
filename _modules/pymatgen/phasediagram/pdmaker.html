@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.phasediagram.pdmaker &mdash; pymatgen 3.2.7 documentation</title>
+    <title>pymatgen.phasediagram.pdmaker &mdash; pymatgen 3.3.2 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '3.2.7',
+        VERSION:     '3.3.2',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.2.7 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 3.3.2 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.2.7 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.3.2 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -66,8 +66,6 @@
 <span class="sd">This module provides classes to create phase diagrams.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="nb">filter</span>
-
 <span class="n">__author__</span> <span class="o">=</span> <span class="s">&quot;Shyue Ping Ong&quot;</span>
 <span class="n">__copyright__</span> <span class="o">=</span> <span class="s">&quot;Copyright 2011, The Materials Project&quot;</span>
 <span class="n">__version__</span> <span class="o">=</span> <span class="s">&quot;2.0&quot;</span>
@@ -78,18 +76,10 @@
 
 <span class="kn">import</span> <span class="nn">collections</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">pyhull.simplex</span> <span class="kn">import</span> <span class="n">Simplex</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">from</span> <span class="nn">monty.json</span> <span class="kn">import</span> <span class="n">MSONable</span><span class="p">,</span> <span class="n">MontyDecoder</span>
 
-<span class="k">try</span><span class="p">:</span>
-    <span class="c"># If scipy ConvexHull exists, use it because it is faster for large hulls.</span>
-    <span class="c"># This requires scipy &gt;= 0.12.0.</span>
-    <span class="kn">from</span> <span class="nn">scipy.spatial</span> <span class="kn">import</span> <span class="n">ConvexHull</span>
-    <span class="n">HULL_METHOD</span> <span class="o">=</span> <span class="s">&quot;scipy&quot;</span>
-<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-    <span class="c"># Fall back to pyhull if scipy &gt;= 0.12.0 does not exist.</span>
-    <span class="kn">from</span> <span class="nn">pyhull.convex_hull</span> <span class="kn">import</span> <span class="n">ConvexHull</span>
-    <span class="n">HULL_METHOD</span> <span class="o">=</span> <span class="s">&quot;pyhull&quot;</span>
+<span class="kn">from</span> <span class="nn">scipy.spatial</span> <span class="kn">import</span> <span class="n">ConvexHull</span>
 
 <span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="kn">import</span> <span class="n">get_el_sp</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.composition</span> <span class="kn">import</span> <span class="n">Composition</span>
@@ -100,7 +90,7 @@
 <span class="kn">from</span> <span class="nn">pymatgen.analysis.reaction_calculator</span> <span class="kn">import</span> <span class="n">Reaction</span><span class="p">,</span> <span class="n">ReactionError</span>
 
 
-<div class="viewcode-block" id="PhaseDiagram"><a class="viewcode-back" href="../../../pymatgen.phasediagram.html#pymatgen.phasediagram.pdmaker.PhaseDiagram">[docs]</a><span class="k">class</span> <span class="nc">PhaseDiagram</span> <span class="p">(</span><span class="n">MSONable</span><span class="p">):</span>
+<div class="viewcode-block" id="PhaseDiagram"><a class="viewcode-back" href="../../../pymatgen.phasediagram.html#pymatgen.phasediagram.pdmaker.PhaseDiagram">[docs]</a><span class="k">class</span> <span class="nc">PhaseDiagram</span><span class="p">(</span><span class="n">MSONable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Simple phase diagram class taking in elements and entries as inputs.</span>
 <span class="sd">    The algorithm is based on the work in the following papers:</span>
@@ -130,13 +120,21 @@
 <span class="sd">        Data used in the convex hull operation. This is essentially a matrix of</span>
 <span class="sd">        composition data and energy per atom values created from qhull_entries.</span>
 
+<span class="sd">    .. attribute: qhull_entries:</span>
+
+<span class="sd">        Actual entries used in convex hull. Excludes all positive formation</span>
+<span class="sd">        energy entries.</span>
+
 <span class="sd">    .. attribute: dim</span>
 
 <span class="sd">        The dimensionality of the phase diagram.</span>
 
 <span class="sd">    .. attribute: facets</span>
 
-<span class="sd">        Facets of the phase diagram in the form of  [[1,2,3],[4,5,6]...]</span>
+<span class="sd">        Facets of the phase diagram in the form of  [[1,2,3],[4,5,6]...].</span>
+<span class="sd">        For a ternary, it is the indices (references to qhull_entries and</span>
+<span class="sd">        qhull_data) for the vertices of the phase triangles. Similarly</span>
+<span class="sd">        extended to higher D simplices for higher dimensions.</span>
 
 <span class="sd">    .. attribute: el_refs:</span>
 
@@ -144,10 +142,10 @@
 <span class="sd">        entries corresponding to the lowest energy element entries for simple</span>
 <span class="sd">        compositional phase diagrams.</span>
 
-<span class="sd">    .. attribute: qhull_entries:</span>
+<span class="sd">    .. attribute: simplices:</span>
 
-<span class="sd">        Actual entries used in convex hull. Excludes all positive formation</span>
-<span class="sd">        energy entries.</span>
+<span class="sd">        The simplices of the phase diagram as a list of np.ndarray, i.e.,</span>
+<span class="sd">        the list of stable compositional coordinates in the phase diagram.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="c"># Tolerance for determining if formation energy is positive.</span>
@@ -170,60 +168,44 @@
                 <span class="n">elements</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">elements</span><span class="p">)</span>
         <span class="n">elements</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">elements</span><span class="p">)</span>
         <span class="n">dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">elements</span><span class="p">)</span>
+
+        <span class="n">get_reduced_comp</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">e</span><span class="p">:</span> <span class="n">e</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">reduced_composition</span>
+
+        <span class="n">entries</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">entries</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">get_reduced_comp</span><span class="p">)</span>
+
         <span class="n">el_refs</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="n">elements</span><span class="p">:</span>
-            <span class="n">el_entries</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">e</span><span class="p">:</span> <span class="n">e</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">is_element</span> <span class="ow">and</span>
-                                               <span class="n">e</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">elements</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">el</span><span class="p">,</span>
-                                     <span class="n">entries</span><span class="p">))</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">el_entries</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">PhaseDiagramError</span><span class="p">(</span>
-                    <span class="s">&quot;There are no entries associated with terminal {}.&quot;</span>
-                    <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">el</span><span class="p">))</span>
-            <span class="n">el_refs</span><span class="p">[</span><span class="n">el</span><span class="p">]</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">el_entries</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">e</span><span class="p">:</span> <span class="n">e</span><span class="o">.</span><span class="n">energy_per_atom</span><span class="p">)</span>
+        <span class="n">min_entries</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">all_entries</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">entries</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">get_reduced_comp</span><span class="p">):</span>
+            <span class="n">g</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
+            <span class="n">min_entry</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">e</span><span class="p">:</span> <span class="n">e</span><span class="o">.</span><span class="n">energy_per_atom</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">is_element</span><span class="p">:</span>
+                <span class="n">el_refs</span><span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">elements</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">min_entry</span>
+            <span class="n">min_entries</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">min_entry</span><span class="p">)</span>
+            <span class="n">all_entries</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
 
-        <span class="n">data</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">:</span>
-            <span class="n">comp</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">composition</span>
-            <span class="n">row</span> <span class="o">=</span> <span class="p">[</span><span class="n">comp</span><span class="o">.</span><span class="n">get_atomic_fraction</span><span class="p">(</span><span class="n">el</span><span class="p">)</span> <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="n">elements</span><span class="p">]</span>
-            <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">energy_per_atom</span><span class="p">)</span>
-            <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">all_entries_hulldata</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">:]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">el_refs</span><span class="p">)</span> <span class="o">!=</span> <span class="n">dim</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">PhaseDiagramError</span><span class="p">(</span>
+                <span class="s">&quot;There are no entries associated with a terminal element!.&quot;</span><span class="p">)</span>
 
-        <span class="c">#use only entries with negative formation energy</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">get_atomic_fraction</span><span class="p">(</span><span class="n">el</span><span class="p">)</span> <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="n">elements</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">energy_per_atom</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">min_entries</span>
+        <span class="p">])</span>
+
+        <span class="c"># Use only entries with negative formation energy</span>
         <span class="n">vec</span> <span class="o">=</span> <span class="p">[</span><span class="n">el_refs</span><span class="p">[</span><span class="n">el</span><span class="p">]</span><span class="o">.</span><span class="n">energy_per_atom</span> <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="n">elements</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
         <span class="n">form_e</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">vec</span><span class="p">)</span>
+        <span class="n">inds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">form_e</span> <span class="o">&lt;</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">formation_energy_tol</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
 
-        <span class="c">#make sure that if there are multiple entries at the same composition</span>
-        <span class="c">#within 1e-4 eV/atom of each other, only use the lower energy one.</span>
-        <span class="c">#This fixes the precision errors in the convex hull.</span>
-        <span class="c">#This is significantly faster than grouping by composition and then</span>
-        <span class="c">#taking the lowest energy of each group</span>
-        <span class="n">ind</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">prev_c</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c"># compositions within 1e-4 of current entry</span>
-        <span class="n">prev_e</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c"># energies of those compositions</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">([</span><span class="n">e</span><span class="o">.</span><span class="n">energy_per_atom</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">]):</span>
-            <span class="k">if</span> <span class="n">form_e</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">formation_energy_tol</span><span class="p">:</span>
-                <span class="k">continue</span>
-            <span class="n">epa</span> <span class="o">=</span> <span class="n">entries</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">energy_per_atom</span>
-            <span class="c">#trim the front of the lists</span>
-            <span class="k">while</span> <span class="n">prev_e</span> <span class="ow">and</span> <span class="n">epa</span> <span class="o">&gt;</span> <span class="mf">1e-4</span> <span class="o">+</span> <span class="n">prev_e</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
-                <span class="n">prev_c</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-                <span class="n">prev_e</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">frac_comp</span> <span class="o">=</span> <span class="n">entries</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">fractional_composition</span>
-            <span class="k">if</span> <span class="n">frac_comp</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">prev_c</span><span class="p">:</span>
-                <span class="n">ind</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
-            <span class="n">prev_e</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">epa</span><span class="p">)</span>
-            <span class="n">prev_c</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">frac_comp</span><span class="p">)</span>
+        <span class="c"># Add the elemental references</span>
+        <span class="n">inds</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">min_entries</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">el</span><span class="p">)</span> <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="n">el_refs</span><span class="o">.</span><span class="n">values</span><span class="p">()])</span>
 
-        <span class="c">#add the elemental references</span>
-        <span class="n">ind</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">entries</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">el</span><span class="p">)</span> <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="n">el_refs</span><span class="o">.</span><span class="n">values</span><span class="p">()])</span>
+        <span class="n">qhull_entries</span> <span class="o">=</span> <span class="p">[</span><span class="n">min_entries</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">inds</span><span class="p">]</span>
+        <span class="n">qhull_data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">inds</span><span class="p">][:,</span> <span class="mi">1</span><span class="p">:]</span>
 
-        <span class="n">qhull_entries</span> <span class="o">=</span> <span class="p">[</span><span class="n">entries</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">ind</span><span class="p">]</span>
-        <span class="n">qhull_data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">ind</span><span class="p">][:,</span> <span class="mi">1</span><span class="p">:]</span>
-
-        <span class="c">#add an extra point to enforce full dimensionality</span>
-        <span class="c">#this point will be present in all upper hull facets</span>
+        <span class="c"># Add an extra point to enforce full dimensionality.</span>
+        <span class="c"># This point will be present in all upper hull facets.</span>
         <span class="n">extra_point</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">dim</span>
         <span class="n">extra_point</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">qhull_data</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
         <span class="n">qhull_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">qhull_data</span><span class="p">,</span> <span class="p">[</span><span class="n">extra_point</span><span class="p">]],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
@@ -234,7 +216,7 @@
             <span class="n">facets</span> <span class="o">=</span> <span class="n">get_facets</span><span class="p">(</span><span class="n">qhull_data</span><span class="p">)</span>
             <span class="n">finalfacets</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">facet</span> <span class="ow">in</span> <span class="n">facets</span><span class="p">:</span>
-                <span class="c">#skip facets that include the extra point</span>
+                <span class="c"># Skip facets that include the extra point</span>
                 <span class="k">if</span> <span class="nb">max</span><span class="p">(</span><span class="n">facet</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">qhull_data</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span>
                     <span class="k">continue</span>
                 <span class="n">m</span> <span class="o">=</span> <span class="n">qhull_data</span><span class="p">[</span><span class="n">facet</span><span class="p">]</span>
@@ -243,13 +225,23 @@
                     <span class="n">finalfacets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">facet</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">facets</span> <span class="o">=</span> <span class="n">finalfacets</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">simplices</span> <span class="o">=</span> <span class="p">[</span><span class="n">Simplex</span><span class="p">(</span><span class="n">qhull_data</span><span class="p">[</span><span class="n">f</span><span class="p">,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">facets</span><span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">all_entries</span> <span class="o">=</span> <span class="n">entries</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">simplices</span> <span class="o">=</span> <span class="p">[</span><span class="n">qhull_data</span><span class="p">[</span><span class="n">f</span><span class="p">,</span> <span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">facets</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">all_entries</span> <span class="o">=</span> <span class="n">all_entries</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">qhull_data</span> <span class="o">=</span> <span class="n">qhull_data</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">=</span> <span class="n">dim</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">el_refs</span> <span class="o">=</span> <span class="n">el_refs</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">elements</span> <span class="o">=</span> <span class="n">elements</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">qhull_entries</span> <span class="o">=</span> <span class="n">qhull_entries</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">all_entries_hulldata</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_entries</span><span class="p">:</span>
+            <span class="n">comp</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">composition</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="p">[</span><span class="n">comp</span><span class="o">.</span><span class="n">get_atomic_fraction</span><span class="p">(</span><span class="n">el</span><span class="p">)</span> <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">]</span>
+            <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">energy_per_atom</span><span class="p">)</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">data</span><span class="p">)[:,</span> <span class="mi">1</span><span class="p">:]</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">unstable_entries</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -264,11 +256,8 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns the stable entries in the phase diagram.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">stable_entries</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
-        <span class="k">for</span> <span class="n">facet</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">facets</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">vertex</span> <span class="ow">in</span> <span class="n">facet</span><span class="p">:</span>
-                <span class="n">stable_entries</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">qhull_entries</span><span class="p">[</span><span class="n">vertex</span><span class="p">])</span>
-        <span class="k">return</span> <span class="n">stable_entries</span>
+        <span class="k">return</span> <span class="nb">set</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">qhull_entries</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">facets</span><span class="p">)))</span>
 
 <div class="viewcode-block" id="PhaseDiagram.get_form_energy"><a class="viewcode-back" href="../../../pymatgen.phasediagram.html#pymatgen.phasediagram.pdmaker.PhaseDiagram.get_form_energy">[docs]</a>    <span class="k">def</span> <span class="nf">get_form_energy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entry</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -281,12 +270,10 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            Formation energy from the elemental references.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">comp</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">composition</span>
-        <span class="n">energy</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">energy</span> <span class="o">-</span> <span class="nb">sum</span><span class="p">([</span><span class="n">comp</span><span class="p">[</span><span class="n">el</span><span class="p">]</span> <span class="o">*</span>
-                                     <span class="bp">self</span><span class="o">.</span><span class="n">el_refs</span><span class="p">[</span><span class="n">el</span><span class="p">]</span><span class="o">.</span><span class="n">energy_per_atom</span>
-                                     <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="n">comp</span><span class="o">.</span><span class="n">elements</span><span class="p">])</span>
-        <span class="k">return</span> <span class="n">energy</span>
-</div>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">composition</span>
+        <span class="k">return</span> <span class="n">entry</span><span class="o">.</span><span class="n">energy</span> <span class="o">-</span> <span class="nb">sum</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="n">el</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">el_refs</span><span class="p">[</span><span class="n">el</span><span class="p">]</span><span class="o">.</span><span class="n">energy_per_atom</span>
+                                   <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="n">c</span><span class="o">.</span><span class="n">elements</span><span class="p">])</span></div>
+
 <div class="viewcode-block" id="PhaseDiagram.get_form_energy_per_atom"><a class="viewcode-back" href="../../../pymatgen.phasediagram.html#pymatgen.phasediagram.pdmaker.PhaseDiagram.get_form_energy_per_atom">[docs]</a>    <span class="k">def</span> <span class="nf">get_form_energy_per_atom</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entry</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns the formation energy per atom for an entry from the</span>
@@ -298,9 +285,8 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            Formation energy **per atom** from the elemental references.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">comp</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">composition</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_form_energy</span><span class="p">(</span><span class="n">entry</span><span class="p">)</span> <span class="o">/</span> <span class="n">comp</span><span class="o">.</span><span class="n">num_atoms</span>
-</div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_form_energy</span><span class="p">(</span><span class="n">entry</span><span class="p">)</span> <span class="o">/</span> <span class="n">entry</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">num_atoms</span></div>
+
     <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__str__</span><span class="p">()</span>
 
@@ -316,15 +302,15 @@
         <span class="k">return</span> <span class="p">{</span><span class="s">&quot;@module&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span><span class="p">,</span>
                 <span class="s">&quot;@class&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span>
                 <span class="s">&quot;all_entries&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_entries</span><span class="p">],</span>
-                <span class="s">&quot;elements&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">]}</span>
-</div>
+                <span class="s">&quot;elements&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">]}</span></div>
+
     <span class="nd">@classmethod</span>
 <div class="viewcode-block" id="PhaseDiagram.from_dict"><a class="viewcode-back" href="../../../pymatgen.phasediagram.html#pymatgen.phasediagram.pdmaker.PhaseDiagram.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
         <span class="n">entries</span> <span class="o">=</span> <span class="p">[</span><span class="n">ComputedEntry</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">dd</span><span class="p">)</span> <span class="k">for</span> <span class="n">dd</span> <span class="ow">in</span> <span class="n">d</span><span class="p">[</span><span class="s">&quot;all_entries&quot;</span><span class="p">]]</span>
         <span class="n">elements</span> <span class="o">=</span> <span class="p">[</span><span class="n">Element</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">dd</span><span class="p">)</span> <span class="k">for</span> <span class="n">dd</span> <span class="ow">in</span> <span class="n">d</span><span class="p">[</span><span class="s">&quot;elements&quot;</span><span class="p">]]</span>
-        <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">entries</span><span class="p">,</span> <span class="n">elements</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">entries</span><span class="p">,</span> <span class="n">elements</span><span class="p">)</span></div></div>
 
-</div></div>
+
 <div class="viewcode-block" id="GrandPotentialPhaseDiagram"><a class="viewcode-back" href="../../../pymatgen.phasediagram.html#pymatgen.phasediagram.pdmaker.GrandPotentialPhaseDiagram">[docs]</a><span class="k">class</span> <span class="nc">GrandPotentialPhaseDiagram</span><span class="p">(</span><span class="n">PhaseDiagram</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A class representing a Grand potential phase diagram. Grand potential phase</span>
@@ -388,15 +374,15 @@
                 <span class="s">&quot;@class&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span>
                 <span class="s">&quot;all_entries&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_entries</span><span class="p">],</span>
                 <span class="s">&quot;chempots&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">chempots</span><span class="p">,</span>
-                <span class="s">&quot;elements&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">]}</span>
-</div>
+                <span class="s">&quot;elements&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">]}</span></div>
+
     <span class="nd">@classmethod</span>
 <div class="viewcode-block" id="GrandPotentialPhaseDiagram.from_dict"><a class="viewcode-back" href="../../../pymatgen.phasediagram.html#pymatgen.phasediagram.pdmaker.GrandPotentialPhaseDiagram.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
         <span class="n">entries</span> <span class="o">=</span> <span class="n">MontyDecoder</span><span class="p">()</span><span class="o">.</span><span class="n">process_decoded</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s">&quot;all_entries&quot;</span><span class="p">])</span>
         <span class="n">elements</span> <span class="o">=</span> <span class="n">MontyDecoder</span><span class="p">()</span><span class="o">.</span><span class="n">process_decoded</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s">&quot;elements&quot;</span><span class="p">])</span>
-        <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">entries</span><span class="p">,</span> <span class="n">d</span><span class="p">[</span><span class="s">&quot;chempots&quot;</span><span class="p">],</span> <span class="n">elements</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">entries</span><span class="p">,</span> <span class="n">d</span><span class="p">[</span><span class="s">&quot;chempots&quot;</span><span class="p">],</span> <span class="n">elements</span><span class="p">)</span></div></div>
 
-</div></div>
+
 <div class="viewcode-block" id="CompoundPhaseDiagram"><a class="viewcode-back" href="../../../pymatgen.phasediagram.html#pymatgen.phasediagram.pdmaker.CompoundPhaseDiagram">[docs]</a><span class="k">class</span> <span class="nc">CompoundPhaseDiagram</span><span class="p">(</span><span class="n">PhaseDiagram</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Generates phase diagrams from compounds as terminations instead of</span>
@@ -455,7 +441,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">fractional_comp</span> <span class="o">=</span> <span class="n">terminal_compositions</span>
 
-        <span class="c">#Map terminal compositions to unique dummy species.</span>
+        <span class="c"># Map terminal compositions to unique dummy species.</span>
         <span class="n">sp_mapping</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">comp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">fractional_comp</span><span class="p">):</span>
             <span class="n">sp_mapping</span><span class="p">[</span><span class="n">comp</span><span class="p">]</span> <span class="o">=</span> <span class="n">DummySpecie</span><span class="p">(</span><span class="s">&quot;X&quot;</span> <span class="o">+</span> <span class="nb">chr</span><span class="p">(</span><span class="mi">102</span> <span class="o">+</span> <span class="n">i</span><span class="p">))</span>
@@ -464,8 +450,8 @@
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">rxn</span> <span class="o">=</span> <span class="n">Reaction</span><span class="p">(</span><span class="n">fractional_comp</span><span class="p">,</span> <span class="p">[</span><span class="n">entry</span><span class="o">.</span><span class="n">composition</span><span class="p">])</span>
                 <span class="n">rxn</span><span class="o">.</span><span class="n">normalize_to</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">composition</span><span class="p">)</span>
-                <span class="c">#We only allow reactions that have positive amounts of</span>
-                <span class="c">#reactants.</span>
+                <span class="c"># We only allow reactions that have positive amounts of</span>
+                <span class="c"># reactants.</span>
                 <span class="k">if</span> <span class="nb">all</span><span class="p">([</span><span class="n">rxn</span><span class="o">.</span><span class="n">get_coeff</span><span class="p">(</span><span class="n">comp</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">CompoundPhaseDiagram</span><span class="o">.</span><span class="n">amount_tol</span>
                         <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="n">fractional_comp</span><span class="p">]):</span>
                     <span class="n">newcomp</span> <span class="o">=</span> <span class="p">{</span><span class="n">sp_mapping</span><span class="p">[</span><span class="n">comp</span><span class="p">]:</span> <span class="o">-</span><span class="n">rxn</span><span class="o">.</span><span class="n">get_coeff</span><span class="p">(</span><span class="n">comp</span><span class="p">)</span>
@@ -476,11 +462,11 @@
                         <span class="n">TransformedPDEntry</span><span class="p">(</span><span class="n">Composition</span><span class="p">(</span><span class="n">newcomp</span><span class="p">),</span> <span class="n">entry</span><span class="p">)</span>
                     <span class="n">new_entries</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transformed_entry</span><span class="p">)</span>
             <span class="k">except</span> <span class="n">ReactionError</span><span class="p">:</span>
-                <span class="c">#If the reaction can&#39;t be balanced, the entry does not fall</span>
-                <span class="c">#into the phase space. We ignore them.</span>
+                <span class="c"># If the reaction can&#39;t be balanced, the entry does not fall</span>
+                <span class="c"># into the phase space. We ignore them.</span>
                 <span class="k">pass</span>
-        <span class="k">return</span> <span class="n">new_entries</span><span class="p">,</span> <span class="n">sp_mapping</span>
-</div>
+        <span class="k">return</span> <span class="n">new_entries</span><span class="p">,</span> <span class="n">sp_mapping</span></div>
+
 <div class="viewcode-block" id="CompoundPhaseDiagram.as_dict"><a class="viewcode-back" href="../../../pymatgen.phasediagram.html#pymatgen.phasediagram.pdmaker.CompoundPhaseDiagram.as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="p">{</span>
             <span class="s">&quot;@module&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span><span class="p">,</span>
@@ -489,24 +475,24 @@
             <span class="s">&quot;terminal_compositions&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span>
                                       <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">terminal_compositions</span><span class="p">],</span>
             <span class="s">&quot;normalize_terminal_compositions&quot;</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">normalize_terminals</span><span class="p">}</span>
-</div>
+                <span class="bp">self</span><span class="o">.</span><span class="n">normalize_terminals</span><span class="p">}</span></div>
+
     <span class="nd">@classmethod</span>
 <div class="viewcode-block" id="CompoundPhaseDiagram.from_dict"><a class="viewcode-back" href="../../../pymatgen.phasediagram.html#pymatgen.phasediagram.pdmaker.CompoundPhaseDiagram.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
         <span class="n">dec</span> <span class="o">=</span> <span class="n">MontyDecoder</span><span class="p">()</span>
         <span class="n">entries</span> <span class="o">=</span> <span class="n">dec</span><span class="o">.</span><span class="n">process_decoded</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s">&quot;original_entries&quot;</span><span class="p">])</span>
         <span class="n">terminal_compositions</span> <span class="o">=</span> <span class="n">dec</span><span class="o">.</span><span class="n">process_decoded</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s">&quot;terminal_compositions&quot;</span><span class="p">])</span>
         <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">entries</span><span class="p">,</span> <span class="n">terminal_compositions</span><span class="p">,</span>
-                   <span class="n">d</span><span class="p">[</span><span class="s">&quot;normalize_terminal_compositions&quot;</span><span class="p">])</span>
+                   <span class="n">d</span><span class="p">[</span><span class="s">&quot;normalize_terminal_compositions&quot;</span><span class="p">])</span></div></div>
 
-</div></div>
+
 <div class="viewcode-block" id="PhaseDiagramError"><a class="viewcode-back" href="../../../pymatgen.phasediagram.html#pymatgen.phasediagram.pdmaker.PhaseDiagramError">[docs]</a><span class="k">class</span> <span class="nc">PhaseDiagramError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    An exception class for Phase Diagram generation.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">pass</span>
+    <span class="k">pass</span></div>
 
-</div>
+
 <div class="viewcode-block" id="get_facets"><a class="viewcode-back" href="../../../pymatgen.phasediagram.html#pymatgen.phasediagram.pdmaker.get_facets">[docs]</a><span class="k">def</span> <span class="nf">get_facets</span><span class="p">(</span><span class="n">qhull_data</span><span class="p">,</span> <span class="n">joggle</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">force_use_pyhull</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get the simplex facets for the Convex hull.</span>
@@ -523,13 +509,10 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        List of simplices of the Convex Hull.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">HULL_METHOD</span> <span class="o">==</span> <span class="s">&quot;scipy&quot;</span> <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="n">force_use_pyhull</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">joggle</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">ConvexHull</span><span class="p">(</span><span class="n">qhull_data</span><span class="p">,</span> <span class="n">qhull_options</span><span class="o">=</span><span class="s">&quot;QJ i&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">simplices</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">ConvexHull</span><span class="p">(</span><span class="n">qhull_data</span><span class="p">,</span> <span class="n">qhull_options</span><span class="o">=</span><span class="s">&quot;Qt i&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">simplices</span>
+    <span class="k">if</span> <span class="n">joggle</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">ConvexHull</span><span class="p">(</span><span class="n">qhull_data</span><span class="p">,</span> <span class="n">qhull_options</span><span class="o">=</span><span class="s">&quot;QJ i&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">simplices</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">ConvexHull</span><span class="p">(</span><span class="n">qhull_data</span><span class="p">,</span> <span class="n">joggle</span><span class="o">=</span><span class="n">joggle</span><span class="p">)</span><span class="o">.</span><span class="n">vertices</span></div>
+        <span class="k">return</span> <span class="n">ConvexHull</span><span class="p">(</span><span class="n">qhull_data</span><span class="p">,</span> <span class="n">qhull_options</span><span class="o">=</span><span class="s">&quot;Qt i&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">simplices</span></div>
 </pre></div>
 
           </div>
@@ -563,14 +546,14 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.2.7 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.3.2 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>
 
     <div class="footer" role="contentinfo">
         &copy; Copyright 2011, Pymatgen Development Team.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.1.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.3.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

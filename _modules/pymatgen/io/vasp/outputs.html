@@ -2220,113 +2220,112 @@
 
 <span class="sd">    .. attribute:: data</span>
 
-<span class="sd">        A nested dict containing the PROCAR data of the form below. It should</span>
-<span class="sd">        be noted that VASP uses 1-based indexing for atoms, but this is</span>
-<span class="sd">        converted to zero-based indexing in this parser to be consistent with</span>
-<span class="sd">        representation of structures in pymatgen::</span>
+<span class="sd">        The PROCAR data of the form below. It should VASP uses 1-based indexing,</span>
+<span class="sd">        but all indices are converted to 0-based here.::</span>
 
 <span class="sd">            {</span>
-<span class="sd">                atom_index: {</span>
-<span class="sd">                    kpoint_index: {</span>
-<span class="sd">                        &quot;bands&quot;: {</span>
-<span class="sd">                            band_index: {</span>
-<span class="sd">                                &quot;p&quot;: 0.002,</span>
-<span class="sd">                                &quot;s&quot;: 0.025,</span>
-<span class="sd">                                &quot;d&quot;: 0.0</span>
-<span class="sd">                            },</span>
-<span class="sd">                            ...</span>
-<span class="sd">                        },</span>
-<span class="sd">                        &quot;weight&quot;: 0.03125</span>
-<span class="sd">                    },</span>
-<span class="sd">                    ...</span>
+<span class="sd">                spin: nd.array accessed with (k-point index, band index, ion index, orbital index)</span>
 <span class="sd">            }</span>
+
+<span class="sd">    .. attribute:: weights</span>
+
+<span class="sd">        The weights associated with each k-point as an nd.array of lenght</span>
+<span class="sd">        nkpoints.</span>
 
 <span class="sd">    ..attribute:: phase_factors</span>
 
-<span class="sd">        Phase factors, where present (e.g. LORBIT = 12). This attribution is</span>
-<span class="sd">        a dict, whose keys are tuples of the format</span>
-<span class="sd">        (ion_index, kpoint_index, band_index, orbital_string). The values are</span>
-<span class="sd">        complex numbers.</span>
+<span class="sd">        Phase factors, where present (e.g. LORBIT = 12). A dict of the form:</span>
+<span class="sd">        {</span>
+<span class="sd">            spin: complex nd.array accessed with (k-point index, band index, ion index, orbital index)</span>
+<span class="sd">        }</span>
+
+<span class="sd">    ..attribute:: nbands</span>
+
+<span class="sd">        Number of bands</span>
+
+<span class="sd">    ..attribute:: nkpoints</span>
+
+<span class="sd">        Number of k-points</span>
+
+<span class="sd">    ..attribute:: nions</span>
+
+<span class="sd">        Number of ions</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">phase_factors</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">headers</span> <span class="o">=</span> <span class="bp">None</span>
+
         <span class="k">with</span> <span class="n">zopen</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;rt&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">lines</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">())</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">lines</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">preambleexpr</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">&quot;# of k-points:\s+(\d+)\s+# of bands:\s+(\d+)\s+# of ions:\s+(\d+)&quot;</span><span class="p">)</span>
             <span class="n">kpointexpr</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">&quot;^k-point\s+(\d+).*weight = ([0-9\.]+)&quot;</span><span class="p">)</span>
             <span class="n">bandexpr</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">&quot;^band\s+(\d+)&quot;</span><span class="p">)</span>
             <span class="n">ionexpr</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">&quot;^ion.*&quot;</span><span class="p">)</span>
             <span class="n">expr</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">&quot;^([0-9]+)\s+&quot;</span><span class="p">)</span>
-            <span class="n">weight</span> <span class="o">=</span> <span class="mi">0</span>
             <span class="n">current_kpoint</span> <span class="o">=</span> <span class="mi">0</span>
             <span class="n">current_band</span> <span class="o">=</span> <span class="mi">0</span>
             <span class="n">done</span> <span class="o">=</span> <span class="bp">False</span>
-            <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">:</span>
+            <span class="n">spin</span> <span class="o">=</span> <span class="n">Spin</span><span class="o">.</span><span class="n">down</span>
+
+            <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
                 <span class="n">l</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-                <span class="c1"># TODO: This is really bad. Why are we not using zero-based</span>
-                <span class="c1"># indexing for kpoints and bands?</span>
                 <span class="k">if</span> <span class="n">bandexpr</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">l</span><span class="p">):</span>
                     <span class="n">m</span> <span class="o">=</span> <span class="n">bandexpr</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">l</span><span class="p">)</span>
-                    <span class="n">current_band</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+                    <span class="n">current_band</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span> <span class="o">-</span> <span class="mi">1</span>
                     <span class="n">done</span> <span class="o">=</span> <span class="bp">False</span>
                 <span class="k">elif</span> <span class="n">kpointexpr</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">l</span><span class="p">):</span>
                     <span class="n">m</span> <span class="o">=</span> <span class="n">kpointexpr</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">l</span><span class="p">)</span>
-                    <span class="n">current_kpoint</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
-                    <span class="n">weight</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
-                    <span class="k">if</span> <span class="n">current_kpoint</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-                        <span class="n">phase_factors</span> <span class="o">=</span> <span class="p">{}</span>
+                    <span class="n">current_kpoint</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span> <span class="o">-</span> <span class="mi">1</span>
+                    <span class="n">weights</span><span class="p">[</span><span class="n">current_kpoint</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="n">current_kpoint</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">spin</span> <span class="o">=</span> <span class="n">Spin</span><span class="o">.</span><span class="n">up</span> <span class="k">if</span> <span class="n">spin</span> <span class="o">==</span> <span class="n">Spin</span><span class="o">.</span><span class="n">down</span> <span class="k">else</span> <span class="n">Spin</span><span class="o">.</span><span class="n">down</span>
                     <span class="n">done</span> <span class="o">=</span> <span class="bp">False</span>
                 <span class="k">elif</span> <span class="n">headers</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">ionexpr</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">l</span><span class="p">):</span>
                     <span class="n">headers</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
                     <span class="n">headers</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
                     <span class="n">headers</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
                 <span class="k">elif</span> <span class="n">expr</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">l</span><span class="p">):</span>
+                    <span class="n">toks</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                    <span class="n">index</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">toks</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span> <span class="o">-</span> <span class="mi">1</span>
+                    <span class="n">num_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">toks</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">headers</span><span class="p">)]])</span>
                     <span class="k">if</span> <span class="ow">not</span> <span class="n">done</span><span class="p">:</span>
-                        <span class="n">toks</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
-                        <span class="n">index</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">toks</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span> <span class="o">-</span> <span class="mi">1</span>
-                        <span class="n">num_data</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">toks</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
-                        <span class="k">if</span> <span class="n">current_kpoint</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="n">index</span><span class="p">]:</span>
-                            <span class="n">data</span><span class="p">[</span><span class="n">index</span><span class="p">][</span><span class="n">current_kpoint</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;weight&quot;</span><span class="p">:</span> <span class="n">weight</span><span class="p">,</span>
-                                                           <span class="s2">&quot;bands&quot;</span><span class="p">:</span> <span class="p">{}}</span>
-                        <span class="n">data</span><span class="p">[</span><span class="n">index</span><span class="p">][</span><span class="n">current_kpoint</span><span class="p">][</span><span class="s2">&quot;bands&quot;</span><span class="p">][</span><span class="n">current_band</span><span class="p">]</span> <span class="o">=</span> \
-                            <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">headers</span><span class="p">,</span> <span class="n">num_data</span><span class="p">))</span>
+                        <span class="k">if</span> <span class="n">spin</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+                            <span class="n">data</span><span class="p">[</span><span class="n">spin</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">nkpoints</span><span class="p">,</span> <span class="n">nbands</span><span class="p">,</span>
+                                                   <span class="n">nions</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">headers</span><span class="p">)))</span>
+                        <span class="n">data</span><span class="p">[</span><span class="n">spin</span><span class="p">][</span><span class="n">current_kpoint</span><span class="p">,</span> <span class="n">current_band</span><span class="p">,</span>
+                                   <span class="n">index</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">num_data</span>
                     <span class="k">else</span><span class="p">:</span>
-                        <span class="n">toks</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
-                        <span class="n">index</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">toks</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span> <span class="o">-</span> <span class="mi">1</span>
-                        <span class="n">num_data</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">toks</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span>
-                        <span class="k">for</span> <span class="n">val</span><span class="p">,</span> <span class="n">o</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">num_data</span><span class="p">,</span> <span class="n">headers</span><span class="p">):</span>
-                            <span class="n">key</span> <span class="o">=</span> <span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">current_kpoint</span><span class="p">,</span> <span class="n">current_band</span><span class="p">,</span> <span class="n">o</span><span class="p">)</span>
-                            <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">phase_factors</span><span class="p">:</span>
-                                <span class="n">phase_factors</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
-                            <span class="k">else</span><span class="p">:</span>
-                                <span class="n">phase_factors</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1j</span> <span class="o">*</span> <span class="n">val</span>
+                        <span class="k">if</span> <span class="n">spin</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">phase_factors</span><span class="p">:</span>
+                            <span class="n">phase_factors</span><span class="p">[</span><span class="n">spin</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span>
+                                    <span class="p">(</span><span class="n">nkpoints</span><span class="p">,</span> <span class="n">nbands</span><span class="p">,</span> <span class="n">nions</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">headers</span><span class="p">)),</span>
+                                    <span class="n">np</span><span class="o">.</span><span class="n">NaN</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">complex128</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">phase_factors</span><span class="p">[</span><span class="n">spin</span><span class="p">][</span>
+                                <span class="n">current_kpoint</span><span class="p">,</span> <span class="n">current_band</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="mi">0</span><span class="p">]):</span>
+                            <span class="n">phase_factors</span><span class="p">[</span><span class="n">spin</span><span class="p">][</span><span class="n">current_kpoint</span><span class="p">,</span> <span class="n">current_band</span><span class="p">,</span>
+                                                <span class="n">index</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">num_data</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">phase_factors</span><span class="p">[</span><span class="n">spin</span><span class="p">][</span><span class="n">current_kpoint</span><span class="p">,</span> <span class="n">current_band</span><span class="p">,</span>
+                                                <span class="n">index</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+=</span> <span class="mi">1j</span> <span class="o">*</span> <span class="n">num_data</span>
                 <span class="k">elif</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;tot&quot;</span><span class="p">):</span>
                     <span class="n">done</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="k">elif</span> <span class="n">preambleexpr</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">l</span><span class="p">):</span>
+                    <span class="n">m</span> <span class="o">=</span> <span class="n">preambleexpr</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">l</span><span class="p">)</span>
+                    <span class="n">nkpoints</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+                    <span class="n">nbands</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+                    <span class="n">nions</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+                    <span class="n">weights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">nkpoints</span><span class="p">)</span>
 
+            <span class="bp">self</span><span class="o">.</span><span class="n">nkpoints</span> <span class="o">=</span> <span class="n">nkpoints</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nbands</span> <span class="o">=</span> <span class="n">nbands</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nions</span> <span class="o">=</span> <span class="n">nions</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">orbitals</span> <span class="o">=</span> <span class="n">headers</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">phase_factors</span> <span class="o">=</span> <span class="n">phase_factors</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">nbands</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Number of bands&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;bands&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">nkpoints</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Number of k-points&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">nions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Number of ions&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
 
 <div class="viewcode-block" id="Procar.get_projection_on_elements"><a class="viewcode-back" href="../../../../pymatgen.io.vasp.html#pymatgen.io.vasp.outputs.Procar.get_projection_on_elements">[docs]</a>    <span class="k">def</span> <span class="nf">get_projection_on_elements</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Method returning a dictionary of projections on elements.</span>
-<span class="sd">        Spin polarized calculation are not supported.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            structure (Structure): Input structure.</span>
@@ -2334,17 +2333,18 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            a dictionary in the {Spin.up:[k index][b index][{Element:values}]]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">dico</span> <span class="o">=</span> <span class="p">{</span><span class="n">Spin</span><span class="o">.</span><span class="n">up</span><span class="p">:</span> <span class="p">[]}</span>
-        <span class="n">dico</span><span class="p">[</span><span class="n">Spin</span><span class="o">.</span><span class="n">up</span><span class="p">]</span> <span class="o">=</span> <span class="p">[[</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
-                          <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nkpoints</span><span class="p">)]</span>
-                         <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nbands</span><span class="p">)]</span>
+        <span class="n">dico</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">spin</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">dico</span><span class="p">[</span><span class="n">spin</span><span class="p">]</span> <span class="o">=</span> <span class="p">[[</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+                           <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nkpoints</span><span class="p">)]</span>
+                          <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nbands</span><span class="p">)]</span>
 
-        <span class="k">for</span> <span class="n">iat</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">iat</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nions</span><span class="p">):</span>
             <span class="n">name</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">species</span><span class="p">[</span><span class="n">iat</span><span class="p">]</span><span class="o">.</span><span class="n">symbol</span>
-            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">iat</span><span class="p">]:</span>
-                <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">iat</span><span class="p">][</span><span class="n">k</span><span class="p">][</span><span class="s2">&quot;bands&quot;</span><span class="p">]:</span>
-                    <span class="n">dico</span><span class="p">[</span><span class="n">Spin</span><span class="o">.</span><span class="n">up</span><span class="p">][</span><span class="n">b</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="n">k</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> \
-                        <span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">iat</span><span class="p">][</span><span class="n">k</span><span class="p">][</span><span class="s2">&quot;bands&quot;</span><span class="p">][</span><span class="n">b</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+            <span class="k">for</span> <span class="n">spin</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nkpoints</span><span class="p">),</span>
+                                              <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nbands</span><span class="p">)):</span>
+                    <span class="n">dico</span><span class="p">[</span><span class="n">spin</span><span class="p">][</span><span class="n">b</span><span class="p">][</span><span class="n">k</span><span class="p">][</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="n">k</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">iat</span><span class="p">,</span> <span class="p">:])</span>
 
         <span class="k">return</span> <span class="n">dico</span></div>
 
@@ -2366,18 +2366,10 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            Sum occupation of orbital of atom.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="n">found</span> <span class="o">=</span> <span class="bp">False</span>
-        <span class="k">for</span> <span class="n">kpoint</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">atom_index</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="n">wt</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;weight&quot;</span><span class="p">]</span>
-            <span class="k">for</span> <span class="n">band</span><span class="p">,</span> <span class="n">dd</span> <span class="ow">in</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;bands&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="k">for</span> <span class="n">orb</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">dd</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                    <span class="k">if</span> <span class="n">orb</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">orbital</span><span class="p">):</span>
-                        <span class="n">found</span> <span class="o">=</span> <span class="bp">True</span>
-                        <span class="n">total</span> <span class="o">+=</span> <span class="n">v</span> <span class="o">*</span> <span class="n">wt</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">found</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid orbital {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">orbital</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">total</span></div></div>
+
+        <span class="n">orbital_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">orbitals</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">orbital</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">spin</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">d</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">atom_index</span><span class="p">,</span> <span class="n">orbital_index</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[:,</span> <span class="bp">None</span><span class="p">])</span>
+                <span class="k">for</span> <span class="n">spin</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span></div></div>
 
 
 <div class="viewcode-block" id="Oszicar"><a class="viewcode-back" href="../../../../pymatgen.io.vasp.html#pymatgen.io.vasp.outputs.Oszicar">[docs]</a><span class="k">class</span> <span class="nc">Oszicar</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>

@@ -6,8 +6,11 @@ Subpackages
 
 .. toctree::
 
+    pymatgen.analysis.cost
     pymatgen.analysis.defects
     pymatgen.analysis.diffraction
+    pymatgen.analysis.elasticity
+    pymatgen.analysis.hhi
     pymatgen.analysis.pourbaix
 
 Submodules
@@ -89,6 +92,14 @@ pymatgen.analysis.thermochemistry module
 ----------------------------------------
 
 .. automodule:: pymatgen.analysis.thermochemistry
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+pymatgen.analysis.transition_state module
+-----------------------------------------
+
+.. automodule:: pymatgen.analysis.transition_state
     :members:
     :undoc-members:
     :show-inheritance:

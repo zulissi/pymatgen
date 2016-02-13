@@ -1,4 +1,6 @@
 # coding: utf-8
+# Copyright (c) Pymatgen Development Team.
+# Distributed under the terms of the MIT License.
 
 from __future__ import division, unicode_literals
 
@@ -29,7 +31,7 @@ import six
 
 from pymatgen.core.periodic_table import Element, Specie
 from pymatgen.core.structure import Structure
-from pymatgen.symmetry.finder import SymmetryFinder
+from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.core.periodic_table import get_el_sp
 
 
@@ -266,7 +268,7 @@ class BVAnalyzer(object):
 
         #Perform symmetry determination and get sites grouped by symmetry.
         if self.symm_tol:
-            finder = SymmetryFinder(structure, self.symm_tol)
+            finder = SpacegroupAnalyzer(structure, self.symm_tol)
             symm_structure = finder.get_symmetrized_structure()
             equi_sites = symm_structure.equivalent_sites
         else:
@@ -511,7 +513,7 @@ def get_z_ordered_elmap(comp):
     Cr4+, Cr3+, Ni3+, Ni4+, Zn2+ ... or
     Cr4+, Cr3+, Ni4+, Ni3+, Zn2+
     """
-    return sorted([(elsp, comp.elmap[elsp]) for elsp in comp.elmap.keys()])
+    return sorted([(elsp, comp[elsp]) for elsp in comp.keys()])
 
 
 def add_oxidation_state_by_site_fraction(structure, oxidation_states):

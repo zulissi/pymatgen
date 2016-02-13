@@ -1,4 +1,6 @@
 # coding: utf-8
+# Copyright (c) Pymatgen Development Team.
+# Distributed under the terms of the MIT License.
 
 from __future__ import division, unicode_literals
 
@@ -21,12 +23,12 @@ import abc
 
 import six
 
-from pymatgen.serializers.json_coders import PMGSONable
+from monty.json import MSONable
 from pymatgen.analysis.ewald import EwaldSummation
-from pymatgen.symmetry.finder import SymmetryFinder
+from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 
 
-class EnergyModel(six.with_metaclass(abc.ABCMeta, PMGSONable)):
+class EnergyModel(six.with_metaclass(abc.ABCMeta, MSONable)):
     """
     Abstract structure filter class.
     """
@@ -96,7 +98,7 @@ class SymmetryModel(EnergyModel):
     lower "energy".
 
     Args have same meaning as in
-    :class:`pymatgen.symmetry.finder.SymmetryFinder`.
+    :class:`pymatgen.symmetry.finder.SpacegroupAnalyzer`.
 
     Args:
         symprec (float): Symmetry tolerance. Defaults to 0.1.
@@ -108,7 +110,7 @@ class SymmetryModel(EnergyModel):
         self.angle_tolerance = angle_tolerance
 
     def get_energy(self, structure):
-        f = SymmetryFinder(structure, symprec=self.symprec,
+        f = SpacegroupAnalyzer(structure, symprec=self.symprec,
                            angle_tolerance=self.angle_tolerance)
         return -f.get_spacegroup_number()
 

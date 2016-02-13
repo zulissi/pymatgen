@@ -1,4 +1,6 @@
 # coding: utf-8
+# Copyright (c) Pymatgen Development Team.
+# Distributed under the terms of the MIT License.
 
 from __future__ import division, unicode_literals
 
@@ -20,7 +22,6 @@ import json
 
 import numpy as np
 
-from pymatgen.io.smartio import read_structure
 from pymatgen import Lattice, Structure
 from pymatgen.transformations.standard_transformations import \
     OxidationStateDecorationTransformation, SubstitutionTransformation, \
@@ -30,8 +31,8 @@ from pymatgen.transformations.advanced_transformations import \
     MultipleSubstitutionTransformation, ChargeBalanceTransformation, \
     SubstitutionPredictorTransformation, MagOrderingTransformation
 from monty.os.path import which
-from pymatgen.io.vaspio.vasp_input import Poscar
-from pymatgen.symmetry.finder import SymmetryFinder
+from pymatgen.io.vasp.inputs import Poscar
+from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.analysis.energy_models import IsingModel
 from pymatgen.util.testing import PymatgenTest
 
@@ -219,7 +220,7 @@ class MagOrderingTransformationTest(PymatgenTest):
         s = p.structure
         alls = trans.apply_transformation(s, 10)
         self.assertEqual(len(alls), 3)
-        f = SymmetryFinder(alls[0]["structure"], 0.1)
+        f = SpacegroupAnalyzer(alls[0]["structure"], 0.1)
         self.assertEqual(f.get_spacegroup_number(), 31)
 
         model = IsingModel(5, 5)
@@ -260,9 +261,6 @@ class MagOrderingTransformationTest(PymatgenTest):
         s = self.get_structure('Li2O')
         trans = MagOrderingTransformation({"Li+": 0.0}, 0.5)
         alls = trans.apply_transformation(s)
-        #compositions will not be equal due to spin assignment
-        #structure representations will be the same
-        self.assertEqual(str(s), str(alls))
         #Ensure s does not have a spin property
         self.assertFalse('spin' in s.sites[0].specie._properties)
         #ensure sites are assigned a spin property in alls

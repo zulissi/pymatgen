@@ -1,4 +1,6 @@
 # coding: utf-8
+# Copyright (c) Pymatgen Development Team.
+# Distributed under the terms of the MIT License.
 
 from __future__ import division, unicode_literals
 
@@ -11,8 +13,7 @@ units are detected. An ArrayWithUnit is also implemented, which is a subclass
 of numpy's ndarray with similar unit features.
 """
 
-from six.moves import filter
-from six.moves import zip
+from six.moves import filter, zip
 
 __author__ = "Shyue Ping Ong, Matteo Giantomassi"
 __copyright__ = "Copyright 2011, The Materials Project"
@@ -28,18 +29,20 @@ import collections
 from numbers import Number
 import numbers
 from functools import partial
-from pymatgen.core.physical_constants import N_a, e
+
 import re
+
+import scipy.constants as const
 
 """
 Some conversion factors
 """
-Ha_to_eV = 27.21138386
+Ha_to_eV = 1/const.physical_constants["electron volt-hartree relationship"][0]
 eV_to_Ha = 1 / Ha_to_eV
 Ry_to_eV = Ha_to_eV / 2
-amu_to_kg = 1.660538921e-27
-mile_to_meters = 1609.347219
-bohr_to_angstrom = 0.5291772083
+amu_to_kg = const.physical_constants["atomic mass unit-kilogram relationship"][0]
+mile_to_meters = const.mile
+bohr_to_angstrom = const.physical_constants["Bohr radius"][0] * 1e10
 bohr_to_ang = bohr_to_angstrom
 
 """
@@ -75,30 +78,42 @@ BASE_UNITS = {
     },
     "amount": {
         "mol": 1,
-        "atom": 1 / N_a
+        "atom": 1 / const.N_A
     },
     "intensity": {
         "cd": 1
-    }
+    },
+    "memory": {
+        "byte": 1,
+        "Kb": 1024,
+        "Mb": 1024**2,
+        "Gb": 1024**3,
+        "Tb": 1024**4,
+    },
 }
 
+# Accept kb, mb, gb ... as well.
+BASE_UNITS["memory"].update({k.lower(): v
+                             for k, v in BASE_UNITS["memory"].items()})
 
-#This current list are supported derived units defined in terms of powers of
-#SI base units and constants.
+
+# This current list are supported derived units defined in terms of powers of
+# SI base units and constants.
 DERIVED_UNITS = {
     "energy": {
-        "eV": {"kg": 1, "m": 2, "s": -2, e: 1},
-        "Ha": {"kg": 1, "m": 2, "s": -2, e * Ha_to_eV: 1},
-        "Ry": {"kg": 1, "m": 2, "s": -2, e * Ry_to_eV: 1},
+        "eV": {"kg": 1, "m": 2, "s": -2, const.e: 1},
+        "meV": {"kg": 1, "m": 2, "s": -2, const.e * 1e-3: 1},
+        "Ha": {"kg": 1, "m": 2, "s": -2, const.e * Ha_to_eV: 1},
+        "Ry": {"kg": 1, "m": 2, "s": -2, const.e * Ry_to_eV: 1},
         "J": {"kg": 1, "m": 2, "s": -2},
         "kJ": {"kg": 1, "m": 2, "s": -2, 1000: 1}
     },
     "charge": {
         "C": {"A": 1, "s": 1},
-        "e": {"A": 1, "s": 1, e: 1},
+        "e": {"A": 1, "s": 1, const.e: 1},
     },
     "force": {
-        "N": {"kg": 1, "m": 1, "s": -2}
+        "N": {"kg": 1, "m": 1, "s": -2},
     },
     "pressure": {
         "Pa": {"kg": 1, "m": -1, "s": -2},
@@ -302,12 +317,35 @@ class FloatWithUnit(float):
     >>> a = Energy(1.1, "Ha")
     >>> b = Energy(3, "eV")
     >>> c = a + b
-    >>> print c
+    >>> print(c)
     1.2102479761938871 Ha
     >>> c.to("eV")
     32.932522246000005 eV
     """
     Error = UnitError
+
+    @classmethod
+    def from_string(cls, s):
+        """
+        Initialize a FloatWithUnit from a string. Example Memory.from_string("1. Mb")
+        """
+        # Extract num and unit string. 
+        s = s.strip()
+        for i, char in enumerate(s):
+            if char.isalpha() or char.isspace():
+                break
+        else:
+            raise Exception("Unit is missing in string %s" % s)
+        num, unit = float(s[:i]), s[i:]
+
+        # Find unit type (set it to None if it cannot be detected)
+        for unit_type, d in BASE_UNITS.items():
+            if unit in d:
+                break
+        else:
+            unit_type = None
+
+        return cls(num, unit, unit_type=unit_type)
 
     def __new__(cls, val, unit, unit_type=None):
         new = float.__new__(cls, val)
@@ -456,6 +494,17 @@ class FloatWithUnit(float):
             unit=new_unit)
 
     @property
+    def as_base_units(self):
+        """
+        Returns this FloatWithUnit in base SI units, including derived units.
+
+        Returns:
+            A FloatWithUnit object in base SI units
+        """
+        return self.to(self.unit.as_base_units[0])
+
+
+    @property
     def supported_units(self):
         """
         Supported units for specific unit type.
@@ -476,7 +525,7 @@ class ArrayWithUnit(np.ndarray):
     >>> a = EnergyArray([1, 2], "Ha")
     >>> b = EnergyArray([1, 2], "eV")
     >>> c = a + b
-    >>> print c
+    >>> print(c)
     [ 1.03674933  2.07349865] Ha
     >>> c.to("eV")
     array([ 28.21138386,  56.42276772]) eV
@@ -627,6 +676,16 @@ class ArrayWithUnit(np.ndarray):
             np.array(self) * self.unit.get_conversion_factor(new_unit),
             unit_type=self.unit_type, unit=new_unit)
 
+    @property
+    def as_base_units(self):
+        """
+        Returns this ArrayWithUnit in base SI units, including derived units.
+
+        Returns:
+            An ArrayWithUnit object in base SI units
+        """
+        return self.to(self.unit.as_base_units[0])
+
     #TODO abstract base class property?
     @property
     def supported_units(self):
@@ -642,6 +701,18 @@ class ArrayWithUnit(np.ndarray):
         Useful tool in interactive mode.
         """
         return "\n".join(str(self.to(unit)) for unit in self.supported_units)
+
+
+def _my_partial(func, *args, **kwargs):
+    """
+    Partial returns a partial object and therefore we cannot inherit class
+    methods defined in FloatWithUnit. This function calls partial and patches
+    the new class before returning.
+    """
+    newobj = partial(func, *args, **kwargs)
+    # monkey patch
+    newobj.from_string = FloatWithUnit.from_string
+    return newobj
 
 
 Energy = partial(FloatWithUnit, unit_type="energy")
@@ -709,6 +780,17 @@ Args:
 ChargeArray = partial(ArrayWithUnit, unit_type="charge")
 
 
+Memory = _my_partial(FloatWithUnit, unit_type="memory")
+"""
+A float with a memory unit.
+
+Args:
+    val (float): Value
+    unit (Unit): E.g., Kb, Mb, Gb, Tb. Must be valid unit or UnitError
+        is raised.
+"""
+
+
 def obj_with_unit(obj, unit):
     """
     Returns a `FloatWithUnit` instance if obj is scalar, a dictionary of
@@ -730,10 +812,12 @@ def obj_with_unit(obj, unit):
 
 def unitized(unit):
     """
-    Useful decorator to assign units to the output of a function. For
-    sequences, all values in the sequences are assigned the same unit. It
-    works with Python sequences only. The creation of numpy arrays loses all
-    unit information. For mapping types, the values are assigned units.
+    Useful decorator to assign units to the output of a function. You can also
+    use it to standardize the output units of a function that already returns
+    a FloatWithUnit or ArrayWithUnit. For sequences, all values in the sequences
+    are assigned the same unit. It works with Python sequences only. The creation
+    of numpy arrays loses all unit information. For mapping types, the values
+    are assigned units.
 
     Args:
         unit: Specific unit (eV, Ha, m, ang, etc.).
@@ -748,9 +832,12 @@ def unitized(unit):
     def wrap(f):
         def wrapped_f(*args, **kwargs):
             val = f(*args, **kwargs)
-            #print(val)
             unit_type = _UNAME2UTYPE[unit]
-            if isinstance(val, collections.Sequence):
+
+            if isinstance(val, FloatWithUnit) or isinstance(val, ArrayWithUnit):
+                return val.to(unit)
+
+            elif isinstance(val, collections.Sequence):
                 # TODO: why don't we return a ArrayWithUnit?
                 # This complicated way is to ensure the sequence type is
                 # preserved (list or tuple).

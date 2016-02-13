@@ -1,4 +1,6 @@
 # coding: utf-8
+# Copyright (c) Pymatgen Development Team.
+# Distributed under the terms of the MIT License.
 
 from __future__ import division, unicode_literals
 
@@ -24,7 +26,7 @@ import itertools
 import logging
 import time
 
-from pymatgen.symmetry.finder import SymmetryFinder
+from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.core.structure import Structure
 from pymatgen.transformations.transformation_abc import AbstractTransformation
 from pymatgen.analysis.ewald import EwaldSummation, EwaldMinimizer
@@ -320,7 +322,7 @@ class PartialRemoveSitesTransformation(AbstractTransformation):
         self.logger.debug("Performing complete ordering...")
         all_structures = []
         symprec = 0.2
-        s = SymmetryFinder(structure, symprec=symprec)
+        s = SpacegroupAnalyzer(structure, symprec=symprec)
         self.logger.debug("Symmetry of structure is determined to be {}."
                           .format(s.get_spacegroup_symbol()))
         sg = s.get_spacegroup()

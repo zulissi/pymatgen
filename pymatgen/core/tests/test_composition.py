@@ -1,4 +1,6 @@
 # coding: utf-8
+# Copyright (c) Pymatgen Development Team.
+# Distributed under the terms of the MIT License.
 
 from __future__ import division, unicode_literals
 
@@ -18,7 +20,6 @@ __status__ = "Production"
 __date__ = "Nov 10, 2012"
 
 import unittest
-
 
 from pymatgen.core.periodic_table import Element
 from pymatgen.core.composition import Composition, CompositionError, \
@@ -68,12 +69,32 @@ class CompositionTest(unittest.TestCase):
         self.indeterminate_comp.append(
             Composition.ranked_compositions_from_indeterminate_formula("Fee3"))
 
+    def test_immutable(self):
+        try:
+            self.comp[0]["Fe"] = 1
+        except Exception as ex:
+            self.assertIsInstance(ex, TypeError)
+
+        try:
+            del self.comp[0]["Fe"]
+        except Exception as ex:
+            self.assertIsInstance(ex, TypeError)
+
+    def test_in(self):
+        self.assertIn("Fe", self.comp[0])
+        self.assertNotIn("Fe", self.comp[2])
+        self.assertIn(Element("Fe"), self.comp[0])
+        self.assertEqual(self.comp[0]["Fe"], 2)
+        self.assertEqual(self.comp[0]["Mn"], 0)
+        self.assertRaises(TypeError, self.comp[0].__getitem__, "Hello")
+        self.assertRaises(TypeError, self.comp[0].__getitem__, "Vac")
+
     def test_init_(self):
         self.assertRaises(CompositionError, Composition, {"H": -0.1})
         f = {'Fe': 4, 'Li': 4, 'O': 16, 'P': 4}
         self.assertEqual("Li4 Fe4 P4 O16", Composition(f).formula)
         f = {None: 4, 'Li': 4, 'O': 16, 'P': 4}
-        self.assertRaises(ValueError, Composition, f)
+        self.assertRaises(TypeError, Composition, f)
         f = {1: 2, 8: 1}
         self.assertEqual("H2 O1", Composition(f).formula)
         self.assertEqual("Na2 O1", Composition(Na=2, O=1).formula)
@@ -138,6 +159,20 @@ class CompositionTest(unittest.TestCase):
         all_formulas = [c.reduced_formula for c in self.comp]
         self.assertEqual(all_formulas, correct_reduced_formulas)
 
+    def test_integer_formula(self):
+        correct_reduced_formulas = ['Li3Fe2(PO4)3', 'Li3FePO5', 'LiMn2O4',
+                                    'Li2O2', 'Li3Fe2(MoO4)3',
+                                    'Li3Fe2P6(C5O27)2', 'Li3Si', 'ZnHO']
+        all_formulas = [c.get_integer_formula_and_factor()[0] for c in self.comp]
+        self.assertEqual(all_formulas, correct_reduced_formulas)
+        self.assertEqual(Composition('Li0.5O0.25').get_integer_formula_and_factor(),
+                         ('Li2O', 0.25))
+        self.assertEqual(Composition('O0.25').get_integer_formula_and_factor(),
+                         ('O2', 0.125))
+        formula, factor = Composition("Li0.16666667B1.0H1.0").get_integer_formula_and_factor()
+        self.assertEqual(formula, 'Li(BH)6')
+        self.assertAlmostEqual(factor, 1 / 6)
+
     def test_num_atoms(self):
         correct_num_atoms = [20, 10, 7, 8, 20, 75, 2, 3]
         all_natoms = [c.num_atoms for c in self.comp]
@@ -159,7 +194,7 @@ class CompositionTest(unittest.TestCase):
                          "Wrong computed atomic fractions")
 
     def test_anonymized_formula(self):
-        expected_formulas = ['A2B3C3D12', 'ABC3D5', 'AB2C4', 'A2B2',
+        expected_formulas = ['A2B3C3D12', 'ABC3D5', 'AB2C4', 'AB',
                              'A2B3C3D12', 'A2B3C6D10E54', 'A0.5B1.5', 'ABC']
         for i in range(len(self.comp)):
             self.assertEqual(self.comp[i].anonymized_formula,
@@ -315,6 +350,14 @@ class CompositionTest(unittest.TestCase):
         self.assertEqual(c1.num_atoms, 2)
         self.assertEqual(c1.element_composition, Composition())
         self.assertEqual(c1.average_electroneg, 1.31)
+
+    def test_special_formulas(self):
+        special_formulas = {"LiO": "Li2O2", "NaO": "Na2O2", "KO": "K2O2",
+                            "HO": "H2O2", "CsO": "Cs2O2", "RbO": "Rb2O2",
+                            "O": "O2",  "N": "N2", "F": "F2", "Cl": "Cl2",
+                            "H": "H2"}
+        for k, v in special_formulas.items():
+            self.assertEqual(Composition(k).reduced_formula, v)
 
 
 class ChemicalPotentialTest(unittest.TestCase):

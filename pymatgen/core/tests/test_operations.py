@@ -1,4 +1,6 @@
 # coding: utf-8
+# Copyright (c) Pymatgen Development Team.
+# Distributed under the terms of the MIT License.
 
 from __future__ import unicode_literals
 
@@ -30,6 +32,8 @@ class SymmOpTestCase(PymatgenTest):
         point = np.array([1, 2, 3])
         newcoords = self.op.operate_multi([point, point])
         self.assertArrayAlmostEqual(newcoords, [[-0.1339746, 2.23205081, 4.]]*2, 2)
+        newcoords = self.op.operate_multi([[point, point]]*2)
+        self.assertArrayAlmostEqual(newcoords, [[[-0.1339746, 2.23205081, 4.]]*2]*2, 2)
 
     def test_inverse(self):
         point = np.random.rand(3)
@@ -74,6 +78,42 @@ class SymmOpTestCase(PymatgenTest):
         pt = np.random.rand(3)
         inv_pt = op.operate(pt)
         self.assertArrayAlmostEqual(pt - origin, origin - inv_pt)
+
+    def test_xyz(self):
+        op = SymmOp([[1, -1, 0, 0], [0, -1, 0, 0],
+                     [0, 0, -1, 0], [0, 0, 0, 1]])
+        s = op.as_xyz_string()
+        self.assertEqual(s, 'x-y, -y, -z')
+        self.assertEqual(op, SymmOp.from_xyz_string(s))
+
+        op2 = SymmOp([[0, -1, 0, 0.5], [1, 0, 0, 0.5],
+                      [0, 0, 1, 0.5+1e-7], [0, 0, 0, 1]])
+        s2 = op2.as_xyz_string()
+        self.assertEqual(s2, '-y+1/2, x+1/2, z+1/2')
+        self.assertEqual(op2, SymmOp.from_xyz_string(s2))
+
+        op2 = SymmOp([[3, -2, -1, 0.5], [-1, 0, 0, 12./13],
+                      [0, 0, 1, 0.5+1e-7], [0, 0, 0, 1]])
+        s2 = op2.as_xyz_string()
+        self.assertEqual(s2, '3x-2y-z+1/2, -x+12/13, z+1/2')
+        self.assertEqual(op2, SymmOp.from_xyz_string(s2))
+
+        op3 = SymmOp.from_xyz_string('3x - 2y - z+1 /2 , -x+12/ 13, z+1/2')
+        self.assertEqual(op2, op3)
+
+        # Ensure strings can be read in any order
+        op4 = SymmOp.from_xyz_string('1 /2 + 3X - 2y - z , 12/ 13-x, z+1/2')
+        op5 = SymmOp.from_xyz_string('+1 /2 + 3x - 2y - z , 12/ 13-x, +1/2+z')
+        self.assertEqual(op4, op3)
+        self.assertEqual(op4, op5)
+        self.assertEqual(op3, op5)
+
+        self.assertRaises(ValueError, self.op.as_xyz_string)
+
+        o = SymmOp.from_xyz_string('0.5+x, 0.25+y, 0.75+z')
+        self.assertArrayAlmostEqual(o.translation_vector, [0.5, 0.25, 0.75])
+        o = SymmOp.from_xyz_string('x + 0.5, y + 0.25, z + 0.75')
+        self.assertArrayAlmostEqual(o.translation_vector, [0.5, 0.25, 0.75])
 
 if __name__ == '__main__':
     import unittest

@@ -1,4 +1,6 @@
 # coding: utf-8
+# Copyright (c) Pymatgen Development Team.
+# Distributed under the terms of the MIT License.
 
 from __future__ import division, unicode_literals
 
@@ -119,10 +121,19 @@ class IStructureTest(PymatgenTest):
         self.assertEqual(d['sites'][0]['properties']['magmom'], 5)
         self.assertEqual(d['sites'][0]['species'][0]['properties']['spin'], 3)
 
+        d = s.as_dict(0)
+        self.assertNotIn("volume", d['lattice'])
+        self.assertNotIn("xyz", d['sites'][0])
+
     def test_from_dict(self):
+
         d = self.propertied_structure.as_dict()
         s = IStructure.from_dict(d)
         self.assertEqual(s[0].magmom, 5)
+        d = self.propertied_structure.as_dict(0)
+        s2 = IStructure.from_dict(d)
+        self.assertEqual(s, s2)
+
         d = {'lattice': {'a': 3.8401979337, 'volume': 40.044794644251596,
                          'c': 3.8401979337177736, 'b': 3.840198994344244,
                          'matrix': [[3.8401979337, 0.0, 0.0],
@@ -204,6 +215,33 @@ class IStructureTest(PymatgenTest):
         struct2 = IStructure(self.struct.lattice, ["Si", "Fe"], coords2)
         self.assertRaises(ValueError, struct.interpolate, struct2)
 
+        # Test autosort feature.
+        s1 = Structure.from_spacegroup("Fm-3m", Lattice.cubic(3),
+                                       ["Fe"], [[0, 0, 0]])
+        s1.pop(0)
+        s2 = Structure.from_spacegroup("Fm-3m", Lattice.cubic(3),
+                                       ["Fe"], [[0, 0, 0]])
+        s2.pop(2)
+        random.shuffle(s2)
+
+        for s in s1.interpolate(s2, autosort_tol=0.5):
+            self.assertArrayAlmostEqual(s1[0].frac_coords, s[0].frac_coords)
+            self.assertArrayAlmostEqual(s1[2].frac_coords, s[2].frac_coords)
+
+        # Make sure autosort has no effect on simpler interpolations,
+        # and with shuffled sites.
+        s1 = Structure.from_spacegroup("Fm-3m", Lattice.cubic(3),
+                                       ["Fe"], [[0, 0, 0]])
+        s2 = Structure.from_spacegroup("Fm-3m", Lattice.cubic(3),
+                                       ["Fe"], [[0, 0, 0]])
+        s2[0] = "Fe", [0.01, 0.01, 0.01]
+        random.shuffle(s2)
+
+        for s in s1.interpolate(s2, autosort_tol=0.5):
+            self.assertArrayAlmostEqual(s1[1].frac_coords, s[1].frac_coords)
+            self.assertArrayAlmostEqual(s1[2].frac_coords, s[2].frac_coords)
+            self.assertArrayAlmostEqual(s1[3].frac_coords, s[3].frac_coords)
+
     def test_interpolate_lattice(self):
         coords = list()
         coords.append([0, 0, 0])
@@ -234,7 +272,46 @@ class IStructureTest(PymatgenTest):
         self.assertEqual(len(fcc_ag.get_primitive_structure()), 1)
         coords = [[0, 0, 0], [0.5, 0.5, 0.5]]
         bcc_li = IStructure(Lattice.cubic(4.09), ["Li"] * 2, coords)
-        self.assertEqual(len(bcc_li.get_primitive_structure()), 1)
+        bcc_prim = bcc_li.get_primitive_structure()
+        self.assertEqual(len(bcc_prim), 1)
+        self.assertAlmostEqual(bcc_prim.lattice.alpha, 109.47122, 3)
+
+        coords = [[0] * 3, [0.5] * 3, [0.25] * 3, [0.26] * 3]
+        s = IStructure(Lattice.cubic(4.09), ["Ag"] * 4, coords)
+        self.assertEqual(len(s.get_primitive_structure()), 4)
+
+    def test_primitive_cell_site_merging(self):
+        l = Lattice.cubic(10)
+        coords = [[0, 0, 0], [0, 0, 0.5],
+                  [0, 0, 0.26], [0, 0, 0.74]]
+        sp = ['Ag', 'Ag', 'Be', 'Be']
+        s = Structure(l, sp, coords)
+        dm = s.get_primitive_structure().distance_matrix
+        self.assertArrayAlmostEqual(dm, [[0, 2.5], [2.5, 0]])
+
+    def test_primitive_on_large_supercell(self):
+        coords = [[0, 0, 0], [0.5, 0.5, 0], [0, 0.5, 0.5], [0.5, 0, 0.5]]
+        fcc_ag = Structure(Lattice.cubic(4.09), ["Ag"] * 4, coords)
+        fcc_ag.make_supercell([2, 2, 2])
+        fcc_ag_prim = fcc_ag.get_primitive_structure()
+        self.assertEqual(len(fcc_ag_prim), 1)
+        self.assertAlmostEqual(fcc_ag_prim.volume, 17.10448225)
+
+    def test_primitive_positions(self):
+        coords = [[0, 0, 0], [0.3, 0.35, 0.45]]
+        s = Structure(Lattice.from_parameters(1,2,3,50,66,88), ["Ag"] * 2, coords)
+
+        a = [[-1,2,-3], [3,2,-4], [1,0,-1]]
+        b = [[4, 0, 0], [1, 1, 0], [3, 0, 1]]
+        c = [[2, 0, 0], [1, 3, 0], [1, 1, 1]]
+
+        for sc_matrix in [c]:
+            sc = s.copy()
+            sc.make_supercell(sc_matrix)
+            prim = sc.get_primitive_structure(0.01)
+
+            self.assertEqual(len(prim), 2)
+            self.assertAlmostEqual(prim.distance_matrix[0,1], 1.0203432356739286)
 
     def test_primitive_structure_volume_check(self):
         l = Lattice.tetragonal(10, 30)
@@ -247,6 +324,11 @@ class IStructureTest(PymatgenTest):
 
     def test_get_all_neighbors_and_get_neighbors(self):
         s = self.struct
+        nn = s.get_neighbors_in_shell(s[0].frac_coords, 2, 4,
+                                       include_index=True)
+        self.assertEqual(len(nn), 47)
+        self.assertEqual(nn[0][-1], 0)
+
         r = random.uniform(3, 6)
         all_nn = s.get_all_neighbors(r, True)
         for i in range(len(s)):
@@ -261,6 +343,7 @@ class IStructureTest(PymatgenTest):
         s = Structure(Lattice.cubic(1), ['Li'], [[0,0,0]])
         s.make_supercell([2,2,2])
         self.assertEqual(sum(map(len, s.get_all_neighbors(3))), 976)
+
 
     def test_get_all_neighbors_outside_cell(self):
         s = Structure(Lattice.cubic(2), ['Li', 'Li', 'Li', 'Si'],
@@ -292,6 +375,12 @@ class IStructureTest(PymatgenTest):
         self.struct.to(filename="POSCAR.testing")
         self.assertTrue(os.path.exists("POSCAR.testing"))
         os.remove("POSCAR.testing")
+
+        self.struct.to(filename="Si_testing.yaml")
+        self.assertTrue(os.path.exists("Si_testing.yaml"))
+        s = Structure.from_file("Si_testing.yaml")
+        self.assertEqual(s, self.struct)
+        os.remove("Si_testing.yaml")
 
 
 class StructureTest(PymatgenTest):
@@ -391,6 +480,13 @@ class StructureTest(PymatgenTest):
         self.assertEqual(s[0].charge, 4.1)
         self.assertEqual(s[0].magmom, 3)
 
+    def test_propertied_structure(self):
+        #Make sure that site properties are set to None for missing values.
+        s = self.structure
+        s.add_site_property("charge", [4.1, -5])
+        s.append("Li", [0.3, 0.3 ,0.3])
+        self.assertEqual(len(s.site_properties["charge"]), 3)
+
     def test_perturb(self):
         d = 0.1
         pre_perturbation_sites = self.structure.sites[:]
@@ -435,12 +531,23 @@ class StructureTest(PymatgenTest):
 
     def test_apply_operation(self):
         op = SymmOp.from_axis_angle_and_translation([0, 0, 1], 90)
-        self.structure.apply_operation(op)
+        s = self.structure.copy()
+        s.apply_operation(op)
         self.assertArrayAlmostEqual(
-            self.structure.lattice.matrix,
+            s.lattice.matrix,
             [[0.000000, 3.840198, 0.000000],
              [-3.325710, 1.920099, 0.000000],
              [2.217138, -0.000000, 3.135509]], 5)
+
+        op = SymmOp([[1, 1, 0, 0.5], [1, 0, 0, 0.5], [0, 0, 1, 0.5],
+                     [0, 0, 0, 1]])
+        s = self.structure.copy()
+        s.apply_operation(op, fractional=True)
+        self.assertArrayAlmostEqual(
+            s.lattice.matrix,
+            [[5.760297, 3.325710, 0.000000],
+             [3.840198, 0.000000, 0.000000],
+             [0.000000, -2.217138, 3.135509]], 5)
 
     def test_apply_strain(self):
         s = self.structure
@@ -481,6 +588,17 @@ class StructureTest(PymatgenTest):
                                        frac_coords=True, to_unit_cell=False)
         self.assertArrayAlmostEqual(self.structure.frac_coords[0],
                                     [1.00187517, 1.25665291, 1.15946374])
+
+    def test_mul(self):
+        self.structure *= [2, 1, 1]
+        self.assertEqual(self.structure.formula, "Si4")
+        s = [2, 1, 1] * self.structure
+        self.assertEqual(s.formula, "Si8")
+        self.assertIsInstance(s, Structure)
+        s = self.structure * [[1, 0, 0], [2, 1, 0], [0, 0, 2]]
+        self.assertEqual(s.formula, "Si8")
+        self.assertArrayAlmostEqual(s.lattice.abc,
+                                    [7.6803959, 17.5979979, 7.6803959])
 
     def test_make_supercell(self):
         self.structure.make_supercell([2, 1, 1])
@@ -532,7 +650,7 @@ class StructureTest(PymatgenTest):
                 'to None.')
 
     def test_to_from_file_string(self):
-        for fmt in ["cif", "json", "poscar", "cssr"]:
+        for fmt in ["cif", "json", "poscar", "cssr", "yaml", "xsf"]:
             s = self.structure.to(fmt=fmt)
             self.assertIsNotNone(s)
             ss = Structure.from_str(s, fmt=fmt)
@@ -552,6 +670,39 @@ class StructureTest(PymatgenTest):
         s = Structure.from_file("structure_testing.json")
         self.assertEqual(s, self.structure)
         os.remove("structure_testing.json")
+
+    def test_from_spacegroup(self):
+        s1 = Structure.from_spacegroup("Fm-3m", Lattice.cubic(3), ["Li", "O"],
+                                       [[0.25, 0.25, 0.25], [0, 0, 0]])
+        self.assertEqual(s1.formula, "Li8 O4")
+        s2 = Structure.from_spacegroup(225, Lattice.cubic(3), ["Li", "O"],
+                                       [[0.25, 0.25, 0.25], [0, 0, 0]])
+        self.assertEqual(s1, s2)
+
+        s2 = Structure.from_spacegroup(225, Lattice.cubic(3), ["Li", "O"],
+                                       [[0.25, 0.25, 0.25], [0, 0, 0]],
+                                       site_properties={"charge": [1, -2]})
+        self.assertEqual(sum(s2.site_properties["charge"]), 0)
+
+        s = Structure.from_spacegroup("Pm-3m", Lattice.cubic(3), ["Cs", "Cl"],
+                                      [[0, 0, 0], [0.5, 0.5, 0.5]])
+        self.assertEqual(s.formula, "Cs1 Cl1")
+
+        self.assertRaises(ValueError, Structure.from_spacegroup,
+                          "Pm-3m", Lattice.tetragonal(1, 3), ["Cs", "Cl"],
+                          [[0, 0, 0], [0.5, 0.5, 0.5]])
+
+    def test_merge_sites(self):
+        species = [{'Ag': 0.5}, {'Cl': 0.25}, {'Cl': 0.1},
+                   {'Ag': 0.5}, {'F': 0.15}, {'F': 0.1}]
+        coords = [[0, 0, 0], [0.5, 0.5, 0.5], [0.5, 0.5, 0.5],
+                  [0, 0, 0], [0.5, 0.5, 1.501], [0.5, 0.5, 1.501]]
+        s = Structure(Lattice.cubic(1), species, coords)
+        s.merge_sites()
+        self.assertEqual(s[0].specie.symbol, 'Ag')
+        self.assertEqual(s[1].species_and_occu,
+                         Composition({'Cl': 0.35, 'F': 0.25}))
+        self.assertArrayAlmostEqual(s[1].frac_coords, [.5, .5, .5005])
 
 
 class IMoleculeTest(PymatgenTest):
@@ -599,16 +750,16 @@ class IMoleculeTest(PymatgenTest):
         self.assertEqual(self.mol.formula, "H4 C1")
 
     def test_repr_str(self):
-        ans = """Molecule Summary (H4 C1)
+        ans = """Full Formula (H4 C1)
 Reduced Formula: H4C
 Charge = 0, Spin Mult = 1
 Sites (5)
-1 C     0.000000     0.000000     0.000000
-2 H     0.000000     0.000000     1.089000
-3 H     1.026719     0.000000    -0.363000
-4 H    -0.513360    -0.889165    -0.363000
-5 H    -0.513360     0.889165    -0.363000"""
-        self.assertEqual(str(self.mol), ans)
+0 C     0.000000     0.000000     0.000000
+1 H     0.000000     0.000000     1.089000
+2 H     1.026719     0.000000    -0.363000
+3 H    -0.513360    -0.889165    -0.363000
+4 H    -0.513360     0.889165    -0.363000"""
+        self.assertEqual(self.mol.__str__(), ans)
         ans = """Molecule Summary
 Site: C (0.0000, 0.0000, 0.0000)
 Site: H (0.0000, 0.0000, 1.0890)
@@ -648,6 +799,8 @@ Site: H (-0.5134, 0.8892, -0.3630)"""
     def test_get_neighbors_in_shell(self):
         nn = self.mol.get_neighbors_in_shell([0, 0, 0], 0, 1)
         self.assertEqual(len(nn), 1)
+        nn = self.mol.get_neighbors_in_shell([0, 0, 0], 1, 0.9)
+        self.assertEqual(len(nn), 4)
         nn = self.mol.get_neighbors_in_shell([0, 0, 0], 1, 0.9)
         self.assertEqual(len(nn), 4)
         nn = self.mol.get_neighbors_in_shell([0, 0, 0], 2, 0.1)
@@ -710,7 +863,7 @@ Site: H (-0.5134, 0.8892, -0.3630)"""
         self.assertEqual(mol.charge, 1)
 
     def test_to_from_file_string(self):
-        for fmt in ["xyz", "json", "g03"]:
+        for fmt in ["xyz", "json", "g03", "yaml"]:
             s = self.mol.to(fmt=fmt)
             self.assertIsNotNone(s)
             m = IMolecule.from_str(s, fmt=fmt)
@@ -720,6 +873,11 @@ Site: H (-0.5134, 0.8892, -0.3630)"""
         self.mol.to(filename="CH4_testing.xyz")
         self.assertTrue(os.path.exists("CH4_testing.xyz"))
         os.remove("CH4_testing.xyz")
+        self.mol.to(filename="CH4_testing.yaml")
+        self.assertTrue(os.path.exists("CH4_testing.yaml"))
+        mol = Molecule.from_file("CH4_testing.yaml")
+        self.assertEqual(self.mol, mol)
+        os.remove("CH4_testing.yaml")
 
 
 class MoleculeTest(PymatgenTest):

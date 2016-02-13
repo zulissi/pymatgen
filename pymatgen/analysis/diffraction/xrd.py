@@ -1,4 +1,6 @@
 # coding: utf-8
+# Copyright (c) Pymatgen Development Team.
+# Distributed under the terms of the MIT License.
 
 from __future__ import division, unicode_literals
 
@@ -24,7 +26,7 @@ import os
 import numpy as np
 import json
 
-from pymatgen.symmetry.finder import SymmetryFinder
+from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 
 #XRD wavelengths in angstroms
 WAVELENGTHS = {
@@ -177,7 +179,7 @@ class XRDCalculator(object):
             their multiplicities. d_hkl is the interplanar spacing.
         """
         if self.symprec:
-            finder = SymmetryFinder(structure, symprec=self.symprec)
+            finder = SpacegroupAnalyzer(structure, symprec=self.symprec)
             structure = finder.get_refined_structure()
 
         wavelength = self.wavelength
@@ -330,7 +332,7 @@ class XRDCalculator(object):
                 if annotate_peaks:
                     plt.annotate(label, xy=[two_theta, i],
                                  xytext=[two_theta, i], fontsize=16)
-        plt.xlabel(r"2\theta (degrees)")
+        plt.xlabel(r"$2\theta$ ($^\circ$)")
         plt.ylabel("Intensities (scaled)")
         plt.tight_layout()
 

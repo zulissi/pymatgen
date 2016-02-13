@@ -1,4 +1,6 @@
 # coding: utf-8
+# Copyright (c) Pymatgen Development Team.
+# Distributed under the terms of the MIT License.
 
 from __future__ import division, unicode_literals
 
@@ -6,8 +8,8 @@ import unittest
 import pickle
 import collections
 
-from pymatgen.core.periodic_table import Element, Specie, DummySpecie, \
-    PeriodicTable, get_el_sp
+from pymatgen.core.periodic_table import Element, Specie, DummySpecie, get_el_sp
+from pymatgen.core.composition import Composition
 from copy import deepcopy
 
 
@@ -19,7 +21,7 @@ class ElementTestCase(unittest.TestCase):
         fictional_symbols = ["D", "T", "Zebra"]
 
         for sym in fictional_symbols:
-            self.assertRaises(KeyError, Element, sym)
+            self.assertRaises(ValueError, Element, sym)
 
         #Test caching
         self.assertEqual(id(Element("Fe")), id(Element("Fe")))
@@ -30,7 +32,8 @@ class ElementTestCase(unittest.TestCase):
         self.assertEqual(fe, Element.from_dict(d))
 
     def test_block(self):
-        testsets = {"O": "p", "Fe": "d", "Li": "s", "U": "f"}
+        testsets = {"O": "p", "Fe": "d", "Li": "s", "U": "f", "Er": "f",
+                    "Lu": "d", "Lr": "d"}
         for k, v in testsets.items():
             self.assertEqual(Element(k).block, v)
 
@@ -122,6 +125,9 @@ class ElementTestCase(unittest.TestCase):
         o = pickle.dumps(el1)
         self.assertEqual(el1, pickle.loads(o))
 
+    def test_print_periodic_table(self):
+        Element.print_periodic_table()
+
 
 class SpecieTestCase(unittest.TestCase):
 
@@ -199,6 +205,16 @@ class SpecieTestCase(unittest.TestCase):
         self.assertEqual(sorted(els), [Specie("Si", 3), Specie("Si", 4),
                                        Specie("N", -3)])
 
+    def test_to_from_string(self):
+        fe3 = Specie("Fe", 3, {"spin": 5})
+        self.assertEqual(str(fe3), "Fe3+spin=5")
+        fe = Specie.from_string("Fe3+spin=5")
+        self.assertEqual(fe.spin, 5)
+        mo0 = Specie("Mo", 0, {"spin": 5})
+        self.assertEqual(str(mo0), "Mo0+spin=5")
+        mo = Specie.from_string("Mo0+spin=4")
+        self.assertEqual(mo.spin, 4)
+
 
 class DummySpecieTestCase(unittest.TestCase):
 
@@ -210,6 +226,11 @@ class DummySpecieTestCase(unittest.TestCase):
         self.specie2 = DummySpecie("X", 2, {"spin": 3})
         self.assertEqual(self.specie2.spin, 3)
 
+    def test_cached(self):
+        sp1 = DummySpecie("X", 2)
+        sp2 = DummySpecie("X", 2)
+        self.assertEqual(id(sp1), id(sp2))
+
     def test_eq(self):
         self.assertFalse(DummySpecie("Xg") == DummySpecie("Xh"))
         self.assertFalse(DummySpecie("Xg") == DummySpecie("Xg", 3))
@@ -220,6 +241,9 @@ class DummySpecieTestCase(unittest.TestCase):
         self.assertEqual(sp.oxi_state, 0)
         sp = DummySpecie.from_string("X2+")
         self.assertEqual(sp.oxi_state, 2)
+        sp = DummySpecie.from_string("X2+spin=5")
+        self.assertEqual(sp.oxi_state, 2)
+        self.assertEqual(sp.spin, 5)
 
     def test_pickle(self):
         el1 = DummySpecie("X", 3)
@@ -230,54 +254,10 @@ class DummySpecieTestCase(unittest.TestCase):
         r = sorted([Element('Fe'), DummySpecie("X")])
         self.assertEqual(r, [DummySpecie("X"), Element('Fe')])
 
-
-class PeriodicTableTestCase(unittest.TestCase):
-
-    def test_element(self):
-        symbols = list()
-        for i in range(1, 102):
-            el = Element.from_Z(i)
-            self.assertGreater(el.atomic_mass, 0,
-                               "Atomic mass cannot be negative!")
-            self.assertNotIn(el.symbol, symbols,
-                             "Duplicate symbol for " + el.symbol)
-            symbols.append(""" + el.symbol + """)
-            self.assertIsNotNone(el.group,
-                                 "Group cannot be none for Z=" + str(i))
-            self.assertIsNotNone(el.row, "Row cannot be none for Z=" + str(i))
-
-            #Test all properties
-            all_attr = ["Z", "symbol", "X", "name", "atomic_mass",
-                        "atomic_radius", "max_oxidation_state",
-                        "min_oxidation_state", "mendeleev_no",
-                        "electrical_resistivity", "velocity_of_sound",
-                        "reflectivity", "refractive_index", "poissons_ratio",
-                        "molar_volume", "electronic_structure",
-                        "thermal_conductivity", "boiling_point",
-                        "melting_point", "critical_temperature",
-                        "superconduction_temperature", "liquid_range",
-                        "bulk_modulus", "youngs_modulus", "brinell_hardness",
-                        "rigidity_modulus", "mineral_hardness",
-                        "vickers_hardness", "density_of_solid",
-                        "coefficient_of_linear_thermal_expansion"]
-
-            for a in all_attr:
-                self.assertIsNotNone(el, a)
-
-    def test_print_periodic_table(self):
-        PeriodicTable().print_periodic_table()
-
-    def test_iterable(self):
-        """Test whether PeriodicTable supports the iteration protocol"""
-        table = PeriodicTable()
-
-        self.assertTrue(isinstance(table, collections.Iterable))
-
-        self.assertEqual(table[14].Z, 14)
-        self.assertEqual([e.Z for e in table[1:4:2]], [1, 3])
-
-        for (idx, element) in enumerate(table):
-            self.assertEqual(idx+1, element.Z)
+    def test_safe_from_composition(self):
+        c = Composition({'Xa': 1, 'Fe': 1})
+        self.assertEqual(DummySpecie.safe_from_composition(c).symbol, 'Xb')
+        self.assertEqual(DummySpecie.safe_from_composition(c, 1).symbol, 'Xb')
 
 
 class FuncTest(unittest.TestCase):
@@ -285,6 +265,7 @@ class FuncTest(unittest.TestCase):
     def test_get_el_sp(self):
         self.assertEqual(get_el_sp("Fe2+"), Specie("Fe", 2))
         self.assertEqual(get_el_sp("3"), Element("Li"))
+        self.assertEqual(get_el_sp("3.0"), Element("Li"))
         self.assertEqual(get_el_sp("U"), Element("U"))
         self.assertEqual(get_el_sp("X2+"), DummySpecie("X", 2))
         self.assertEqual(get_el_sp("Mn3+"), Specie("Mn", 3))

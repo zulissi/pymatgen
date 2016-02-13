@@ -1,14 +1,18 @@
 # coding: utf-8
+# Copyright (c) Pymatgen Development Team.
+# Distributed under the terms of the MIT License.
 """
 This module provides utility classes for string operations.
 """
 from __future__ import unicode_literals
 import re
-import sys
-import fnmatch
+
 
 from six.moves import zip
-from monty.string import list_strings
+
+from tabulate import tabulate
+
+from monty.dev import deprecated
 
 
 __author__ = "Shyue Ping Ong"
@@ -20,6 +24,9 @@ __status__ = "Production"
 __date__ = "$Sep 23, 2011M$"
 
 
+@deprecated(tabulate, "In-house method has been deprecated in favor of using "
+                      "the tabulate package. Please switch all usages. Will "
+                      "be removed in pymagen v4.0.")
 def generate_latex_table(results, header=None, caption=None, label=None):
     """
     Generates a string latex table from a sequence of sequence.
@@ -72,6 +79,9 @@ def str_delimited(results, header=None, delimiter="\t"):
                                   for result in results])
 
 
+@deprecated(tabulate, "In-house method has been deprecated in favor of using "
+                      "the tabulate package. Please switch all usages. Will "
+                      "be removed in pymagen v4.0.")
 def str_aligned(results, header=None):
     """
     Given a tuple, generate a nicely aligned string form.
@@ -139,7 +149,7 @@ def latexify(formula):
     Returns:
         Formula suitable for display as in LaTeX with proper subscripts.
     """
-    return re.sub(r"([A-Za-z\(\)])(\d+)", r"\1$_{\2}$", formula)
+    return re.sub(r"([A-Za-z\(\)])([\d\.]+)", r"\1$_{\2}$", formula)
 
 
 def latexify_spacegroup(spacegroup_symbol):
@@ -155,41 +165,6 @@ def latexify_spacegroup(spacegroup_symbol):
     """
     sym = re.sub(r"_(\d+)", r"$_{\1}$", spacegroup_symbol)
     return re.sub(r"-(\d)", r"$\overline{\1}$", sym)
-
-
-def pprint_table(table, out=sys.stdout, rstrip=False):
-    """
-    Prints out a table of data, padded for alignment
-    Each row must have the same number of columns.
-
-    Args:
-        table: The table to print. A list of lists.
-        out: Output stream (file-like object)
-        rstrip: if True, trailing withespaces are removed from the entries.
-    """
-    def max_width_col(table, col_idx):
-        """
-        Get the maximum width of the given column index
-        """
-        return max([len(row[col_idx]) for row in table])
-
-    if rstrip:
-        for row_idx, row in enumerate(table):
-            table[row_idx] = [c.rstrip() for c in row]
-
-    col_paddings = []
-    ncols = len(table[0])
-    for i in range(ncols):
-        col_paddings.append(max_width_col(table, i))
-
-    for row in table:
-        # left col
-        out.write(row[0].ljust(col_paddings[0] + 1))
-        # rest of the cols
-        for i in range(1, len(row)):
-            col = row[i].rjust(col_paddings[i] + 2)
-            out.write(col)
-        out.write("\n")
 
 
 def stream_has_colours(stream):
@@ -231,61 +206,6 @@ class StringColorizer(object):
                 return string
         else:
             return string
-
-
-class WildCard(object):
-    """
-    This object provides an easy-to-use interface for
-    filename matching with shell patterns (fnmatch).
-
-    .. example:
-
-    >>> w = WildCard("*.nc|*.pdf")
-    >>> w.filter(["foo.nc", "bar.pdf", "hello.txt"])
-    ['foo.nc', 'bar.pdf']
-
-    >>> w.filter("foo.nc")
-    ['foo.nc']
-    """
-    def __init__(self, wildcard, sep="|"):
-        """
-        Initializes a WildCard.
-
-        Args:
-            wildcard (str): String of tokens separated by sep. Each token
-                represents a pattern.
-            sep (str): Separator for shell patterns.
-        """
-        self.pats = ["*"]
-        if wildcard:
-            self.pats = wildcard.split(sep)
-
-    def __str__(self):
-        return "<%s, patterns = %s>" % (self.__class__.__name__, self.pats)
-
-    def filter(self, names):
-        """
-        Returns a list with the names matching the pattern.
-        """
-        names = list_strings(names)
-
-        fnames = []
-        for f in names:
-            for pat in self.pats:
-                if fnmatch.fnmatch(f, pat):
-                    fnames.append(f)
-
-        return fnames
-
-    def match(self, name):
-        """
-        Returns True if name matches one of the patterns.
-        """
-        for pat in self.pats:
-            if fnmatch.fnmatch(name, pat):
-                return True
-
-        return False
 
 
 if __name__ == "__main__":

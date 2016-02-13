@@ -1,6 +1,7 @@
 Change log
 ==========
 
-v3.0.4
+v3.3.4
 ------
-* Fix missing structures json data.
+* Procar now supports parsing of phase factors.
+* Miscellaneous bug fixes.

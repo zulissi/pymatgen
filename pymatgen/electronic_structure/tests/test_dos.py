@@ -1,4 +1,6 @@
 # coding: utf-8
+# Copyright (c) Pymatgen Development Team.
+# Distributed under the terms of the MIT License.
 
 from __future__ import unicode_literals
 
@@ -6,17 +8,13 @@ import unittest
 import os
 import json
 
-from pymatgen import Spin, Orbital
+from pymatgen.electronic_structure.core import Spin, Orbital, OrbitalType
 from pymatgen.electronic_structure.dos import CompleteDos
 
 test_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..",
                         'test_files')
 
-try:
-    import scipy
-    has_scipy = True
-except ImportError:
-    has_scipy = False
+import scipy
 
 
 class DosTest(unittest.TestCase):
@@ -41,12 +39,11 @@ class DosTest(unittest.TestCase):
                                1.756888888888886, 7)
         self.assertRaises(ValueError, dos.get_interpolated_value, 1000)
 
-    @unittest.skipIf(not has_scipy, "scipy not present")
     def test_get_smeared_densities(self):
         dos = self.dos
         smeared = dos.get_smeared_densities(0.2)
         dens = dos.densities
-        for spin in Spin.all_spins:
+        for spin in Spin:
             self.assertAlmostEqual(sum(dens[spin]), sum(smeared[spin]))
 
 
@@ -68,7 +65,7 @@ class CompleteDosTest(unittest.TestCase):
         self.assertEqual(len(spd_dos), 3)
         el_dos = dos.get_element_dos()
         self.assertEqual(len(el_dos), 4)
-        sum_spd = spd_dos['S'] + spd_dos['P'] + spd_dos['D']
+        sum_spd = spd_dos[OrbitalType.s] + spd_dos[OrbitalType.p] + spd_dos[OrbitalType.d]
         sum_element = None
         for pdos in el_dos.values():
             if sum_element is None:
@@ -117,7 +114,7 @@ class CompleteDosTest(unittest.TestCase):
         el_dos = dos.get_element_dos()
         self.assertEqual(len(el_dos), 4)
         spd_dos = dos.get_spd_dos()
-        sum_spd = spd_dos['S'] + spd_dos['P'] + spd_dos['D']
+        sum_spd = spd_dos[OrbitalType.s] + spd_dos[OrbitalType.p] + spd_dos[OrbitalType.d]
         sum_element = None
         for pdos in el_dos.values():
             if sum_element is None:

@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.core.sites &mdash; pymatgen 3.3.6 documentation</title>
+    <title>pymatgen.core.sites &mdash; pymatgen 3.4.0 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '3.3.6',
+        VERSION:     '3.4.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.3.6 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 3.4.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.3.6 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.4.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -102,26 +102,36 @@
 
 <span class="sd">        Args:</span>
 <span class="sd">            atoms_n_occu: Species on the site. Can be:</span>
-
-<span class="sd">                i.  A sequence of element / specie specified either as string</span>
-<span class="sd">                    symbols, e.g. [&quot;Li&quot;, &quot;Fe2+&quot;, &quot;P&quot;, ...] or atomic numbers,</span>
-<span class="sd">                    e.g., (3, 56, ...) or actual Element or Specie objects.</span>
-<span class="sd">                ii. List of dict of elements/species and occupancies, e.g.,</span>
-<span class="sd">                    [{&quot;Fe&quot; : 0.5, &quot;Mn&quot;:0.5}, ...]. This allows the setup of</span>
+<span class="sd">                i.  A Composition object (preferred)</span>
+<span class="sd">                ii. An  element / specie specified either as a string</span>
+<span class="sd">                    symbols, e.g. &quot;Li&quot;, &quot;Fe2+&quot;, &quot;P&quot; or atomic numbers,</span>
+<span class="sd">                    e.g., 3, 56, or actual Element or Specie objects.</span>
+<span class="sd">                iii.Dict of elements/species and occupancies, e.g.,</span>
+<span class="sd">                    {&quot;Fe&quot; : 0.5, &quot;Mn&quot;:0.5}. This allows the setup of</span>
 <span class="sd">                    disordered structures.</span>
 <span class="sd">            coords: Cartesian coordinates of site.</span>
 <span class="sd">            properties: Properties associated with the site as a dict, e.g.</span>
 <span class="sd">                {&quot;magmom&quot;: 5}. Defaults to None.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_species</span> <span class="o">=</span> <span class="n">Composition</span><span class="p">({</span><span class="n">get_el_sp</span><span class="p">(</span><span class="n">atoms_n_occu</span><span class="p">):</span> <span class="mi">1</span><span class="p">})</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_is_ordered</span> <span class="o">=</span> <span class="bp">True</span>
-        <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_species</span> <span class="o">=</span> <span class="n">Composition</span><span class="p">(</span><span class="n">atoms_n_occu</span><span class="p">)</span>
-            <span class="n">totaloccu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_species</span><span class="o">.</span><span class="n">num_atoms</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">atoms_n_occu</span><span class="p">,</span> <span class="n">Composition</span><span class="p">):</span>
+            <span class="c1"># Compositions are immutable, so don&#39;t need to copy (much much faster)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_species</span> <span class="o">=</span> <span class="n">atoms_n_occu</span>
+            <span class="c1"># Kludgy lookup of private attribute, but its faster</span>
+            <span class="n">totaloccu</span> <span class="o">=</span> <span class="n">atoms_n_occu</span><span class="o">.</span><span class="n">_natoms</span>
             <span class="k">if</span> <span class="n">totaloccu</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">Composition</span><span class="o">.</span><span class="n">amount_tolerance</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Species occupancies sum to more than 1!&quot;</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_is_ordered</span> <span class="o">=</span> <span class="n">totaloccu</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_species</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+            <span class="c1"># Another kludgy lookup of private attribute, but its faster</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_is_ordered</span> <span class="o">=</span> <span class="n">totaloccu</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_species</span><span class="o">.</span><span class="n">_data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_species</span> <span class="o">=</span> <span class="n">Composition</span><span class="p">({</span><span class="n">get_el_sp</span><span class="p">(</span><span class="n">atoms_n_occu</span><span class="p">):</span> <span class="mi">1</span><span class="p">})</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_is_ordered</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_species</span> <span class="o">=</span> <span class="n">Composition</span><span class="p">(</span><span class="n">atoms_n_occu</span><span class="p">)</span>
+                <span class="n">totaloccu</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_species</span><span class="o">.</span><span class="n">num_atoms</span>
+                <span class="k">if</span> <span class="n">totaloccu</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">Composition</span><span class="o">.</span><span class="n">amount_tolerance</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Species occupancies sum to more than 1!&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_is_ordered</span> <span class="o">=</span> <span class="n">totaloccu</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_species</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_coords</span> <span class="o">=</span> <span class="n">coords</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_properties</span> <span class="o">=</span> <span class="n">properties</span> <span class="k">if</span> <span class="n">properties</span> <span class="k">else</span> <span class="p">{}</span>
@@ -600,9 +610,6 @@
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
-    <p class="searchtip" style="font-size: 90%">
-    Enter search terms or a module, class or function name.
-    </p>
 </div>
 <script type="text/javascript">$('#searchbox').show(0);</script>
         </div>
@@ -618,14 +625,14 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.3.6 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.4.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>
 
     <div class="footer" role="contentinfo">
         &copy; Copyright 2011, Pymatgen Development Team.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.3.6.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

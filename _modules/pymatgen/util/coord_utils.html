@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.util.coord_utils &mdash; pymatgen 3.4.0 documentation</title>
+    <title>pymatgen.util.coord_utils &mdash; pymatgen 3.5.0 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '3.4.0',
+        VERSION:     '3.5.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.4.0 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 3.5.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.4.0 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.5.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -80,6 +80,7 @@
 <span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">pymatgen.util.coord_utils_cython</span> <span class="kn">as</span> <span class="nn">cuc</span>
 
 <span class="c1">#array size threshold for looping instead of broadcasting</span>
 <span class="n">LOOP_THRESHOLD</span> <span class="o">=</span> <span class="mf">1e6</span>
@@ -269,7 +270,7 @@
     <span class="n">crange</span><span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="p">:]</span>
 <span class="n">images</span> <span class="o">=</span> <span class="n">images</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">27</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
 
-<div class="viewcode-block" id="pbc_shortest_vectors"><a class="viewcode-back" href="../../../pymatgen.util.html#pymatgen.util.coord_utils.pbc_shortest_vectors">[docs]</a><span class="k">def</span> <span class="nf">pbc_shortest_vectors</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="n">fcoords1</span><span class="p">,</span> <span class="n">fcoords2</span><span class="p">):</span>
+<div class="viewcode-block" id="pbc_shortest_vectors"><a class="viewcode-back" href="../../../pymatgen.util.html#pymatgen.util.coord_utils.pbc_shortest_vectors">[docs]</a><span class="k">def</span> <span class="nf">pbc_shortest_vectors</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="n">fcoords1</span><span class="p">,</span> <span class="n">fcoords2</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">return_d2</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Returns the shortest vectors between two lists of coordinates taking into</span>
 <span class="sd">    account periodic boundary conditions and the lattice.</span>
@@ -280,38 +281,16 @@
 <span class="sd">            or [[1.1, 1.2, 4.3], [0.5, 0.6, 0.7]]. It can be a single</span>
 <span class="sd">            coord or any array of coords.</span>
 <span class="sd">        fcoords2: Second set of fractional coordinates.</span>
+<span class="sd">        mask (boolean array): Mask of matches that are not allowed.</span>
+<span class="sd">            i.e. if mask[1,2] == True, then subset[1] cannot be matched</span>
+<span class="sd">            to superset[2]</span>
+<span class="sd">        return_d2 (boolean): whether to also return the squared distances</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        array of displacement vectors from fcoords1 to fcoords2</span>
 <span class="sd">        first index is fcoords1 index, second is fcoords2 index</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1">#ensure correct shape</span>
-    <span class="n">fcoords1</span><span class="p">,</span> <span class="n">fcoords2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_2d</span><span class="p">(</span><span class="n">fcoords1</span><span class="p">,</span> <span class="n">fcoords2</span><span class="p">)</span>
-
-    <span class="c1">#ensure that all points are in the unit cell</span>
-    <span class="n">fcoords1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mod</span><span class="p">(</span><span class="n">fcoords1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-    <span class="n">fcoords2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mod</span><span class="p">(</span><span class="n">fcoords2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-
-    <span class="c1">#create images of f2</span>
-    <span class="n">shifted_f2</span> <span class="o">=</span> <span class="n">fcoords2</span><span class="p">[:,</span> <span class="bp">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">images</span><span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
-
-    <span class="n">cart_f1</span> <span class="o">=</span> <span class="n">lattice</span><span class="o">.</span><span class="n">get_cartesian_coords</span><span class="p">(</span><span class="n">fcoords1</span><span class="p">)</span>
-    <span class="n">cart_f2</span> <span class="o">=</span> <span class="n">lattice</span><span class="o">.</span><span class="n">get_cartesian_coords</span><span class="p">(</span><span class="n">shifted_f2</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">cart_f1</span><span class="o">.</span><span class="n">size</span> <span class="o">*</span> <span class="n">cart_f2</span><span class="o">.</span><span class="n">size</span> <span class="o">&lt;</span> <span class="n">LOOP_THRESHOLD</span><span class="p">:</span>
-        <span class="c1">#all vectors from f1 to f2</span>
-        <span class="n">vectors</span> <span class="o">=</span> <span class="n">cart_f2</span><span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">cart_f1</span><span class="p">[:,</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="p">:]</span>
-        <span class="n">d_2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">vectors</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">indices</span><span class="p">(</span><span class="n">vectors</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">])</span>
-        <span class="k">return</span> <span class="n">vectors</span><span class="p">[</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">d_2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)]</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">shortest</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">cart_f1</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">cart_f2</span><span class="p">),</span> <span class="mi">3</span><span class="p">))</span>
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">c1</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">cart_f1</span><span class="p">):</span>
-            <span class="n">vectors</span> <span class="o">=</span> <span class="n">cart_f2</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">c1</span><span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="p">:]</span>
-            <span class="n">d_2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">vectors</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
-            <span class="n">shortest</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">vectors</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">vectors</span><span class="p">)),</span>
-                                  <span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">d_2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)]</span>
-        <span class="k">return</span> <span class="n">shortest</span></div>
+    <span class="k">return</span> <span class="n">cuc</span><span class="o">.</span><span class="n">pbc_shortest_vectors</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="n">fcoords1</span><span class="p">,</span> <span class="n">fcoords2</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">return_d2</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="find_in_coord_list_pbc"><a class="viewcode-back" href="../../../pymatgen.util.html#pymatgen.util.coord_utils.find_in_coord_list_pbc">[docs]</a><span class="k">def</span> <span class="nf">find_in_coord_list_pbc</span><span class="p">(</span><span class="n">fcoord_list</span><span class="p">,</span> <span class="n">fcoord</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">):</span>
@@ -365,15 +344,14 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        True if all of subset is in superset.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">c1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">subset</span><span class="p">)</span>
-    <span class="n">c2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">superset</span><span class="p">)</span>
-    <span class="n">dist</span> <span class="o">=</span> <span class="n">c1</span><span class="p">[:,</span> <span class="bp">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">c2</span><span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
-    <span class="n">dist</span> <span class="o">-=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">dist</span><span class="p">)</span>
+    <span class="n">c1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">subset</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+    <span class="n">c2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">superset</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-        <span class="n">dist</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">mask</span><span class="p">)]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
-    <span class="n">is_close</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">dist</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">atol</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">any_close</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">is_close</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">any_close</span><span class="p">)</span></div>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">subset</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">superset</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int</span><span class="p">)</span>
+    <span class="n">atol</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span> <span class="o">+</span> <span class="n">atol</span>
+    <span class="k">return</span> <span class="n">cuc</span><span class="o">.</span><span class="n">is_coord_subset_pbc</span><span class="p">(</span><span class="n">c1</span><span class="p">,</span> <span class="n">c2</span><span class="p">,</span> <span class="n">atol</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="lattice_points_in_supercell"><a class="viewcode-back" href="../../../pymatgen.util.html#pymatgen.util.coord_utils.lattice_points_in_supercell">[docs]</a><span class="k">def</span> <span class="nf">lattice_points_in_supercell</span><span class="p">(</span><span class="n">supercell_matrix</span><span class="p">):</span>
@@ -577,14 +555,14 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.4.0 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.5.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>
 
     <div class="footer" role="contentinfo">
         &copy; Copyright 2011, Pymatgen Development Team.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.1.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

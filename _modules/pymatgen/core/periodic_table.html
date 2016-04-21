@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.core.periodic_table &mdash; pymatgen 3.4.0 documentation</title>
+    <title>pymatgen.core.periodic_table &mdash; pymatgen 3.5.0 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '3.4.0',
+        VERSION:     '3.5.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.4.0 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 3.5.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.4.0 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.5.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -60,7 +60,19 @@
 <span class="c1"># Copyright (c) Pymatgen Development Team.</span>
 <span class="c1"># Distributed under the terms of the MIT License.</span>
 
-<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">unicode_literals</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">unicode_literals</span><span class="p">,</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">from</span> <span class="nn">io</span> <span class="kn">import</span> <span class="nb">open</span>
+<span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">Enum</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.core.units</span> <span class="kn">import</span> <span class="n">Mass</span><span class="p">,</span> <span class="n">Length</span><span class="p">,</span> <span class="n">unitized</span><span class="p">,</span> <span class="n">FloatWithUnit</span><span class="p">,</span> <span class="n">Unit</span><span class="p">,</span> \
+    <span class="n">SUPPORTED_UNIT_NAMES</span>
+<span class="kn">from</span> <span class="nn">pymatgen.util.string_utils</span> <span class="kn">import</span> <span class="n">formula_double_format</span>
+<span class="kn">from</span> <span class="nn">monty.json</span> <span class="kn">import</span> <span class="n">MSONable</span>
+<span class="kn">from</span> <span class="nn">monty.dev</span> <span class="kn">import</span> <span class="n">deprecated</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">Module contains classes presenting Element and Specie (Element + oxidation</span>
@@ -76,16 +88,6 @@
 <span class="n">__status__</span> <span class="o">=</span> <span class="s2">&quot;Production&quot;</span>
 <span class="n">__date__</span> <span class="o">=</span> <span class="s2">&quot;Sep 23, 2011&quot;</span>
 
-<span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">re</span>
-<span class="kn">import</span> <span class="nn">json</span>
-<span class="kn">from</span> <span class="nn">io</span> <span class="kn">import</span> <span class="nb">open</span>
-<span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">Enum</span>
-
-<span class="kn">from</span> <span class="nn">pymatgen.core.units</span> <span class="kn">import</span> <span class="n">Mass</span><span class="p">,</span> <span class="n">Length</span><span class="p">,</span> <span class="n">unitized</span>
-<span class="kn">from</span> <span class="nn">pymatgen.util.string_utils</span> <span class="kn">import</span> <span class="n">formula_double_format</span>
-<span class="kn">from</span> <span class="nn">monty.json</span> <span class="kn">import</span> <span class="n">MSONable</span>
-<span class="kn">from</span> <span class="nn">monty.dev</span> <span class="kn">import</span> <span class="n">deprecated</span>
 
 <span class="c1"># Loads element data from json file</span>
 <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span> <span class="s2">&quot;periodic_table.json&quot;</span><span class="p">),</span> <span class="s2">&quot;rt&quot;</span>
@@ -451,6 +453,35 @@
             <span class="n">val</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">kstr</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
             <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">val</span><span class="p">)</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;no data&quot;</span><span class="p">):</span>
                 <span class="n">val</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">val</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                    <span class="n">toks_nobracket</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s1">r&#39;\(.*\)&#39;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+                    <span class="n">toks</span> <span class="o">=</span> <span class="n">toks_nobracket</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;about&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">toks</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="s2">&quot;10&lt;sup&gt;&quot;</span> <span class="ow">in</span> <span class="n">toks</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                                <span class="n">base_power</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s1">r&#39;([+-]?\d+)&#39;</span><span class="p">,</span> <span class="n">toks</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                                <span class="n">factor</span> <span class="o">=</span> <span class="s2">&quot;e&quot;</span> <span class="o">+</span> <span class="n">base_power</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                                <span class="n">toks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="n">factor</span>
+                                <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="s2">&quot;electrical_resistivity&quot;</span><span class="p">:</span>
+                                    <span class="n">unit</span> <span class="o">=</span> <span class="s2">&quot;ohm m&quot;</span>
+                                <span class="k">elif</span> <span class="n">a</span> <span class="o">==</span> <span class="s2">&quot;coefficient_of_linear_thermal_expansion&quot;</span><span class="p">:</span>
+                                    <span class="n">unit</span> <span class="o">=</span> <span class="s2">&quot;K^-1&quot;</span>
+                                <span class="k">else</span><span class="p">:</span>
+                                    <span class="n">unit</span> <span class="o">=</span> <span class="n">toks</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                                <span class="n">val</span> <span class="o">=</span> <span class="n">FloatWithUnit</span><span class="p">(</span><span class="n">toks</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">unit</span><span class="p">)</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="n">unit</span> <span class="o">=</span> <span class="n">toks</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;&lt;sup&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;^&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+                                    <span class="s2">&quot;&lt;/sup&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;&amp;Omega;&quot;</span><span class="p">,</span>
+                                                          <span class="s2">&quot;ohm&quot;</span><span class="p">)</span>
+                                <span class="n">units</span> <span class="o">=</span> <span class="n">Unit</span><span class="p">(</span><span class="n">unit</span><span class="p">)</span>
+                                <span class="k">if</span> <span class="nb">set</span><span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="n">SUPPORTED_UNIT_NAMES</span><span class="p">):</span>
+                                    <span class="n">val</span> <span class="o">=</span> <span class="n">FloatWithUnit</span><span class="p">(</span><span class="n">toks</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">unit</span><span class="p">)</span>
+                        <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+                            <span class="c1"># Ignore error. val will just remain a string.</span>
+                            <span class="k">pass</span>
             <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Atomic radius&quot;</span><span class="p">,</span> <span class="s2">&quot;no data&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;no data&quot;</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">atomic_radius</span> <span class="o">=</span> <span class="bp">None</span>
@@ -557,7 +588,7 @@
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">symbol</span>
 
-<div class="viewcode-block" id="Element.__lt__"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.periodic_table.Element.__lt__">[docs]</a>    <span class="k">def</span> <span class="nf">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Sets a default sort order for atomic species by electronegativity. Very</span>
 <span class="sd">        useful for getting correct formulas.  For example, FeO4PLi is</span>
@@ -568,7 +599,7 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># There are cases where the electronegativity are exactly equal.</span>
             <span class="c1"># We then sort by symbol.</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">symbol</span> <span class="o">&lt;</span> <span class="n">other</span><span class="o">.</span><span class="n">symbol</span></div>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">symbol</span> <span class="o">&lt;</span> <span class="n">other</span><span class="o">.</span><span class="n">symbol</span>
 
     <span class="nd">@staticmethod</span>
 <div class="viewcode-block" id="Element.from_Z"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.periodic_table.Element.from_Z">[docs]</a>    <span class="k">def</span> <span class="nf">from_Z</span><span class="p">(</span><span class="n">z</span><span class="p">):</span>
@@ -629,9 +660,9 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Z</span>
         <span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="k">if</span> <span class="mi">57</span> <span class="o">&lt;=</span> <span class="n">z</span> <span class="o">&lt;=</span> <span class="mi">70</span><span class="p">:</span>
+        <span class="k">if</span> <span class="mi">57</span> <span class="o">&lt;=</span> <span class="n">z</span> <span class="o">&lt;=</span> <span class="mi">71</span><span class="p">:</span>
             <span class="k">return</span> <span class="mi">8</span>
-        <span class="k">elif</span> <span class="mi">89</span> <span class="o">&lt;=</span> <span class="n">z</span> <span class="o">&lt;=</span> <span class="mi">102</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="mi">89</span> <span class="o">&lt;=</span> <span class="n">z</span> <span class="o">&lt;=</span> <span class="mi">103</span><span class="p">:</span>
             <span class="k">return</span> <span class="mi">9</span>
 
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">_pt_row_sizes</span><span class="p">)):</span>
@@ -666,7 +697,7 @@
 
         <span class="k">if</span> <span class="p">(</span><span class="n">z</span> <span class="o">-</span> <span class="mi">54</span><span class="p">)</span> <span class="o">%</span> <span class="mi">32</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">return</span> <span class="mi">18</span>
-        <span class="k">elif</span> <span class="p">(</span><span class="n">z</span> <span class="o">-</span> <span class="mi">54</span><span class="p">)</span> <span class="o">%</span> <span class="mi">32</span> <span class="o">&gt;=</span> <span class="mi">17</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="p">(</span><span class="n">z</span> <span class="o">-</span> <span class="mi">54</span><span class="p">)</span> <span class="o">%</span> <span class="mi">32</span> <span class="o">&gt;=</span> <span class="mi">18</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">z</span> <span class="o">-</span> <span class="mi">54</span><span class="p">)</span> <span class="o">%</span> <span class="mi">32</span> <span class="o">-</span> <span class="mi">14</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">z</span> <span class="o">-</span> <span class="mi">54</span><span class="p">)</span> <span class="o">%</span> <span class="mi">32</span>
@@ -679,6 +710,8 @@
         <span class="n">block</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
         <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">is_actinoid</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_lanthanoid</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">Z</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">71</span><span class="p">,</span> <span class="mi">103</span><span class="p">]:</span>
             <span class="n">block</span> <span class="o">=</span> <span class="s2">&quot;f&quot;</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_actinoid</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_lanthanoid</span><span class="p">:</span>
+            <span class="n">block</span> <span class="o">=</span> <span class="s2">&quot;d&quot;</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">group</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]:</span>
             <span class="n">block</span> <span class="o">=</span> <span class="s2">&quot;s&quot;</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">group</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">13</span><span class="p">,</span> <span class="mi">19</span><span class="p">):</span>
@@ -877,27 +910,27 @@
         <span class="k">except</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Specie.__eq__"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.periodic_table.Specie.__eq__">[docs]</a>    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Specie is equal to other only if element and oxidation states are</span>
 <span class="sd">        exactly the same.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Specie</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">symbol</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">symbol</span> \
             <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_oxi_state</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">_oxi_state</span> \
-            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_properties</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">_properties</span></div>
+            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_properties</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">_properties</span>
 
     <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">__eq__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Specie.__hash__"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.periodic_table.Specie.__hash__">[docs]</a>    <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Given that all oxidation states are below 100 in absolute value, this</span>
 <span class="sd">        should effectively ensure that no two unequal Specie have the same</span>
 <span class="sd">        hash.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_el</span><span class="o">.</span><span class="n">Z</span> <span class="o">*</span> <span class="mi">1000</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_oxi_state</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_el</span><span class="o">.</span><span class="n">Z</span> <span class="o">*</span> <span class="mi">1000</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_oxi_state</span><span class="p">)</span>
 
-<div class="viewcode-block" id="Specie.__lt__"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.periodic_table.Specie.__lt__">[docs]</a>    <span class="k">def</span> <span class="nf">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Sets a default sort order for atomic species by electronegativity,</span>
 <span class="sd">        followed by oxidation state.</span>
@@ -910,7 +943,7 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">symbol</span> <span class="o">&lt;</span> <span class="n">other</span><span class="o">.</span><span class="n">symbol</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">other_oxi</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Element</span><span class="p">)</span> <span class="k">else</span> <span class="n">other</span><span class="o">.</span><span class="n">oxi_state</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">oxi_state</span> <span class="o">&lt;</span> <span class="n">other_oxi</span></div>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">oxi_state</span> <span class="o">&lt;</span> <span class="n">other_oxi</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">element</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -1106,7 +1139,7 @@
     <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="mi">1</span>
 
-<div class="viewcode-block" id="DummySpecie.__eq__"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.periodic_table.DummySpecie.__eq__">[docs]</a>    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Specie is equal to other only if element and oxidation states are</span>
 <span class="sd">        exactly the same.</span>
@@ -1114,12 +1147,12 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">DummySpecie</span><span class="p">):</span>
             <span class="k">return</span> <span class="bp">False</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">symbol</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">symbol</span> \
-            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_oxi_state</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">_oxi_state</span></div>
+            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_oxi_state</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">_oxi_state</span>
 
     <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">__eq__</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
 
-<div class="viewcode-block" id="DummySpecie.__lt__"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.periodic_table.DummySpecie.__lt__">[docs]</a>    <span class="k">def</span> <span class="nf">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Sets a default sort order for atomic species by electronegativity,</span>
 <span class="sd">        followed by oxidation state.</span>
@@ -1132,7 +1165,7 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">symbol</span> <span class="o">&lt;</span> <span class="n">other</span><span class="o">.</span><span class="n">symbol</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">other_oxi</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Element</span><span class="p">)</span> <span class="k">else</span> <span class="n">other</span><span class="o">.</span><span class="n">oxi_state</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">oxi_state</span> <span class="o">&lt;</span> <span class="n">other_oxi</span></div>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">oxi_state</span> <span class="o">&lt;</span> <span class="n">other_oxi</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">Z</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -1383,14 +1416,14 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.4.0 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.5.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>
 
     <div class="footer" role="contentinfo">
         &copy; Copyright 2011, Pymatgen Development Team.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.1.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

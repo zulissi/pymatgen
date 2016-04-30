@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.analysis.elasticity.tensors &mdash; pymatgen 3.4.0 documentation</title>
+    <title>pymatgen.analysis.elasticity.tensors &mdash; pymatgen 3.5.1 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '3.4.0',
+        VERSION:     '3.5.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.4.0 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 3.5.1 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 3.4.0 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 3.5.1 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -64,54 +64,58 @@
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">absolute_import</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">This module provides a base class, SQTensor, and associated methods for</span>
-<span class="sd">creating and manipulating square rank 2 tensors</span>
+<span class="sd">This module provides a base class for tensor-like objects and methods for</span>
+<span class="sd">basic tensor manipulation.  It also provides a class, SquareTensor,</span>
+<span class="sd">that provides basic methods for creating and manipulating rank 2 tensors</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 
-<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;Maarten de Jong, Joseph Montoya&quot;</span>
+<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;Maarten de Jong&quot;</span>
 <span class="n">__copyright__</span> <span class="o">=</span> <span class="s2">&quot;Copyright 2012, The Materials Project&quot;</span>
-<span class="n">__credits__</span> <span class="o">=</span> <span class="s2">&quot;Wei Chen, Mark Asta, Anubhav Jain&quot;</span>
+<span class="n">__credits__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;Joseph Montoya, Shyam Dwaraknath, Wei Chen, &quot;</span>
+               <span class="s2">&quot;Mark Asta, Anubhav Jain, Terence Lew&quot;</span><span class="p">)</span>
 <span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;1.0&quot;</span>
-<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s2">&quot;Maarten de Jong&quot;</span>
-<span class="n">__email__</span> <span class="o">=</span> <span class="s2">&quot;maartendft@gmail.com&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s2">&quot;Joseph Montoya&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s2">&quot;montoyjh@lbl.gov&quot;</span>
 <span class="n">__status__</span> <span class="o">=</span> <span class="s2">&quot;Development&quot;</span>
 <span class="n">__date__</span> <span class="o">=</span> <span class="s2">&quot;March 22, 2012&quot;</span>
 
 
 <span class="kn">from</span> <span class="nn">scipy.linalg</span> <span class="kn">import</span> <span class="n">polar</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">from</span> <span class="nn">pymatgen.symmetry.analyzer</span> <span class="kn">import</span> <span class="n">SpacegroupAnalyzer</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.operations</span> <span class="kn">import</span> <span class="n">SymmOp</span>
 
-
-<div class="viewcode-block" id="SQTensor"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.SQTensor">[docs]</a><span class="k">class</span> <span class="nc">SQTensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<div class="viewcode-block" id="TensorBase"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.TensorBase">[docs]</a><span class="k">class</span> <span class="nc">TensorBase</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Base class for doing useful general operations on *square* second order</span>
-<span class="sd">    tensors, without restrictions on what type (stress, elastic, strain etc.).</span>
+<span class="sd">    Base class for doing useful general operations on Nth order tensors,</span>
+<span class="sd">    without restrictions on the type (stress, elastic, strain, piezo, etc.)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">input_array</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Create a SQTensor object.  Note that the constructor uses __new__</span>
+<span class="sd">        Create a TensorBase object.  Note that the constructor uses __new__</span>
 <span class="sd">        rather than __init__ according to the standard method of</span>
-<span class="sd">        subclassing numpy ndarrays.  Error is thrown when the class is</span>
-<span class="sd">        initialized with non-square matrix.</span>
+<span class="sd">        subclassing numpy ndarrays.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            stress_matrix (3x3 array-like): the 3x3 array-like</span>
-<span class="sd">                representing the Green-Lagrange strain</span>
+<span class="sd">            input_array: (3xN array-like): the 3xN array-like representing</span>
+<span class="sd">                a tensor quantity</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-
         <span class="n">obj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">input_array</span><span class="p">)</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">cls</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">obj</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">obj</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;SQTensor only takes 2-D &quot;</span>
-                             <span class="s2">&quot;square array-likes as input&quot;</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">rank</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">([</span><span class="n">i</span> <span class="o">==</span> <span class="mi">3</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">obj</span><span class="o">.</span><span class="n">shape</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Pymatgen only supports 3-dimensional tensors&quot;</span><span class="p">)</span>
+        
         <span class="k">return</span> <span class="n">obj</span>
 
     <span class="k">def</span> <span class="nf">__array_finalize__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rank</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s1">&#39;rank&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
 
-<div class="viewcode-block" id="SQTensor.__array_wrap__"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.SQTensor.__array_wrap__">[docs]</a>    <span class="k">def</span> <span class="nf">__array_wrap__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+<div class="viewcode-block" id="TensorBase.__array_wrap__"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.TensorBase.__array_wrap__">[docs]</a>    <span class="k">def</span> <span class="nf">__array_wrap__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Overrides __array_wrap__ methods in ndarray superclass to avoid errors</span>
 <span class="sd">        associated with functions that return scalar values</span>
@@ -122,53 +126,143 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">__array_wrap__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">)</span></div>
         
-<div class="viewcode-block" id="SQTensor.__hash__"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.SQTensor.__hash__">[docs]</a>    <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="TensorBase.__hash__"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.TensorBase.__hash__">[docs]</a>    <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        define a hash function, since numpy arrays</span>
 <span class="sd">        have their own __eq__ method</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tostring</span><span class="p">())</span> </div>
+        <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tostring</span><span class="p">())</span></div>
 
     <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
         <span class="k">return</span> <span class="s2">&quot;{}({})&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span>
                                <span class="n">cls</span><span class="o">.</span><span class="n">__str__</span><span class="p">())</span>
 
+<div class="viewcode-block" id="TensorBase.zeroed"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.TensorBase.zeroed">[docs]</a>    <span class="k">def</span> <span class="nf">zeroed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tol</span> <span class="o">=</span> <span class="mf">1e-3</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        returns the matrix with all entries below a certain threshold</span>
+<span class="sd">        (i.e. tol) set to zero</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">new_tensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">new_tensor</span><span class="p">[</span><span class="nb">abs</span><span class="p">(</span><span class="n">new_tensor</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">return</span> <span class="n">new_tensor</span></div>
+
+<div class="viewcode-block" id="TensorBase.transform"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.TensorBase.transform">[docs]</a>    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">symm_op</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Applies a transformation (via a symmetry operation) to a tensor. </span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            symm_op (3x3 array-like): a symmetry operation to apply to the tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="n">symm_op</span><span class="o">.</span><span class="n">transform_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TensorBase.rotate"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.TensorBase.rotate">[docs]</a>    <span class="k">def</span> <span class="nf">rotate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">matrix</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">):</span>
+        <span class="n">matrix</span> <span class="o">=</span> <span class="n">SquareTensor</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">matrix</span><span class="o">.</span><span class="n">is_rotation</span><span class="p">(</span><span class="n">tol</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Rotation matrix is not valid.&quot;</span><span class="p">)</span>
+        <span class="n">sop</span> <span class="o">=</span> <span class="n">SymmOp</span><span class="o">.</span><span class="n">from_rotation_and_translation</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span>
+                                                   <span class="p">[</span><span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">,</span> <span class="mf">0.</span><span class="p">])</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">sop</span><span class="p">)</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">symmetrized</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a generally symmetrized tensor, calculated by taking </span>
+<span class="sd">        the sum of the tensor and its transpose with respect to all </span>
+<span class="sd">        possible permutations of indices</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">perms</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">permutations</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rank</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ind</span><span class="p">)</span> <span class="k">for</span> <span class="n">ind</span> <span class="ow">in</span> <span class="n">perms</span><span class="p">])</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">perms</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TensorBase.is_symmetric"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.TensorBase.is_symmetric">[docs]</a>    <span class="k">def</span> <span class="nf">is_symmetric</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Tests whether a tensor is symmetric or not based on the residual</span>
+<span class="sd">        with its symmetric part, from self.symmetrized</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tol (float): tolerance to test for symmetry</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">symmetrized</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="TensorBase.fit_to_structure"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.TensorBase.fit_to_structure">[docs]</a>    <span class="k">def</span> <span class="nf">fit_to_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">symprec</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a tensor that is invariant with respect to symmetry</span>
+<span class="sd">        operations corresponding to a structure</span>
+
+<span class="sd">        Args: </span>
+<span class="sd">            structure (Structure): structure from which to generate </span>
+<span class="sd">                symmetry operations</span>
+<span class="sd">            symprec (float): symmetry tolerance for the Spacegroup Analyzer</span>
+<span class="sd">                used to generate the symmetry operations</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">sga</span> <span class="o">=</span> <span class="n">SpacegroupAnalyzer</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">symprec</span><span class="p">)</span>
+        <span class="n">symm_ops</span> <span class="o">=</span> <span class="n">sga</span><span class="o">.</span><span class="n">get_symmetry_operations</span><span class="p">(</span><span class="n">cartesian</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">symm_op</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">symm_op</span> <span class="ow">in</span> <span class="n">symm_ops</span><span class="p">])</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">symm_ops</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TensorBase.is_fit_to_structure"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.TensorBase.is_fit_to_structure">[docs]</a>    <span class="k">def</span> <span class="nf">is_fit_to_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Tests whether a tensor is invariant with respect to the</span>
+<span class="sd">        symmetry operations of a particular structure by testing</span>
+<span class="sd">        whether the residual of the symmetric portion is below a </span>
+<span class="sd">        tolerance</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            tol (float): tolerance for symmetry testing</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">fit_to_structure</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="SquareTensor"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.SquareTensor">[docs]</a><span class="k">class</span> <span class="nc">SquareTensor</span><span class="p">(</span><span class="n">TensorBase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base class for doing useful general operations on second rank tensors</span>
+<span class="sd">    (stress, strain etc.).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">input_array</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a SquareTensor object.  Note that the constructor uses __new__</span>
+<span class="sd">        rather than __init__ according to the standard method of</span>
+<span class="sd">        subclassing numpy ndarrays.  Error is thrown when the class is</span>
+<span class="sd">        initialized with non-square matrix.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            stress_matrix (3x3 array-like): the 3x3 array-like</span>
+<span class="sd">                representing the Green-Lagrange strain</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">TensorBase</span><span class="p">(</span><span class="n">input_array</span><span class="p">)</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">cls</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;SquareTensor only takes 2-D &quot;</span>
+                             <span class="s2">&quot;tensors as input&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">obj</span>
+        
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">trans</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        shorthand for transpose on SQTensor</span>
+<span class="sd">        shorthand for transpose on SquareTensor</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">SQTensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">SquareTensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">inv</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        shorthand for matrix inverse on SQTensor</span>
+<span class="sd">        shorthand for matrix inverse on SquareTensor</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">det</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;SQTensor is non-invertible&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">SQTensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;SquareTensor is non-invertible&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">SquareTensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">det</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        shorthand for the determinant of the SQTensor</span>
+<span class="sd">        shorthand for the determinant of the SquareTensor</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">det</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
 
-<div class="viewcode-block" id="SQTensor.is_symmetric"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.SQTensor.is_symmetric">[docs]</a>    <span class="k">def</span> <span class="nf">is_symmetric</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Test to see if tensor is symmetric to a user-defined tolerance.</span>
-<span class="sd">        This is determined by subtracting the transpose; if any of the</span>
-<span class="sd">        resultant elements are above the specified tolerance, returns</span>
-<span class="sd">        False.  Otherwise returns true.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            tol (float): tolerance to symmetry test</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="bp">self</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">trans</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span></div>
-
-<div class="viewcode-block" id="SQTensor.is_rotation"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.SQTensor.is_rotation">[docs]</a>    <span class="k">def</span> <span class="nf">is_rotation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">):</span>
+<div class="viewcode-block" id="SquareTensor.is_rotation"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.SquareTensor.is_rotation">[docs]</a>    <span class="k">def</span> <span class="nf">is_rotation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Test to see if tensor is a valid rotation matrix, performs a</span>
 <span class="sd">        test to check whether the inverse is equal to the transpose</span>
@@ -184,41 +278,15 @@
         <span class="k">return</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inv</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">trans</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span> \
             <span class="ow">and</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">det</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-</span> <span class="mf">1.</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">)</span></div>
 
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">symmetrized</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns a symmetrized matrix from the input matrix,</span>
-<span class="sd">        calculated by taking the sum of the matrix and its</span>
-<span class="sd">        transpose</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">trans</span><span class="p">)</span>
-
-<div class="viewcode-block" id="SQTensor.rotate"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.SQTensor.rotate">[docs]</a>    <span class="k">def</span> <span class="nf">rotate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rotation</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns a rotated tensor based on input of a another</span>
-<span class="sd">        rotation tensor.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            rotation (3x3 array-like): rotation tensor, is tested</span>
-<span class="sd">                for rotation properties and then operates on self</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Rotations are only implemented for &quot;</span>
-                                      <span class="s2">&quot;3x3 tensors.&quot;</span><span class="p">)</span>
-        <span class="n">rotation</span> <span class="o">=</span> <span class="n">SQTensor</span><span class="p">(</span><span class="n">rotation</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">rotation</span><span class="o">.</span><span class="n">is_rotation</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Specified rotation matrix is invalid&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">rotation</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">rotation</span><span class="o">.</span><span class="n">trans</span><span class="p">))</span></div>
-
-<div class="viewcode-block" id="SQTensor.get_scaled"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.SQTensor.get_scaled">[docs]</a>    <span class="k">def</span> <span class="nf">get_scaled</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scale_factor</span><span class="p">):</span>
+<div class="viewcode-block" id="SquareTensor.get_scaled"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.SquareTensor.get_scaled">[docs]</a>    <span class="k">def</span> <span class="nf">get_scaled</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scale_factor</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Scales the tensor by a certain multiplicative scale factor</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            scale_factor (float): scalar multiplier to be applied to the</span>
-<span class="sd">                SQTensor object</span>
+<span class="sd">                SquareTensor object</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">SQTensor</span><span class="p">(</span><span class="bp">self</span> <span class="o">*</span> <span class="n">scale_factor</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">SquareTensor</span><span class="p">(</span><span class="bp">self</span> <span class="o">*</span> <span class="n">scale_factor</span><span class="p">)</span></div>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">principal_invariants</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -227,26 +295,13 @@
 <span class="sd">        which are the values of the coefficients of the characteristic</span>
 <span class="sd">        polynomial for the matrix</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">poly</span><span class="p">(</span><span class="bp">self</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Principal invariants is only intended for use &quot;</span>
-                             <span class="s2">&quot;with 3x3 SQTensors&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">poly</span><span class="p">(</span><span class="bp">self</span><span class="p">)[</span><span class="mi">1</span><span class="p">:]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
 
-<div class="viewcode-block" id="SQTensor.polar_decomposition"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.SQTensor.polar_decomposition">[docs]</a>    <span class="k">def</span> <span class="nf">polar_decomposition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s1">&#39;right&#39;</span><span class="p">):</span>
+<div class="viewcode-block" id="SquareTensor.polar_decomposition"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.SquareTensor.polar_decomposition">[docs]</a>    <span class="k">def</span> <span class="nf">polar_decomposition</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="s1">&#39;right&#39;</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        calculates matrices for polar decomposition</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">polar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="n">side</span><span class="p">)</span></div>
-
-<div class="viewcode-block" id="SQTensor.zeroed"><a class="viewcode-back" href="../../../../pymatgen.analysis.elasticity.html#pymatgen.analysis.elasticity.tensors.SQTensor.zeroed">[docs]</a>    <span class="k">def</span> <span class="nf">zeroed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        returns the matrix with all entries below a certain threshold</span>
-<span class="sd">        (i.e. tol) set to zero</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">new_tensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="n">new_tensor</span><span class="p">[</span><span class="nb">abs</span><span class="p">(</span><span class="n">new_tensor</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="k">return</span> <span class="n">new_tensor</span></div></div>
+        <span class="k">return</span> <span class="n">polar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">side</span><span class="o">=</span><span class="n">side</span><span class="p">)</span></div></div>
 </pre></div>
 
           </div>
@@ -277,14 +332,14 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 3.4.0 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 3.5.1 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>
 
     <div class="footer" role="contentinfo">
         &copy; Copyright 2011, Pymatgen Development Team.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.1.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

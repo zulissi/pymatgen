@@ -1,0 +1,270 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.io.lammps.input &mdash; pymatgen 3.5.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '3.5.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+    <link rel="top" title="pymatgen 3.5.1 documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" />
+ 
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-33990148-1']);
+  _gaq.push(['_trackPageview']);
+</script>
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 3.5.1 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pymatgen.io.lammps.input</h1><div class="highlight"><pre>
+<span></span><span class="c1"># coding: utf-8</span>
+<span class="c1"># Copyright (c) Pymatgen Development Team.</span>
+<span class="c1"># Distributed under the terms of the MIT License.</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">unicode_literals</span><span class="p">,</span> \
+    <span class="n">absolute_import</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module implements classes for generating Lammps input files.</span>
+<span class="sd">The input files consist of the main input file with the control parameters and</span>
+<span class="sd">the data file.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+
+<span class="kn">from</span> <span class="nn">monty.json</span> <span class="kn">import</span> <span class="n">MSONable</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.io.lammps.data</span> <span class="kn">import</span> <span class="n">LammpsData</span><span class="p">,</span> <span class="n">LammpsForceFieldData</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;Kiran Mathew&quot;</span>
+<span class="n">__credits__</span> <span class="o">=</span> <span class="s2">&quot;Navnidhi Rajput&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s2">&quot;kmathew@lbl.gov&quot;</span>
+
+<span class="n">MODULE_DIR</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">__file__</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="DictLammpsInput"><a class="viewcode-back" href="../../../../pymatgen.io.lammps.html#pymatgen.io.lammps.input.DictLammpsInput">[docs]</a><span class="k">class</span> <span class="nc">DictLammpsInput</span><span class="p">(</span><span class="n">MSONable</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Implementation of LammpsInputSet that is initialized from a dict</span>
+<span class="sd">    settings. It is typically used by other LammpsInputSets for</span>
+<span class="sd">    initialization from json or yaml source files.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name (str): A name for the input set.</span>
+<span class="sd">        config_dict (dict): The config dictionary to use.</span>
+<span class="sd">        lammps_data (LammpsData): LammpsData object</span>
+<span class="sd">        data_filename (str): name of the the lammps data file</span>
+<span class="sd">        user_lammps_settings (dict): User lammps settings. This allows a user</span>
+<span class="sd">            to override lammps settings, e.g., setting a different force field</span>
+<span class="sd">            or bond type.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">config_dict</span><span class="p">,</span> <span class="n">lammps_data</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="n">data_file</span><span class="o">=</span><span class="s2">&quot;in.data&quot;</span><span class="p">,</span>
+                 <span class="n">user_lammps_settings</span><span class="o">=</span><span class="p">{}):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config_dict</span> <span class="o">=</span> <span class="n">config_dict</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lammps_data</span> <span class="o">=</span> <span class="n">lammps_data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_file</span> <span class="o">=</span> <span class="n">data_file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config_dict</span><span class="p">[</span><span class="s2">&quot;read_data&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data_file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user_lammps_settings</span> <span class="o">=</span> <span class="n">user_lammps_settings</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">user_lammps_settings</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user_lammps_settings</span><span class="p">)</span>
+
+<div class="viewcode-block" id="DictLammpsInput.__str__"><a class="viewcode-back" href="../../../../pymatgen.io.lammps.html#pymatgen.io.lammps.input.DictLammpsInput.__str__">[docs]</a>    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        string representation of the lammps input file with the</span>
+<span class="sd">        control parameters</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">k1</span><span class="p">,</span> <span class="n">v1</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="n">v1</span> <span class="o">=</span> <span class="n">v1</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">v1</span><span class="p">:</span>
+                    <span class="n">lines</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">lines</span><span class="p">,</span> <span class="s2">&quot;{} &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k1</span><span class="p">)])</span>
+                    <span class="n">lines</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">lines</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">lines</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">lines</span><span class="p">,</span> <span class="s2">&quot;{} &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k1</span><span class="p">)])</span>
+                <span class="n">lines</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">lines</span><span class="p">,</span> <span class="s2">&quot; {}{}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">v1</span><span class="p">),</span> <span class="n">os</span><span class="o">.</span><span class="n">linesep</span><span class="p">)])</span>
+        <span class="k">return</span> <span class="n">lines</span></div>
+
+<div class="viewcode-block" id="DictLammpsInput.write_input"><a class="viewcode-back" href="../../../../pymatgen.io.lammps.html#pymatgen.io.lammps.input.DictLammpsInput.write_input">[docs]</a>    <span class="k">def</span> <span class="nf">write_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">data_file</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        get the string representation of the main input file and write it.</span>
+<span class="sd">        Also writes the data file if the lammps_data attribute is set.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filename (string): name of the input file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">data_file</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config_dict</span><span class="p">[</span><span class="s2">&quot;read_data&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data_file</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_file</span> <span class="o">=</span> <span class="n">data_file</span>
+        <span class="c1"># write the main input file</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__str__</span><span class="p">())</span>
+        <span class="c1"># write the data file if present</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lammps_data</span><span class="p">:</span>
+            <span class="k">print</span><span class="p">(</span><span class="s2">&quot;Writing the data to {}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_file</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lammps_data</span><span class="o">.</span><span class="n">write_data_file</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">data_file</span><span class="p">)</span></div>
+
+    <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="DictLammpsInput.from_file"><a class="viewcode-back" href="../../../../pymatgen.io.lammps.html#pymatgen.io.lammps.input.DictLammpsInput.from_file">[docs]</a>    <span class="k">def</span> <span class="nf">from_file</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">data_obj</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">data_file</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                  <span class="n">is_forcefield</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Read in the input settings from json file as ordereddict. Also</span>
+<span class="sd">        reads in the datafile if provided.</span>
+<span class="sd">        Note: with monty.serialization.loadfn the order of paramters in the</span>
+<span class="sd">        json file is not preserved</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filename (string): name of the file with the lamps control</span>
+<span class="sd">                paramters</span>
+<span class="sd">            data_obj (LammpsData): LammpsData object</span>
+<span class="sd">            data_file (string): name of the data file name</span>
+<span class="sd">            is_forcefield (bool): whether the data file has forcefield and</span>
+<span class="sd">                topology info in it.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            DictLammpsInput</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">config_dict</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">object_pairs_hook</span><span class="o">=</span><span class="n">OrderedDict</span><span class="p">)</span>
+        <span class="n">lammps_data</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">if</span> <span class="n">data_file</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">is_forcefield</span><span class="p">:</span>
+                <span class="n">lammps_data</span> <span class="o">=</span> <span class="n">LammpsForceFieldData</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">data_file</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">lammps_data</span> <span class="o">=</span> <span class="n">LammpsData</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">data_file</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">data_obj</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data_obj</span><span class="p">,</span> <span class="n">LammpsData</span><span class="p">):</span>
+            <span class="n">lammps_data</span> <span class="o">=</span> <span class="n">data_obj</span>
+        <span class="k">return</span> <span class="n">DictLammpsInput</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">config_dict</span><span class="p">,</span> <span class="n">lammps_data</span><span class="p">)</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;@module&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span><span class="p">,</span>
+                <span class="s2">&quot;@class&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span>
+                <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                <span class="s2">&quot;config_dict&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_dict</span><span class="p">,</span>
+                <span class="s2">&quot;lammps_data&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">lammps_data</span><span class="p">,</span>
+                <span class="s2">&quot;data_filename&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_file</span><span class="p">,</span>
+                <span class="s2">&quot;user_lammps_settings&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">user_lammps_settings</span><span class="p">}</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="DictLammpsInput.from_dict"><a class="viewcode-back" href="../../../../pymatgen.io.lammps.html#pymatgen.io.lammps.input.DictLammpsInput.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">DictLammpsInput</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;config_dict&quot;</span><span class="p">],</span>
+                               <span class="n">lammps_data</span><span class="o">=</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;lammps_data&quot;</span><span class="p">),</span>
+                               <span class="n">data_file</span><span class="o">=</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;data_filename&quot;</span><span class="p">),</span>
+                               <span class="n">user_lammps_settings</span><span class="o">=</span><span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                                   <span class="s2">&quot;user_lammps_settings&quot;</span><span class="p">))</span></div></div>
+
+
+<span class="c1"># NVT</span>
+<span class="n">NVTLammpsInput</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">DictLammpsInput</span><span class="o">.</span><span class="n">from_file</span><span class="p">,</span> <span class="s2">&quot;NVT&quot;</span><span class="p">,</span>
+                         <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s2">&quot;NVT.json&quot;</span><span class="p">))</span>
+
+<span class="c1"># NPT</span>
+<span class="n">NPTLammpsInput</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">DictLammpsInput</span><span class="o">.</span><span class="n">from_file</span><span class="p">,</span> <span class="s2">&quot;NPT&quot;</span><span class="p">,</span>
+                         <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s2">&quot;NPT.json&quot;</span><span class="p">))</span>
+
+<span class="c1"># NPT followed by NVT</span>
+<span class="n">NPTNVTLammpsInput</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">DictLammpsInput</span><span class="o">.</span><span class="n">from_file</span><span class="p">,</span> <span class="s2">&quot;NPT_NVT&quot;</span><span class="p">,</span>
+                            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s2">&quot;NPT_NVT.json&quot;</span><span class="p">))</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 3.5.1 documentation</a> &raquo;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+
+    <div class="footer" role="contentinfo">
+        &copy; Copyright 2011, Pymatgen Development Team.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.1.
+    </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+<script type="text/javascript">
+  (function() {
+    var ga = document.createElement('script');
+    ga.src = ('https:' == document.location.protocol ?
+              'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    ga.setAttribute('async', 'true');
+    document.documentElement.firstChild.appendChild(ga);
+  })();
+</script>
+</div>
+
+  </body>
+</html>

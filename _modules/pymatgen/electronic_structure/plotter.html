@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.electronic_structure.plotter &mdash; pymatgen 3.5.2 documentation</title>
+    <title>pymatgen.electronic_structure.plotter &mdash; pymatgen 3.5.3 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '3.5.2',
+        VERSION:     '3.5.3',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.5.2 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 3.5.3 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.5.2 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.5.3 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -61,6 +61,12 @@
 <span class="c1"># Distributed under the terms of the MIT License.</span>
 
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">unicode_literals</span><span class="p">,</span> <span class="n">print_function</span>
+
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen</span> <span class="kn">import</span> <span class="n">Energy</span>
+<span class="kn">from</span> <span class="nn">pymatgen.electronic_structure.boltztrap</span> <span class="kn">import</span> <span class="n">BoltztrapError</span>
+<span class="kn">from</span> <span class="nn">pymatgen.symmetry.bandstructure</span> <span class="kn">import</span> <span class="n">HighSymmKpath</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">This module implements plotter for DOS and band structure.</span>
@@ -1021,6 +1027,303 @@
         <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;vbm&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mf">4.0</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;cbm&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mf">2.0</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">plt</span></div></div>
 
+<div class="viewcode-block" id="BoltztrapPlotter"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.BoltztrapPlotter">[docs]</a><span class="k">class</span> <span class="nc">BoltztrapPlotter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    class containing methods to plot the data from Boltztrap.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        bz: a BoltztrapAnalyzer object</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bz</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_bz</span> <span class="o">=</span> <span class="n">bz</span>
+
+    <span class="k">def</span> <span class="nf">_plot_doping</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">temp</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">doping</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">limit</span> <span class="o">=</span> <span class="mf">2.21e15</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">mu_doping</span><span class="p">[</span><span class="s1">&#39;n&#39;</span><span class="p">][</span><span class="n">temp</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span>
+                        <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">mu_doping</span><span class="p">[</span><span class="s1">&#39;n&#39;</span><span class="p">][</span><span class="n">temp</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.01</span><span class="p">,</span>
+                     <span class="n">limit</span><span class="p">,</span>
+                     <span class="s2">&quot;$n$=10$^{&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span>
+                         <span class="n">math</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">doping</span><span class="p">[</span><span class="s1">&#39;n&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]))</span> <span class="o">+</span> <span class="s2">&quot;}$&quot;</span><span class="p">,</span>
+                     <span class="n">color</span><span class="o">=</span><span class="s1">&#39;b&#39;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">mu_doping</span><span class="p">[</span><span class="s1">&#39;n&#39;</span><span class="p">][</span><span class="n">temp</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span>
+                        <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">mu_doping</span><span class="p">[</span><span class="s1">&#39;n&#39;</span><span class="p">][</span><span class="n">temp</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.01</span><span class="p">,</span>
+                     <span class="n">limit</span><span class="p">,</span>
+                     <span class="s2">&quot;$n$=10$^{&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">doping</span><span class="p">[</span><span class="s1">&#39;n&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
+                     <span class="o">+</span> <span class="s2">&quot;}$&quot;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;b&#39;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">mu_doping</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">][</span><span class="n">temp</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span>
+                        <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">mu_doping</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">][</span><span class="n">temp</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.01</span><span class="p">,</span>
+                     <span class="n">limit</span><span class="p">,</span>
+                     <span class="s2">&quot;$p$=10$^{&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span>
+                         <span class="n">math</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">doping</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]))</span> <span class="o">+</span> <span class="s2">&quot;}$&quot;</span><span class="p">,</span>
+                     <span class="n">color</span><span class="o">=</span><span class="s1">&#39;b&#39;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">mu_doping</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">][</span><span class="n">temp</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span>
+                        <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">mu_doping</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">][</span><span class="n">temp</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.01</span><span class="p">,</span>
+                     <span class="n">limit</span><span class="p">,</span> <span class="s2">&quot;$p$=10$^{&quot;</span> <span class="o">+</span>
+                     <span class="nb">str</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">doping</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span> <span class="o">+</span> <span class="s2">&quot;}$&quot;</span><span class="p">,</span>
+                     <span class="n">color</span><span class="o">=</span><span class="s1">&#39;b&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_plot_bg_limits</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">3.0</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">gap</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">3.0</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BoltztrapPlotter.plot_seebeck_mu"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.BoltztrapPlotter.plot_seebeck_mu">[docs]</a>    <span class="k">def</span> <span class="nf">plot_seebeck_mu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">temp</span><span class="o">=</span><span class="mi">600</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s1">&#39;eig&#39;</span><span class="p">,</span> <span class="n">xlim</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plot the seebeck coefficient in function of Fermi level</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            temp:</span>
+<span class="sd">                the temperature</span>
+<span class="sd">            xlim:</span>
+<span class="sd">                a list of min and max fermi energy by default (0, and band gap)</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            a matplotlib object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">seebeck</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">get_seebeck</span><span class="p">(</span><span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span> <span class="n">doping_levels</span><span class="o">=</span><span class="bp">False</span><span class="p">)[</span>
+            <span class="n">temp</span><span class="p">]</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">mu_steps</span><span class="p">,</span> <span class="n">seebeck</span><span class="p">,</span>
+                 <span class="n">linewidth</span><span class="o">=</span><span class="mf">3.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_plot_bg_limits</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_plot_doping</span><span class="p">(</span><span class="n">temp</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">output</span> <span class="o">==</span> <span class="s1">&#39;eig&#39;</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">([</span><span class="s1">&#39;S$_1$&#39;</span><span class="p">,</span> <span class="s1">&#39;S$_2$&#39;</span><span class="p">,</span> <span class="s1">&#39;S$_3$&#39;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">xlim</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">gap</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="n">xlim</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">xlim</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Seebeck </span><span class="se">\n</span><span class="s2"> coefficient  ($\mu$V/K)&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mf">30.0</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;E-E$_f$ (eV)&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">plt</span></div>
+
+<div class="viewcode-block" id="BoltztrapPlotter.plot_conductivity_mu"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.BoltztrapPlotter.plot_conductivity_mu">[docs]</a>    <span class="k">def</span> <span class="nf">plot_conductivity_mu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">temp</span><span class="o">=</span><span class="mi">600</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s1">&#39;eig&#39;</span><span class="p">,</span>
+                             <span class="n">relaxation_time</span><span class="o">=</span><span class="mf">1e-14</span><span class="p">,</span> <span class="n">xlim</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plot the conductivity in function of Fermi level. Semi-log plot</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            temp: the temperature</span>
+<span class="sd">            xlim: a list of min and max fermi energy by default (0, and band</span>
+<span class="sd">                gap)</span>
+<span class="sd">            tau: A relaxation time in s. By default none and the plot is by</span>
+<span class="sd">               units of relaxation time</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            a matplotlib object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">cond</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">get_conductivity</span><span class="p">(</span><span class="n">relaxation_time</span><span class="o">=</span><span class="n">relaxation_time</span><span class="p">,</span>
+                                         <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span> <span class="n">doping_levels</span><span class="o">=</span><span class="bp">False</span><span class="p">)[</span>
+            <span class="n">temp</span><span class="p">]</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">semilogy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">mu_steps</span><span class="p">,</span> <span class="n">cond</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">3.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_plot_bg_limits</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_plot_doping</span><span class="p">(</span><span class="n">temp</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">output</span> <span class="o">==</span> <span class="s1">&#39;eig&#39;</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">([</span><span class="s1">&#39;$\sigma_1$&#39;</span><span class="p">,</span> <span class="s1">&#39;$\sigma_2$&#39;</span><span class="p">,</span> <span class="s1">&#39;$\sigma_3$&#39;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">xlim</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">gap</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="n">xlim</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="mf">1e13</span> <span class="o">*</span> <span class="n">relaxation_time</span><span class="p">,</span> <span class="mf">1e20</span> <span class="o">*</span> <span class="n">relaxation_time</span><span class="p">])</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;conductivity,</span><span class="se">\n</span><span class="s2"> $\sigma$ (1/($\Omega$ m))&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mf">30.0</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;E-E$_f$ (eV)&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mf">30.0</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">plt</span></div>
+
+<div class="viewcode-block" id="BoltztrapPlotter.plot_power_factor_mu"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.BoltztrapPlotter.plot_power_factor_mu">[docs]</a>    <span class="k">def</span> <span class="nf">plot_power_factor_mu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">temp</span><span class="o">=</span><span class="mi">600</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s1">&#39;eig&#39;</span><span class="p">,</span>
+                             <span class="n">relaxation_time</span><span class="o">=</span><span class="mf">1e-14</span><span class="p">,</span> <span class="n">xlim</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plot the power factor in function of Fermi level. Semi-log plot</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            temp: the temperature</span>
+<span class="sd">            xlim: a list of min and max fermi energy by default (0, and band</span>
+<span class="sd">                gap)</span>
+<span class="sd">            tau: A relaxation time in s. By default none and the plot is by</span>
+<span class="sd">               units of relaxation time</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            a matplotlib object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">get_power_factor</span><span class="p">(</span><span class="n">relaxation_time</span><span class="o">=</span><span class="n">relaxation_time</span><span class="p">,</span>
+                                       <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span> <span class="n">doping_levels</span><span class="o">=</span><span class="bp">False</span><span class="p">)[</span>
+            <span class="n">temp</span><span class="p">]</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">semilogy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">mu_steps</span><span class="p">,</span> <span class="n">pf</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">3.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_plot_bg_limits</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_plot_doping</span><span class="p">(</span><span class="n">temp</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">output</span> <span class="o">==</span> <span class="s1">&#39;eig&#39;</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">([</span><span class="s1">&#39;PF$_1$&#39;</span><span class="p">,</span> <span class="s1">&#39;PF$_2$&#39;</span><span class="p">,</span> <span class="s1">&#39;PF$_3$&#39;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">xlim</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">gap</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="n">xlim</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Power factor, ($\mu$W/(mK$^2$))&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mf">30.0</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;E-E$_f$ (eV)&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mf">30.0</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">plt</span></div>
+
+<div class="viewcode-block" id="BoltztrapPlotter.plot_zt_mu"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.BoltztrapPlotter.plot_zt_mu">[docs]</a>    <span class="k">def</span> <span class="nf">plot_zt_mu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">temp</span><span class="o">=</span><span class="mi">600</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s1">&#39;eig&#39;</span><span class="p">,</span> <span class="n">relaxation_time</span><span class="o">=</span><span class="mf">1e-14</span><span class="p">,</span>
+                   <span class="n">xlim</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plot the ZT in function of Fermi level.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            temp: the temperature</span>
+<span class="sd">            xlim: a list of min and max fermi energy by default (0, and band</span>
+<span class="sd">                gap)</span>
+<span class="sd">            tau: A relaxation time in s. By default none and the plot is by</span>
+<span class="sd">               units of relaxation time</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            a matplotlib object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">zt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">get_zt</span><span class="p">(</span><span class="n">relaxation_time</span><span class="o">=</span><span class="n">relaxation_time</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">,</span>
+                             <span class="n">doping_levels</span><span class="o">=</span><span class="bp">False</span><span class="p">)[</span><span class="n">temp</span><span class="p">]</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">mu_steps</span><span class="p">,</span> <span class="n">zt</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">3.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_plot_bg_limits</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_plot_doping</span><span class="p">(</span><span class="n">temp</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">output</span> <span class="o">==</span> <span class="s1">&#39;eig&#39;</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">([</span><span class="s1">&#39;ZT$_1$&#39;</span><span class="p">,</span> <span class="s1">&#39;ZT$_2$&#39;</span><span class="p">,</span> <span class="s1">&#39;ZT$_3$&#39;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">xlim</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">gap</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="n">xlim</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;ZT&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mf">30.0</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;E-E$_f$ (eV)&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mf">30.0</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">plt</span></div>
+
+<div class="viewcode-block" id="BoltztrapPlotter.plot_dos"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.BoltztrapPlotter.plot_dos">[docs]</a>    <span class="k">def</span> <span class="nf">plot_dos</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mf">0.05</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        plot dos</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            sigma: a smearing</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            a matplotlib object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">plotter</span> <span class="o">=</span> <span class="n">DosPlotter</span><span class="p">(</span><span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">)</span>
+        <span class="n">plotter</span><span class="o">.</span><span class="n">add_dos</span><span class="p">(</span><span class="s2">&quot;t&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">dos</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">plotter</span><span class="o">.</span><span class="n">get_plot</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="BoltztrapPlotter.plot_carriers"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.BoltztrapPlotter.plot_carriers">[docs]</a>    <span class="k">def</span> <span class="nf">plot_carriers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">temp</span><span class="o">=</span><span class="mi">300</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plot the carrier concentration in function of Fermi level</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            temp: the temperature</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            a matplotlib object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">semilogy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">mu_steps</span><span class="p">,</span>
+                     <span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">carrier_conc</span><span class="p">[</span><span class="n">temp</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">vol</span> <span class="o">*</span> <span class="mf">1e-24</span><span class="p">)),</span>
+                     <span class="n">linewidth</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_plot_bg_limits</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_plot_doping</span><span class="p">(</span><span class="n">temp</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">gap</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="mf">1e14</span><span class="p">,</span> <span class="mf">1e22</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;carrier concentration (cm-3)&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mf">30.0</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;E-E$_f$ (eV)&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">plt</span></div>
+
+<div class="viewcode-block" id="BoltztrapPlotter.plot_hall_carriers"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.BoltztrapPlotter.plot_hall_carriers">[docs]</a>    <span class="k">def</span> <span class="nf">plot_hall_carriers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">temp</span><span class="o">=</span><span class="mi">300</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plot the Hall carrier concentration in function of Fermi level</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            temp: the temperature</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            a matplotlib object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">hall_carriers</span> <span class="o">=</span> <span class="p">[</span><span class="nb">abs</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">get_hall_carrier_concentration</span><span class="p">()[</span><span class="n">temp</span><span class="p">]]</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">semilogy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">mu_steps</span><span class="p">,</span>
+                     <span class="n">hall_carriers</span><span class="p">,</span>
+                     <span class="n">linewidth</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;r&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_plot_bg_limits</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_plot_doping</span><span class="p">(</span><span class="n">temp</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">gap</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="mf">1e14</span><span class="p">,</span> <span class="mf">1e22</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Hall carrier concentration (cm-3)&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mf">30.0</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;E-E$_f$ (eV)&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">yticks</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">25</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">plt</span></div>
+
+<div class="viewcode-block" id="BoltztrapPlotter.plot_fermi_surface"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.BoltztrapPlotter.plot_fermi_surface">[docs]</a>    <span class="k">def</span> <span class="nf">plot_fermi_surface</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">isolevel</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plot the Fermi surface at a aspecific energy value</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            bz_lattice: structure object of the material</span>
+<span class="sd">            isolevel: energy value fo fermi surface, Default: max energy value + 0.1eV</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            a matplotlib object</span>
+
+<span class="sd">        Note: Experimental</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">mpl_toolkits.mplot3d</span> <span class="kn">import</span> <span class="n">Axes3D</span>
+        <span class="kn">from</span> <span class="nn">pymatgen.electronic_structure.plotter</span> <span class="kn">import</span> <span class="n">plot_brillouin_zone</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">skimage</span> <span class="kn">import</span> <span class="n">measure</span>
+        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BoltztrapError</span><span class="p">(</span>
+                <span class="s2">&quot;skimage package should be installed to use this function&quot;</span><span class="p">)</span>
+
+        <span class="n">fig</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bz</span><span class="o">.</span><span class="n">fermi_surface_data</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">isolevel</span><span class="p">:</span>
+            <span class="n">isolevel</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">flat</span><span class="p">)</span> <span class="o">-</span> <span class="n">Energy</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="s2">&quot;eV&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s2">&quot;Ry&quot;</span><span class="p">)</span>
+
+        <span class="n">verts</span><span class="p">,</span> <span class="n">faces</span> <span class="o">=</span> <span class="n">measure</span><span class="o">.</span><span class="n">marching_cubes</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">isolevel</span><span class="p">)</span>
+        <span class="n">verts</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="n">verts2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">verts</span><span class="p">,</span>
+                        <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">cell</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">])</span>
+        <span class="n">verts2</span> <span class="o">/=</span> <span class="nb">max</span><span class="p">(</span><span class="n">verts2</span><span class="o">.</span><span class="n">flat</span><span class="p">)</span> <span class="o">/</span> <span class="mf">1.5</span>
+
+        <span class="n">cx</span><span class="p">,</span> <span class="n">cy</span><span class="p">,</span> <span class="n">cz</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">verts2</span><span class="p">[:,</span> <span class="n">i</span><span class="p">])</span> <span class="o">-</span> <span class="nb">min</span><span class="p">(</span><span class="n">verts2</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]))</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">+</span> <span class="nb">min</span><span class="p">(</span><span class="n">verts2</span><span class="p">[:,</span> <span class="n">i</span><span class="p">])</span> <span class="k">for</span>
+            <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
+
+        <span class="k">if</span> <span class="n">structure</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">kpath</span> <span class="o">=</span> <span class="n">HighSymmKpath</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span><span class="o">.</span><span class="n">kpath</span>
+            <span class="n">lines</span> <span class="o">=</span> <span class="p">[[</span><span class="n">kpath</span><span class="p">[</span><span class="s1">&#39;kpoints&#39;</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">p</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">kpath</span><span class="p">[</span><span class="s1">&#39;path&#39;</span><span class="p">]]</span>
+            <span class="n">fig</span> <span class="o">=</span> <span class="n">plot_brillouin_zone</span><span class="p">(</span><span class="n">bz_lattice</span><span class="o">=</span><span class="n">structure</span><span class="o">.</span><span class="n">reciprocal_lattice</span><span class="p">,</span>
+                                      <span class="n">lines</span><span class="o">=</span><span class="n">lines</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">kpath</span><span class="p">[</span><span class="s1">&#39;kpoints&#39;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">fig</span><span class="p">:</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot_trisurf</span><span class="p">(</span><span class="n">verts2</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">cx</span><span class="p">,</span> <span class="n">verts2</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">cy</span><span class="p">,</span> <span class="n">faces</span><span class="p">,</span>
+                            <span class="n">verts2</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">cz</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">111</span><span class="p">,</span> <span class="n">projection</span><span class="o">=</span><span class="s1">&#39;3d&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot_trisurf</span><span class="p">(</span><span class="n">verts2</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">cx</span><span class="p">,</span> <span class="n">verts2</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">cy</span><span class="p">,</span> <span class="n">faces</span><span class="p">,</span>
+                            <span class="n">verts2</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">cz</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim3d</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim3d</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_zlim3d</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s1">&#39;equal&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s2">&quot;off&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span></div></div>
+
 
 <div class="viewcode-block" id="plot_wigner_seitz"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.plot_wigner_seitz">[docs]</a><span class="k">def</span> <span class="nf">plot_wigner_seitz</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
@@ -1242,7 +1545,29 @@
 
 
 <span class="nd">@add_fig_kwargs</span>
-<div class="viewcode-block" id="plot_brillouin_zone"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.plot_brillouin_zone">[docs]</a><span class="k">def</span> <span class="nf">plot_brillouin_zone</span><span class="p">(</span><span class="n">bz_lattice</span><span class="p">,</span> <span class="n">lines</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">kpoints</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">fold</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+<div class="viewcode-block" id="plot_brillouin_zone_from_kpath"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.plot_brillouin_zone_from_kpath">[docs]</a><span class="k">def</span> <span class="nf">plot_brillouin_zone_from_kpath</span><span class="p">(</span><span class="n">kpath</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Gives the plot (as a matplotlib object) of the symmetry line path in</span>
+<span class="sd">        the Brillouin Zone.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        kpath (HighSymmKpath): a HighSymmKPath object</span>
+<span class="sd">        **kwargs: provided by add_fig_kwargs decorator</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        a matplotlib figure and matplotlib_ax</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[[</span><span class="n">kpath</span><span class="o">.</span><span class="n">kpath</span><span class="p">[</span><span class="s1">&#39;kpoints&#39;</span><span class="p">][</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">p</span><span class="p">]</span>
+             <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">kpath</span><span class="o">.</span><span class="n">kpath</span><span class="p">[</span><span class="s1">&#39;path&#39;</span><span class="p">]]</span>
+    <span class="k">return</span> <span class="n">plot_brillouin_zone</span><span class="p">(</span><span class="n">bz_lattice</span><span class="o">=</span><span class="n">kpath</span><span class="o">.</span><span class="n">prim_rec</span><span class="p">,</span> <span class="n">lines</span><span class="o">=</span><span class="n">lines</span><span class="p">,</span>
+                               <span class="n">labels</span><span class="o">=</span><span class="n">kpath</span><span class="o">.</span><span class="n">kpath</span><span class="p">[</span><span class="s1">&#39;kpoints&#39;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<span class="nd">@add_fig_kwargs</span>
+<div class="viewcode-block" id="plot_brillouin_zone"><a class="viewcode-back" href="../../../pymatgen.electronic_structure.html#pymatgen.electronic_structure.plotter.plot_brillouin_zone">[docs]</a><span class="k">def</span> <span class="nf">plot_brillouin_zone</span><span class="p">(</span><span class="n">bz_lattice</span><span class="p">,</span> <span class="n">lines</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">kpoints</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                        <span class="n">fold</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
                         <span class="n">ax</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Plots a 3D representation of the Brillouin zone of the structure.</span>
@@ -1268,14 +1593,20 @@
     <span class="n">plot_wigner_seitz</span><span class="p">(</span><span class="n">bz_lattice</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">lines</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
         <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">:</span>
-            <span class="n">plot_path</span><span class="p">(</span><span class="n">line</span><span class="p">,</span> <span class="n">bz_lattice</span><span class="p">,</span> <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="n">coords_are_cartesian</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+            <span class="n">plot_path</span><span class="p">(</span><span class="n">line</span><span class="p">,</span> <span class="n">bz_lattice</span><span class="p">,</span>
+                      <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="n">coords_are_cartesian</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-        <span class="n">plot_labels</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">bz_lattice</span><span class="p">,</span> <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="n">coords_are_cartesian</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
-        <span class="n">plot_points</span><span class="p">(</span><span class="n">labels</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">bz_lattice</span><span class="p">,</span> <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="n">coords_are_cartesian</span><span class="p">,</span> <span class="n">fold</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+        <span class="n">plot_labels</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">bz_lattice</span><span class="p">,</span>
+                    <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="n">coords_are_cartesian</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+        <span class="n">plot_points</span><span class="p">(</span><span class="n">labels</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">bz_lattice</span><span class="p">,</span>
+                    <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="n">coords_are_cartesian</span><span class="p">,</span>
+                    <span class="n">fold</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">kpoints</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
-        <span class="n">plot_points</span><span class="p">(</span><span class="n">kpoints</span><span class="p">,</span> <span class="n">bz_lattice</span><span class="p">,</span> <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="n">coords_are_cartesian</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">fold</span><span class="o">=</span><span class="n">fold</span><span class="p">)</span>
+        <span class="n">plot_points</span><span class="p">(</span><span class="n">kpoints</span><span class="p">,</span> <span class="n">bz_lattice</span><span class="p">,</span>
+                    <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="n">coords_are_cartesian</span><span class="p">,</span>
+                    <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">fold</span><span class="o">=</span><span class="n">fold</span><span class="p">)</span>
 
     <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim3d</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
     <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim3d</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
@@ -1375,7 +1706,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.5.2 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.5.3 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

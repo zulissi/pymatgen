@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.symmetry.analyzer &mdash; pymatgen 3.5.3 documentation</title>
+    <title>pymatgen.symmetry.analyzer &mdash; pymatgen 3.6.0 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '3.5.3',
+        VERSION:     '3.6.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.5.3 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 3.6.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.5.3 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.6.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -60,29 +60,10 @@
 <span class="c1"># Copyright (c) Pymatgen Development Team.</span>
 <span class="c1"># Distributed under the terms of the MIT License.</span>
 
-<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">unicode_literals</span>
-
-<span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">An interface to the excellent spglib library by Atsushi Togo</span>
-<span class="sd">(http://spglib.sourceforge.net/) for pymatgen.</span>
-
-<span class="sd">v1.0 - Now works with both ordered and disordered structure.</span>
-<span class="sd">v2.0 - Updated for spglib 1.6.</span>
-
-<span class="sd">.. note::</span>
-<span class="sd">    Not all spglib functions are implemented.</span>
-<span class="sd">&quot;&quot;&quot;</span>
-
-<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;Shyue Ping Ong&quot;</span>
-<span class="n">__copyright__</span> <span class="o">=</span> <span class="s2">&quot;Copyright 2012, The Materials Project&quot;</span>
-<span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;2.0&quot;</span>
-<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s2">&quot;Shyue Ping Ong&quot;</span>
-<span class="n">__email__</span> <span class="o">=</span> <span class="s2">&quot;shyuep@gmail.com&quot;</span>
-<span class="n">__date__</span> <span class="o">=</span> <span class="s2">&quot;Mar 9, 2012&quot;</span>
-
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">unicode_literals</span><span class="p">,</span> <span class="n">print_function</span>
 <span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">logging</span>
-<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span><span class="p">,</span> <span class="n">Counter</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
 
 <span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">cos</span>
@@ -100,19 +81,26 @@
 <span class="kn">from</span> <span class="nn">pymatgen.util.coord_utils</span> <span class="kn">import</span> <span class="n">find_in_coord_list</span>
 
 
-<span class="k">try</span><span class="p">:</span>
-    <span class="kn">import</span> <span class="nn">pymatgen._spglib</span> <span class="kn">as</span> <span class="nn">spg</span>
-<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="kn">import</span> <span class="nn">spglib._spglib</span> <span class="kn">as</span> <span class="nn">spg</span>
-    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="kn">import</span> <span class="nn">pyspglib._spglib</span> <span class="kn">as</span> <span class="nn">spg</span>
-        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Spglib required. Please either run python setup.py install&quot;</span> <span class="o">+</span> \
-                  <span class="s2">&quot; for pymatgen, or install pyspglib from spglib.&quot;</span>
-            <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">An interface to the excellent spglib library by Atsushi Togo</span>
+<span class="sd">(http://spglib.sourceforge.net/) for pymatgen.</span>
 
+<span class="sd">v1.0 - Now works with both ordered and disordered structure.</span>
+<span class="sd">v2.0 - Updated for spglib 1.6.</span>
+<span class="sd">v3.0 - pymatgen no longer ships with spglib. Instead, spglib (the python</span>
+<span class="sd">       version) is now a dependency and the SpacegroupAnalyzer merely serves</span>
+<span class="sd">       as an interface to spglib for pymatgen Structures.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s2">&quot;Copyright 2012, The Materials Project&quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;3.0&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s2">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s2">&quot;shyuep@gmail.com&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span> <span class="s2">&quot;May 14, 2016&quot;</span>
+
+
+<span class="kn">import</span> <span class="nn">spglib</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
 
@@ -138,73 +126,36 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_symprec</span> <span class="o">=</span> <span class="n">symprec</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_angle_tol</span> <span class="o">=</span> <span class="n">angle_tolerance</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_structure</span> <span class="o">=</span> <span class="n">structure</span>
-        <span class="c1">#Spglib&quot;s convention for the lattice definition is the transpose of the</span>
-        <span class="c1">#pymatgen version.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_transposed_latt</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">matrix</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
-        <span class="c1">#Spglib requires numpy floats.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_transposed_latt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_transposed_latt</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;double&#39;</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s1">&#39;C&#39;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_positions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
-            <span class="p">[</span><span class="n">site</span><span class="o">.</span><span class="n">frac_coords</span> <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">structure</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;double&#39;</span><span class="p">,</span>
-            <span class="n">order</span><span class="o">=</span><span class="s1">&#39;C&#39;</span>
-        <span class="p">)</span>
+        <span class="n">latt</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">matrix</span>
+        <span class="n">positions</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">frac_coords</span>
         <span class="n">unique_species</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">zs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">magmoms</span> <span class="o">=</span> <span class="p">[]</span>
 
         <span class="k">for</span> <span class="n">species</span><span class="p">,</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span>
                                             <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">species_and_occu</span><span class="p">):</span>
-            <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">species</span> <span class="ow">in</span> <span class="n">unique_species</span><span class="p">:</span>
                 <span class="n">ind</span> <span class="o">=</span> <span class="n">unique_species</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">species</span><span class="p">)</span>
                 <span class="n">zs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">ind</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">g</span><span class="p">)))</span>
-            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">else</span><span class="p">:</span>
                 <span class="n">unique_species</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">species</span><span class="p">)</span>
                 <span class="n">zs</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">unique_species</span><span class="p">)]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">g</span><span class="p">)))</span>
+
+        <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">structure</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">site</span><span class="p">,</span> <span class="s1">&#39;magmom&#39;</span><span class="p">):</span>
+                <span class="n">magmoms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">magmom</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">site</span><span class="o">.</span><span class="n">is_ordered</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">specie</span><span class="p">,</span> <span class="s1">&#39;spin&#39;</span><span class="p">):</span>
+                <span class="n">magmoms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">specie</span><span class="o">.</span><span class="n">spin</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">magmoms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">_unique_species</span> <span class="o">=</span> <span class="n">unique_species</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_numbers</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">zs</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;intc&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_numbers</span> <span class="o">=</span> <span class="n">zs</span>
+        <span class="c1"># For now, we are setting magmom to zero.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cell</span> <span class="o">=</span> <span class="n">latt</span><span class="p">,</span> <span class="n">positions</span><span class="p">,</span> <span class="n">zs</span><span class="p">,</span> <span class="n">magmoms</span>
 
-        <span class="n">dataset</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="n">keys</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;number&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;hall_number&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;international&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;hall&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;transformation_matrix&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;origin_shift&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;rotations&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;translations&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;wyckoffs&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;equivalent_atoms&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;std_lattice&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;std_types&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;std_positions&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;pointgroup_number&#39;</span><span class="p">,</span>
-                <span class="s1">&#39;pointgroup&#39;</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">keys</span><span class="p">,</span> <span class="n">spg</span><span class="o">.</span><span class="n">dataset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_transposed_latt</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span>
-                                               <span class="bp">self</span><span class="o">.</span><span class="n">_positions</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span>
-                                               <span class="bp">self</span><span class="o">.</span><span class="n">_numbers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_symprec</span><span class="p">,</span>
-                                               <span class="bp">self</span><span class="o">.</span><span class="n">_angle_tol</span><span class="p">)):</span>
-
-            <span class="n">dataset</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span>
-
-        <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;international&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;international&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-        <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;hall&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;hall&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-        <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;transformation_matrix&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
-            <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;transformation_matrix&#39;</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;double&#39;</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s1">&#39;C&#39;</span><span class="p">)</span>
-        <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;origin_shift&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;origin_shift&#39;</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;double&#39;</span><span class="p">)</span>
-        <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;rotations&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;rotations&#39;</span><span class="p">],</span>
-                                        <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;intc&#39;</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s1">&#39;C&#39;</span><span class="p">)</span>
-        <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;translations&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;translations&#39;</span><span class="p">],</span>
-                                           <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;double&#39;</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s1">&#39;C&#39;</span><span class="p">)</span>
-        <span class="n">letters</span> <span class="o">=</span> <span class="s2">&quot;abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ&quot;</span>
-        <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;wyckoffs&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">letters</span><span class="p">[</span><span class="n">x</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;wyckoffs&#39;</span><span class="p">]]</span>
-        <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;equivalent_atoms&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;equivalent_atoms&#39;</span><span class="p">],</span>
-                                               <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;intc&#39;</span><span class="p">)</span>
-        <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;std_lattice&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;std_lattice&#39;</span><span class="p">]),</span>
-                                          <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;double&#39;</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s1">&#39;C&#39;</span><span class="p">)</span>
-        <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;std_types&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;std_types&#39;</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;intc&#39;</span><span class="p">)</span>
-        <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;std_positions&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;std_positions&#39;</span><span class="p">],</span>
-                                            <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;double&#39;</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s1">&#39;C&#39;</span><span class="p">)</span>
-        <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;pointgroup&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;pointgroup&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_spacegroup_data</span> <span class="o">=</span> <span class="n">dataset</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_spacegroup_data</span> <span class="o">=</span> <span class="n">spglib</span><span class="o">.</span><span class="n">get_symmetry_dataset</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cell</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_symprec</span><span class="p">,</span> <span class="n">angle_tolerance</span><span class="o">=</span><span class="n">angle_tolerance</span><span class="p">)</span>
 
 <div class="viewcode-block" id="SpacegroupAnalyzer.get_spacegroup"><a class="viewcode-back" href="../../../pymatgen.symmetry.html#pymatgen.symmetry.analyzer.SpacegroupAnalyzer.get_spacegroup">[docs]</a>    <span class="k">def</span> <span class="nf">get_spacegroup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -331,18 +282,9 @@
 <span class="sd">            &quot;translations&quot; gives the numpy float64 array of the translation</span>
 <span class="sd">            vectors in scaled positions.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-
-        <span class="c1"># Get number of symmetry operations and allocate symmetry operations</span>
-        <span class="c1"># multi = spg.multiplicity(cell, positions, numbers, symprec)</span>
-        <span class="n">multi</span> <span class="o">=</span> <span class="mi">48</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_structure</span><span class="o">.</span><span class="n">num_sites</span>
-        <span class="n">rotation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">multi</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;intc&#39;</span><span class="p">)</span>
-        <span class="n">translation</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">multi</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;double&#39;</span><span class="p">)</span>
-
-        <span class="n">num_sym</span> <span class="o">=</span> <span class="n">spg</span><span class="o">.</span><span class="n">symmetry</span><span class="p">(</span><span class="n">rotation</span><span class="p">,</span> <span class="n">translation</span><span class="p">,</span>
-                               <span class="bp">self</span><span class="o">.</span><span class="n">_transposed_latt</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span>
-                               <span class="bp">self</span><span class="o">.</span><span class="n">_positions</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_numbers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_symprec</span><span class="p">,</span>
-                               <span class="bp">self</span><span class="o">.</span><span class="n">_angle_tol</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">rotation</span><span class="p">[:</span><span class="n">num_sym</span><span class="p">],</span> <span class="n">translation</span><span class="p">[:</span><span class="n">num_sym</span><span class="p">]</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">spglib</span><span class="o">.</span><span class="n">get_symmetry</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cell</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_symprec</span><span class="p">,</span>
+                                <span class="n">angle_tolerance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_angle_tol</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;rotations&quot;</span><span class="p">],</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;translations&quot;</span><span class="p">]</span>
 
 <div class="viewcode-block" id="SpacegroupAnalyzer.get_symmetry_operations"><a class="viewcode-back" href="../../../pymatgen.symmetry.html#pymatgen.symmetry.analyzer.SpacegroupAnalyzer.get_symmetry_operations">[docs]</a>    <span class="k">def</span> <span class="nf">get_symmetry_operations</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cartesian</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -353,7 +295,7 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            ([SymmOp]): List of symmetry operations.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="p">(</span><span class="n">rotation</span><span class="p">,</span> <span class="n">translation</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_symmetry</span><span class="p">()</span>
+        <span class="n">rotation</span><span class="p">,</span> <span class="n">translation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_symmetry</span><span class="p">()</span>
         <span class="n">symmops</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">mat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_structure</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">matrix</span><span class="o">.</span><span class="n">T</span>
         <span class="n">invmat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">mat</span><span class="p">)</span>
@@ -378,11 +320,11 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            ([SymmOp]): List of point group symmetry operations.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="p">(</span><span class="n">rotation</span><span class="p">,</span> <span class="n">translation</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_symmetry</span><span class="p">()</span>
+        <span class="n">rotation</span><span class="p">,</span> <span class="n">translation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_symmetry</span><span class="p">()</span>
         <span class="n">symmops</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">mat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_structure</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">matrix</span><span class="o">.</span><span class="n">T</span>
         <span class="n">invmat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">mat</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">rot</span><span class="p">,</span> <span class="n">trans</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">rotation</span><span class="p">,</span> <span class="n">translation</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">rot</span> <span class="ow">in</span> <span class="n">rotation</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">cartesian</span><span class="p">:</span>
                 <span class="n">rot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">mat</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">rot</span><span class="p">,</span> <span class="n">invmat</span><span class="p">))</span>
             <span class="n">op</span> <span class="o">=</span> <span class="n">SymmOp</span><span class="o">.</span><span class="n">from_rotation_and_translation</span><span class="p">(</span><span class="n">rot</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span>
@@ -414,21 +356,11 @@
 <span class="sd">            Refined structure.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Atomic positions have to be specified by scaled positions for spglib.</span>
-        <span class="n">num_atom</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_structure</span><span class="o">.</span><span class="n">num_sites</span>
-        <span class="n">lattice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transposed_latt</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="n">pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">num_atom</span> <span class="o">*</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;double&#39;</span><span class="p">)</span>
-        <span class="n">pos</span><span class="p">[:</span><span class="n">num_atom</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_positions</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">lattice</span><span class="p">,</span> <span class="n">scaled_positions</span><span class="p">,</span> <span class="n">numbers</span> \
+            <span class="o">=</span> <span class="n">spglib</span><span class="o">.</span><span class="n">refine_cell</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cell</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_symprec</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_angle_tol</span><span class="p">)</span>
 
-        <span class="n">zs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">num_atom</span> <span class="o">*</span> <span class="mi">4</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;intc&#39;</span><span class="p">)</span>
-        <span class="n">zs</span><span class="p">[:</span><span class="n">num_atom</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_numbers</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;intc&#39;</span><span class="p">)</span>
-        <span class="n">num_atom_bravais</span> <span class="o">=</span> <span class="n">spg</span><span class="o">.</span><span class="n">refine_cell</span><span class="p">(</span>
-            <span class="n">lattice</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">zs</span><span class="p">,</span> <span class="n">num_atom</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_symprec</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_angle_tol</span><span class="p">)</span>
-
-        <span class="n">zs</span> <span class="o">=</span> <span class="n">zs</span><span class="p">[:</span><span class="n">num_atom_bravais</span><span class="p">]</span>
-        <span class="n">species</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_unique_species</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">zs</span><span class="p">]</span>
-        <span class="n">s</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">lattice</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span>
-                      <span class="n">species</span><span class="p">,</span>
-                      <span class="n">pos</span><span class="p">[:</span><span class="n">num_atom_bravais</span><span class="p">])</span>
+        <span class="n">species</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_unique_species</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">numbers</span><span class="p">]</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">scaled_positions</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">s</span><span class="o">.</span><span class="n">get_sorted_structure</span><span class="p">()</span></div>
 
 <div class="viewcode-block" id="SpacegroupAnalyzer.find_primitive"><a class="viewcode-back" href="../../../pymatgen.symmetry.html#pymatgen.symmetry.analyzer.SpacegroupAnalyzer.find_primitive">[docs]</a>    <span class="k">def</span> <span class="nf">find_primitive</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -440,26 +372,15 @@
 <span class="sd">            as an Structure object. If no primitive cell is found, None is</span>
 <span class="sd">            returned.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># Atomic positions have to be specified by scaled positions for spglib.</span>
-        <span class="n">pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_positions</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="n">lattice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transposed_latt</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="n">numbers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_numbers</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="c1"># lattice is transposed with respect to the definition of Atoms class</span>
-        <span class="n">num_atom_prim</span> <span class="o">=</span> <span class="n">spg</span><span class="o">.</span><span class="n">primitive</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">numbers</span><span class="p">,</span>
-                                      <span class="bp">self</span><span class="o">.</span><span class="n">_symprec</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_angle_tol</span><span class="p">)</span>
-        <span class="n">zs</span> <span class="o">=</span> <span class="n">numbers</span><span class="p">[:</span><span class="n">num_atom_prim</span><span class="p">]</span>
-        <span class="n">species</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_unique_species</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">zs</span><span class="p">]</span>
+        <span class="n">lattice</span><span class="p">,</span> <span class="n">scaled_positions</span><span class="p">,</span> <span class="n">numbers</span> <span class="o">=</span> <span class="n">spglib</span><span class="o">.</span><span class="n">find_primitive</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cell</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_symprec</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">num_atom_prim</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">Structure</span><span class="p">(</span><span class="n">lattice</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">pos</span><span class="p">[:</span><span class="n">num_atom_prim</span><span class="p">],</span>
-                             <span class="n">to_unit_cell</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span><span class="o">.</span><span class="n">get_reduced_structure</span><span class="p">()</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1">#Not sure if we should return None or just return the full</span>
-            <span class="c1">#structure.</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_structure</span><span class="o">.</span><span class="n">get_reduced_structure</span><span class="p">()</span></div>
+        <span class="n">species</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_unique_species</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">numbers</span><span class="p">]</span>
 
-<div class="viewcode-block" id="SpacegroupAnalyzer.get_ir_reciprocal_mesh"><a class="viewcode-back" href="../../../pymatgen.symmetry.html#pymatgen.symmetry.analyzer.SpacegroupAnalyzer.get_ir_reciprocal_mesh">[docs]</a>    <span class="k">def</span> <span class="nf">get_ir_reciprocal_mesh</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mesh</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="n">shift</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
-                               <span class="n">is_time_reversal</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">Structure</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">scaled_positions</span><span class="p">,</span>
+                         <span class="n">to_unit_cell</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span><span class="o">.</span><span class="n">get_reduced_structure</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="SpacegroupAnalyzer.get_ir_reciprocal_mesh"><a class="viewcode-back" href="../../../pymatgen.symmetry.html#pymatgen.symmetry.analyzer.SpacegroupAnalyzer.get_ir_reciprocal_mesh">[docs]</a>    <span class="k">def</span> <span class="nf">get_ir_reciprocal_mesh</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mesh</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="n">shift</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        k-point mesh of the Brillouin zone generated taken into account</span>
 <span class="sd">        symmetry.The method returns the irreducible kpoints of the mesh</span>
@@ -478,18 +399,13 @@
 <span class="sd">            tuples [(ir_kpoint, weight)], with ir_kpoint given</span>
 <span class="sd">            in fractional coordinates</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">mapping</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">mesh</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;intc&#39;</span><span class="p">)</span>
-        <span class="n">mesh_points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">mesh</span><span class="p">),</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;intc&#39;</span><span class="p">)</span>
-        <span class="n">spg</span><span class="o">.</span><span class="n">ir_reciprocal_mesh</span><span class="p">(</span>
-            <span class="n">mesh_points</span><span class="p">,</span> <span class="n">mapping</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">mesh</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;intc&#39;</span><span class="p">),</span>
-            <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">shift</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;intc&#39;</span><span class="p">),</span> <span class="n">is_time_reversal</span> <span class="o">*</span> <span class="mi">1</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_transposed_latt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_positions</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_numbers</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_symprec</span><span class="p">)</span>
+        <span class="n">mapping</span><span class="p">,</span> <span class="n">grid</span> <span class="o">=</span> <span class="n">spglib</span><span class="o">.</span><span class="n">get_ir_reciprocal_mesh</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">mesh</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cell</span><span class="p">,</span> <span class="n">is_shift</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">shift</span><span class="p">))</span>
 
         <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">tmp_map</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">mapping</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">mapping</span><span class="p">):</span>
-            <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">mesh_points</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">/</span> <span class="n">mesh</span><span class="p">,</span> <span class="n">tmp_map</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">i</span><span class="p">)))</span>
+            <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">grid</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">/</span> <span class="n">mesh</span><span class="p">,</span> <span class="n">tmp_map</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">i</span><span class="p">)))</span>
         <span class="k">return</span> <span class="n">results</span></div>
 
 <div class="viewcode-block" id="SpacegroupAnalyzer.get_primitive_standard_structure"><a class="viewcode-back" href="../../../pymatgen.symmetry.html#pymatgen.symmetry.analyzer.SpacegroupAnalyzer.get_primitive_standard_structure">[docs]</a>    <span class="k">def</span> <span class="nf">get_primitive_standard_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">international_monoclinic</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
@@ -880,7 +796,8 @@
 <span class="sd">    31  &quot;-43m &quot;</span>
 <span class="sd">    32  &quot;m-3m &quot;</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">spg</span><span class="o">.</span><span class="n">pointgroup</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">rotations</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;intc&#39;</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s1">&#39;C&#39;</span><span class="p">))</span></div>
+    <span class="k">return</span> <span class="n">spglib</span><span class="o">.</span><span class="n">_spglib</span><span class="o">.</span><span class="n">pointgroup</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">rotations</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;intc&#39;</span><span class="p">,</span>
+                                              <span class="n">order</span><span class="o">=</span><span class="s1">&#39;C&#39;</span><span class="p">))</span></div>
 
 
 <div class="viewcode-block" id="PointGroupAnalyzer"><a class="viewcode-back" href="../../../pymatgen.symmetry.html#pymatgen.symmetry.analyzer.PointGroupAnalyzer">[docs]</a><span class="k">class</span> <span class="nc">PointGroupAnalyzer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -1453,7 +1370,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.5.3 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.6.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

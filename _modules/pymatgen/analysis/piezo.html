@@ -68,6 +68,8 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.operations</span> <span class="kn">import</span> <span class="n">SymmOp</span>
 <span class="kn">from</span> <span class="nn">pymatgen.symmetry.analyzer</span> <span class="kn">import</span> <span class="n">SpacegroupAnalyzer</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.elasticity.tensors</span> <span class="kn">import</span> <span class="n">TensorBase</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.elasticity</span> <span class="kn">import</span> <span class="n">voigt_map</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="nb">range</span>
@@ -80,154 +82,78 @@
 <span class="n">__status__</span> <span class="o">=</span> <span class="s2">&quot;Development&quot;</span>
 <span class="n">__date__</span> <span class="o">=</span> <span class="s2">&quot;Feb, 2016&quot;</span>
 
-<span class="n">voigt_map</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span>
 
-
-<div class="viewcode-block" id="PiezoTensor"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.piezo.PiezoTensor">[docs]</a><span class="k">class</span> <span class="nc">PiezoTensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+<div class="viewcode-block" id="PiezoTensor"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.piezo.PiezoTensor">[docs]</a><span class="k">class</span> <span class="nc">PiezoTensor</span><span class="p">(</span><span class="n">TensorBase</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    This class describes the 3 x 6 piezo tensor in Voigt-notation</span>
+<span class="sd">    This class describes the 3x6 piezo tensor in Voigt-notation</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">input_array</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">input_array</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create an PiezoTensor object.  The constructor throws an error if</span>
-<span class="sd">        the shape of the input_matrix argument is not 3x6, i. e. in Voigt-</span>
-<span class="sd">        notation. Note that the constructor uses __new__ rather than</span>
+<span class="sd">        the shape of the input_matrix argument is not 3x3x3, i. e. in true</span>
+<span class="sd">        tensor notation. Note that the constructor uses __new__ rather than</span>
 <span class="sd">        __init__ according to the standard method of subclassing numpy</span>
 <span class="sd">        ndarrays.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            input_matrix (3x6 array-like): the Voigt-notation 3x6 array-like</span>
+<span class="sd">            input_matrix (3x3x3 array-like): the 3x6 array-like</span>
 <span class="sd">                representing the piezo tensor</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">obj</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">input_array</span><span class="p">)</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">cls</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">obj</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">6</span><span class="p">):</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">TensorBase</span><span class="p">(</span><span class="n">input_array</span><span class="p">)</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">cls</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">obj</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Default piezo tensor constructor requires &quot;</span>
-                             <span class="s2">&quot;input argument to be the Voigt-notation 3x6 &quot;</span>
-                             <span class="s2">&quot;array.  To construct from a 3x3x3 array, use &quot;</span>
-                             <span class="s2">&quot;PiezoTensor.from_full_tensor&quot;</span><span class="p">)</span>
+                             <span class="s2">&quot;input argument to be the true 3x3x3 &quot;</span>
+                             <span class="s2">&quot;array.  To construct from a 3x6 array, use &quot;</span>
+                             <span class="s2">&quot;PiezoTensor.from_voigt&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">obj</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Input piezo tensor does &quot;</span>
+                          <span class="s2">&quot;not satisfy standard symmetries&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">obj</span>
 
     <span class="k">def</span> <span class="nf">__array_finalize__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
             <span class="k">return</span>
 
-    <span class="nd">@property</span>
-    <span class="k">def</span> <span class="nf">full_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="PiezoTensor.from_voigt"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.piezo.PiezoTensor.from_voigt">[docs]</a>    <span class="k">def</span> <span class="nf">from_voigt</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">voigt_matrix</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns the tensor in standard notation (i. e.</span>
-<span class="sd">        a 3th order 3-dimensional tensor, C_{ijk}), which</span>
-<span class="sd">        is represented in a np.array with shape (3,3,3)</span>
+<span class="sd">        Constructor based on 3x6 voigt-notation tensor</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            voigt_matrix: (3x6 array-like): The Voigt notation 3x6 array-like</span>
+<span class="sd">                representing the piezo tensor</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">voigt_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">voigt_matrix</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">voigt_matrix</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">6</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;PiezoTensor.from_voigt takes &quot;</span>
+                             <span class="s2">&quot;a 3x6 array-like as input.&quot;</span><span class="p">)</span>
         <span class="n">c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
             <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">6</span><span class="p">):</span>
                 <span class="n">j</span><span class="p">,</span> <span class="n">k</span> <span class="o">=</span> <span class="n">voigt_map</span><span class="p">[</span><span class="n">p</span><span class="p">]</span>
-                <span class="n">c</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">p</span><span class="p">]</span>
-        <span class="k">return</span> <span class="n">c</span>
+                <span class="n">c</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">voigt_matrix</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">p</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">c</span><span class="p">)</span></div>
 
-    <span class="nd">@classmethod</span>
-<div class="viewcode-block" id="PiezoTensor.from_full_tensor"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.piezo.PiezoTensor.from_full_tensor">[docs]</a>    <span class="k">def</span> <span class="nf">from_full_tensor</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">c_ijk</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">):</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">voigt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Factory method to construct piezo tensor from third order</span>
-<span class="sd">        tensor C_ijk.  First tests for appropriate symmetries and then</span>
-<span class="sd">        constructs the 3x6 voigt notation tensor.</span>
+<span class="sd">        Returns the 3x6 voigt notation tensor corresponding </span>
+<span class="sd">        to the piezo tensor.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            c_ijkl (3x3x3 array-like): third order tensor corresponding</span>
 <span class="sd">                to the piezo tensor</span>
 <span class="sd">            tol (float): tolerance for the symmetry test of the tensor</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># Test symmetry of elastic tensor</span>
-        <span class="n">c_ijk</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">c_ijk</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">c_ijk</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">c_ijk</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Input piezo tensor does &quot;</span>
-                             <span class="s2">&quot;not satisfy necessary symmetries&quot;</span><span class="p">)</span>
-        <span class="c1"># Construct elastic tensor</span>
+        <span class="c1"># Construct piezo tensor</span>
         <span class="n">c_ip</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
             <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">6</span><span class="p">):</span>
                 <span class="n">j</span><span class="p">,</span> <span class="n">k</span> <span class="o">=</span> <span class="n">voigt_map</span><span class="p">[</span><span class="n">p</span><span class="p">]</span>
-                <span class="n">c_ip</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">p</span><span class="p">]</span> <span class="o">=</span> <span class="n">c_ijk</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">]</span>
+                <span class="n">c_ip</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">p</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span><span class="p">]</span>
 
-        <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">c_ip</span><span class="p">)</span></div>
-
-    <span class="k">def</span> <span class="nf">__array_wrap__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Overrides __array_wrap__ methods in ndarray superclass to avoid errors</span>
-<span class="sd">        associated with functions that return scalar values</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">obj</span><span class="p">[()]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="o">.</span><span class="n">__array_wrap__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        define a hash function, since numpy arrays</span>
-<span class="sd">        have their own __eq__ method</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tostring</span><span class="p">())</span>
-
-    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
-        <span class="k">return</span> <span class="s2">&quot;{}({})&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span>
-                               <span class="n">cls</span><span class="o">.</span><span class="n">__str__</span><span class="p">())</span>
-
-<div class="viewcode-block" id="PiezoTensor.transform"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.piezo.PiezoTensor.transform">[docs]</a>    <span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns a transformed tensor based on input of symmetry operation</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            symp (SymmOp): symmetry operation</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">PiezoTensor</span><span class="o">.</span><span class="n">from_full_tensor</span><span class="p">(</span><span class="n">sym</span><span class="o">.</span><span class="n">transform_tensor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">full_tensor</span><span class="p">))</span></div>
-
-<div class="viewcode-block" id="PiezoTensor.is_valid"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.piezo.PiezoTensor.is_valid">[docs]</a>    <span class="k">def</span> <span class="nf">is_valid</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Checks the piezo tensor against the symmetries of the structure and</span>
-<span class="sd">        determine if the piezoelectric tensor is valid for that structure</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            structure (Structure): structure to check against</span>
-<span class="sd">            symprec (float): Tolerance for symmetry finding, default good for</span>
-<span class="sd">                             as-made structures. Set to 0.1 for MP structures</span>
-<span class="sd">            tol (float): tolerance for equality</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-
-        <span class="n">sg</span> <span class="o">=</span> <span class="n">SpacegroupAnalyzer</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">symprec</span><span class="p">)</span>
-
-        <span class="c1"># Check every symmetry operation in the space group</span>
-        <span class="k">for</span> <span class="n">symm</span> <span class="ow">in</span> <span class="n">sg</span><span class="o">.</span><span class="n">get_symmetry_operations</span><span class="p">(</span><span class="n">cartesian</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
-            <span class="c1"># does it produce the same tensor?</span>
-            <span class="n">diff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">symm</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">diff</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">tol</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
-                <span class="k">print</span><span class="p">(</span><span class="n">diff</span><span class="p">)</span>
-                <span class="k">return</span> <span class="bp">False</span>
-
-        <span class="k">return</span> <span class="bp">True</span></div>
-
-<div class="viewcode-block" id="PiezoTensor.symmeterize"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.piezo.PiezoTensor.symmeterize">[docs]</a>    <span class="k">def</span> <span class="nf">symmeterize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Averages the piezo tensor based on the symmetries of the structure</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            structure (Structure): structure to check against</span>
-<span class="sd">            symprec (float): Tolerance for symmetry finding, default good for</span>
-<span class="sd">                             as-made structures. Set to 0.1 for MP structures</span>
-<span class="sd">            tol (float): tolerance for zero&#39;ing out indicies. The average procedure produces very small numbers rather then 0. This tolerance is used to zero out those values to make the tensor less messy.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-
-        <span class="n">sg</span> <span class="o">=</span> <span class="n">SpacegroupAnalyzer</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">symprec</span><span class="p">)</span>
-        <span class="n">new_pt</span> <span class="o">=</span> <span class="n">PiezoTensor</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-
-        <span class="k">for</span> <span class="n">symm</span> <span class="ow">in</span> <span class="n">sg</span><span class="o">.</span><span class="n">get_symmetry_operations</span><span class="p">(</span><span class="n">cartesian</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
-            <span class="n">new_pt</span> <span class="o">=</span> <span class="p">(</span><span class="n">new_pt</span> <span class="o">+</span> <span class="n">new_pt</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">symm</span><span class="p">))</span> <span class="o">/</span> <span class="mi">2</span>
-
-        <span class="n">low_values_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">new_pt</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">tol</span>
-        <span class="n">new_pt</span> <span class="p">[</span><span class="n">low_values_indices</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
-
-        <span class="k">return</span> <span class="n">new_pt</span></div></div>
+        <span class="k">return</span> <span class="n">c_ip</span></div>
 </pre></div>
 
           </div>

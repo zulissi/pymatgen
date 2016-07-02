@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.entries.compatibility &mdash; pymatgen 3.7.1 documentation</title>
+    <title>pymatgen.entries.compatibility &mdash; pymatgen 4.0.0 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '3.7.1',
+        VERSION:     '4.0.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 3.7.1 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 4.0.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.7.1 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.0.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -87,7 +87,7 @@
 
 <span class="kn">from</span> <span class="nn">pymatgen.io.vasp.sets</span> <span class="kn">import</span> <span class="n">MITRelaxSet</span><span class="p">,</span> <span class="n">MPRelaxSet</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="kn">import</span> <span class="n">Element</span>
-<span class="kn">from</span> <span class="nn">pymatgen.analysis.structure_analyzer</span> <span class="kn">import</span> <span class="n">oxide_type</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.structure_analyzer</span> <span class="kn">import</span> <span class="n">oxide_type</span><span class="p">,</span> <span class="n">sulfide_type</span>
 
 <span class="kn">import</span> <span class="nn">abc</span>
 
@@ -271,16 +271,23 @@
 
     <span class="k">def</span> <span class="nf">get_correction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entry</span><span class="p">):</span>
         <span class="n">comp</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">composition</span>
-
-        <span class="n">rform</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">reduced_formula</span>
-
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">comp</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span> <span class="ow">and</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">comp</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">symbol</span> <span class="o">==</span> <span class="s2">&quot;S&quot;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sulfide_correction</span><span class="p">[</span><span class="s2">&quot;sulfide&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">comp</span><span class="p">[</span><span class="s2">&quot;S&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">comp</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>  <span class="c1"># Skip element entry</span>
+            <span class="k">return</span> <span class="mi">0</span>
 
         <span class="n">correction</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="c1"># Check for sulfide corrections</span>
+        <span class="k">if</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;S&quot;</span><span class="p">)</span> <span class="ow">in</span> <span class="n">comp</span><span class="p">:</span>
+            <span class="n">sf_type</span> <span class="o">=</span> <span class="s2">&quot;sulfide&quot;</span>
+            <span class="k">if</span> <span class="n">entry</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sulfide_type&quot;</span><span class="p">):</span>
+                <span class="n">sf_type</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;sulfide_type&quot;</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="s2">&quot;structure&quot;</span><span class="p">):</span>
+                <span class="n">sf_type</span> <span class="o">=</span> <span class="n">sulfide_type</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">structure</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">sf_type</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sulfide_correction</span><span class="p">:</span>
+                <span class="n">correction</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sulfide_correction</span><span class="p">[</span><span class="n">sf_type</span><span class="p">]</span> <span class="o">*</span> <span class="n">comp</span><span class="p">[</span><span class="s2">&quot;S&quot;</span><span class="p">]</span>
+
         <span class="c1"># Check for oxide, peroxide, superoxide, and ozonide corrections.</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">correct_peroxide</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">comp</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;O&quot;</span><span class="p">)</span> <span class="ow">in</span> <span class="n">comp</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;O&quot;</span><span class="p">)</span> <span class="ow">in</span> <span class="n">comp</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">correct_peroxide</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">entry</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;oxide_type&quot;</span><span class="p">):</span>
                     <span class="k">if</span> <span class="n">entry</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;oxide_type&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">oxide_correction</span><span class="p">:</span>
                         <span class="n">ox_corr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">oxide_correction</span><span class="p">[</span>
@@ -297,8 +304,10 @@
                         <span class="n">correction</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">oxide_correction</span><span class="p">[</span><span class="n">ox_type</span><span class="p">]</span> <span class="o">*</span> \
                             <span class="n">nbonds</span>
                     <span class="k">elif</span> <span class="n">ox_type</span> <span class="o">==</span> <span class="s2">&quot;hydroxide&quot;</span><span class="p">:</span>
-                        <span class="n">correction</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">oxide_correction</span><span class="p">[</span><span class="s2">&quot;oxide&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">comp</span><span class="p">[</span><span class="s2">&quot;O&quot;</span><span class="p">]</span>
+                        <span class="n">correction</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">oxide_correction</span><span class="p">[</span><span class="s2">&quot;oxide&quot;</span><span class="p">]</span> <span class="o">*</span> \
+                                      <span class="n">comp</span><span class="p">[</span><span class="s2">&quot;O&quot;</span><span class="p">]</span>
                 <span class="k">else</span><span class="p">:</span>
+                    <span class="n">rform</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">reduced_formula</span>
                     <span class="k">if</span> <span class="n">rform</span> <span class="ow">in</span> <span class="n">UCorrection</span><span class="o">.</span><span class="n">common_peroxides</span><span class="p">:</span>
                         <span class="n">correction</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">oxide_correction</span><span class="p">[</span><span class="s2">&quot;peroxide&quot;</span><span class="p">]</span> <span class="o">*</span> \
                             <span class="n">comp</span><span class="p">[</span><span class="s2">&quot;O&quot;</span><span class="p">]</span>
@@ -310,9 +319,10 @@
                             <span class="n">comp</span><span class="p">[</span><span class="s2">&quot;O&quot;</span><span class="p">]</span>
                     <span class="k">elif</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;O&quot;</span><span class="p">)</span> <span class="ow">in</span> <span class="n">comp</span><span class="o">.</span><span class="n">elements</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">comp</span><span class="o">.</span><span class="n">elements</span><span class="p">)</span>\
                             <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-                        <span class="n">correction</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">oxide_correction</span><span class="p">[</span><span class="s1">&#39;oxide&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">comp</span><span class="p">[</span><span class="s2">&quot;O&quot;</span><span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">correction</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">oxide_correction</span><span class="p">[</span><span class="s1">&#39;oxide&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">comp</span><span class="p">[</span><span class="s2">&quot;O&quot;</span><span class="p">]</span>
+                        <span class="n">correction</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">oxide_correction</span><span class="p">[</span><span class="s1">&#39;oxide&#39;</span><span class="p">]</span> <span class="o">*</span> \
+                                      <span class="n">comp</span><span class="p">[</span><span class="s2">&quot;O&quot;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">correction</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">oxide_correction</span><span class="p">[</span><span class="s1">&#39;oxide&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">comp</span><span class="p">[</span><span class="s2">&quot;O&quot;</span><span class="p">]</span>
 
         <span class="k">return</span> <span class="n">correction</span>
 
@@ -711,7 +721,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 3.7.1 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.0.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

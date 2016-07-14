@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.analysis.defects.dilute_solution_model &mdash; pymatgen 4.0.2 documentation</title>
+    <title>pymatgen.analysis.defects.dilute_solution_model &mdash; pymatgen 4.1.0 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '4.0.2',
+        VERSION:     '4.1.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 4.0.2 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 4.1.0 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.0.2 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.1.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -60,8 +60,8 @@
 <span class="c1"># Copyright (c) Pymatgen Development Team.</span>
 <span class="c1"># Distributed under the terms of the MIT License.</span>
 
-<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">unicode_literals</span>
-<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">unicode_literals</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">Evaluate the defect concentration based on composition, temperature,</span>
@@ -82,35 +82,35 @@
 
 <span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">import</span> <span class="nn">copy</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">six.moves</span> <span class="kn">import</span> <span class="nb">zip</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">six.moves</span> <span class="k">import</span> <span class="nb">zip</span>
 
-<span class="kn">from</span> <span class="nn">monty.dev</span> <span class="kn">import</span> <span class="n">requires</span>
-<span class="kn">from</span> <span class="nn">monty.fractions</span> <span class="kn">import</span> <span class="n">gcd</span>
+<span class="kn">from</span> <span class="nn">monty.dev</span> <span class="k">import</span> <span class="n">requires</span>
+<span class="kn">from</span> <span class="nn">monty.fractions</span> <span class="k">import</span> <span class="n">gcd</span>
 
 
 <span class="k">try</span><span class="p">:</span>
-    <span class="kn">from</span> <span class="nn">sympy</span> <span class="kn">import</span> <span class="n">Symbol</span><span class="p">,</span> <span class="n">nsolve</span><span class="p">,</span> <span class="n">Integer</span><span class="p">,</span> <span class="n">Float</span><span class="p">,</span> <span class="n">Matrix</span><span class="p">,</span> <span class="n">exp</span><span class="p">,</span> <span class="n">solve</span><span class="p">,</span> <span class="n">Eq</span>
-    <span class="n">sympy_found</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="kn">from</span> <span class="nn">sympy</span> <span class="k">import</span> <span class="n">Symbol</span><span class="p">,</span> <span class="n">nsolve</span><span class="p">,</span> <span class="n">Integer</span><span class="p">,</span> <span class="n">Float</span><span class="p">,</span> <span class="n">Matrix</span><span class="p">,</span> <span class="n">exp</span><span class="p">,</span> <span class="n">solve</span><span class="p">,</span> <span class="n">Eq</span>
+    <span class="n">sympy_found</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-    <span class="n">sympy_found</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="n">sympy_found</span> <span class="o">=</span> <span class="kc">False</span>
 
 <span class="c1"># physical consts</span>
 <span class="n">k_B</span><span class="o">=</span><span class="mf">8.6173324e-5</span>                <span class="c1"># eV/K</span>
 
 <span class="c1"># Check the inputs</span>
 <div class="viewcode-block" id="check_input"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.html#pymatgen.analysis.defects.dilute_solution_model.check_input">[docs]</a><span class="k">def</span> <span class="nf">check_input</span><span class="p">(</span><span class="n">def_list</span><span class="p">):</span>
-    <span class="n">flag</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="n">flag</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="k">for</span> <span class="n">defect</span> <span class="ow">in</span> <span class="n">def_list</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">defect</span><span class="p">:</span>
-            <span class="n">flag</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="n">flag</span> <span class="o">=</span> <span class="kc">False</span>
             <span class="k">break</span>
     <span class="k">return</span> <span class="n">flag</span></div>
 
 <span class="nd">@requires</span><span class="p">(</span><span class="n">sympy_found</span><span class="p">,</span>
             <span class="s2">&quot;dilute_solution_model requires Sympy module. Please install it.&quot;</span><span class="p">)</span>
 <div class="viewcode-block" id="dilute_solution_model"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.html#pymatgen.analysis.defects.dilute_solution_model.dilute_solution_model">[docs]</a><span class="k">def</span> <span class="nf">dilute_solution_model</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">e0</span><span class="p">,</span> <span class="n">vac_defs</span><span class="p">,</span> <span class="n">antisite_defs</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span>
-        <span class="n">trial_chem_pot</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="n">generate</span><span class="o">=</span><span class="s1">&#39;plot&#39;</span><span class="p">):</span>
+        <span class="n">trial_chem_pot</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">generate</span><span class="o">=</span><span class="s1">&#39;plot&#39;</span><span class="p">):</span>
 
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Compute the defect densities using dilute solution model.</span>
@@ -338,9 +338,9 @@
         <span class="n">y_vect</span> <span class="o">=</span> <span class="p">[</span><span class="n">specie_concen</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">specie_concen</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m</span><span class="p">)]</span>
         <span class="n">vector_func</span> <span class="o">=</span> <span class="p">[</span><span class="n">y_vect</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="n">c_ratio</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m</span><span class="o">-</span><span class="mi">1</span><span class="p">)]</span>
         <span class="n">vector_func</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">omega</span><span class="p">)</span>
-        <span class="n">min_diff</span> <span class="o">=</span> <span class="mf">1e10</span>
-        <span class="n">mu_vals</span> <span class="o">=</span> <span class="bp">None</span>
-        <span class="n">c_val</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">min_diff</span> <span class="o">=</span> <span class="mi">1</span><span class="n">e10</span>
+        <span class="n">mu_vals</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">c_val</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">m1_min</span> <span class="o">=</span> <span class="o">-</span><span class="mf">20.0</span>
         <span class="k">if</span> <span class="n">e0</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">m1_max</span> <span class="o">=</span> <span class="mi">10</span>            <span class="c1"># Search space needs to be modified</span>
@@ -501,15 +501,15 @@
             <span class="n">failed_i</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
             <span class="k">continue</span>
         <span class="n">result</span><span class="p">[</span><span class="n">y</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">mu_vals</span><span class="p">)</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
 
     <span class="k">def</span> <span class="nf">get_next_mu_val</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">yvals</span><span class="p">):</span>
-            <span class="k">return</span> <span class="bp">None</span>
+            <span class="k">return</span> <span class="kc">None</span>
 
         <span class="n">y</span> <span class="o">=</span>  <span class="n">yvals</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">y</span><span class="p">,</span><span class="bp">None</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">y</span><span class="p">,</span><span class="kc">None</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">x</span><span class="p">:</span>
             <span class="n">mu_vals</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">mu_val</span><span class="p">)</span> <span class="k">for</span> <span class="n">mu_val</span> <span class="ow">in</span> <span class="n">x</span><span class="p">]</span>
             <span class="k">return</span> <span class="n">mu_vals</span>
@@ -518,10 +518,10 @@
 
     <span class="k">def</span> <span class="nf">get_prev_mu_val</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">None</span>
+            <span class="k">return</span> <span class="kc">None</span>
 
         <span class="n">y</span> <span class="o">=</span>  <span class="n">yvals</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">y</span><span class="p">,</span><span class="bp">None</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">y</span><span class="p">,</span><span class="kc">None</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">x</span><span class="p">:</span>
             <span class="n">mu_vals</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">mu_val</span><span class="p">)</span> <span class="k">for</span> <span class="n">mu_val</span> <span class="ow">in</span> <span class="n">x</span><span class="p">]</span>
             <span class="k">return</span> <span class="n">mu_vals</span>
@@ -551,7 +551,7 @@
         <span class="k">except</span><span class="p">:</span>
             <span class="k">continue</span>
         <span class="n">result</span><span class="p">[</span><span class="n">y</span><span class="p">]</span> <span class="o">=</span> <span class="n">mu_vals</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="c1"># Alternate way of calculating trial mus for failed cases</span>
     <span class="c1"># by taking average of trial mus at extremes.</span>
@@ -748,7 +748,7 @@
 <span class="nd">@requires</span><span class="p">(</span><span class="n">sympy_found</span><span class="p">,</span>
           <span class="s2">&quot;comute_defect_density requires Sympy module. Please install it.&quot;</span><span class="p">)</span>
 <div class="viewcode-block" id="compute_defect_density"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.html#pymatgen.analysis.defects.dilute_solution_model.compute_defect_density">[docs]</a><span class="k">def</span> <span class="nf">compute_defect_density</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">e0</span><span class="p">,</span> <span class="n">vac_defs</span><span class="p">,</span> <span class="n">antisite_defs</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="mi">800</span><span class="p">,</span>
-        <span class="n">trial_chem_pot</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">plot_style</span><span class="o">=</span><span class="s2">&quot;highcharts&quot;</span><span class="p">):</span>
+        <span class="n">trial_chem_pot</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">plot_style</span><span class="o">=</span><span class="s2">&quot;highcharts&quot;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Wrapper for the dilute_solution_model.</span>
 <span class="sd">    The computed plot data is prepared based on plot_style.</span>
@@ -798,7 +798,7 @@
             <span class="n">name</span> <span class="o">=</span> <span class="n">y_data</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;$&#39;</span><span class="p">)</span>
             <span class="n">flds</span><span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)</span>
             <span class="n">def_string</span> <span class="o">=</span> <span class="n">flds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">site_string</span> <span class="o">=</span> <span class="n">flds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;{}&#39;</span><span class="p">)</span>
+            <span class="n">site_string</span> <span class="o">=</span> <span class="n">flds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">)</span>
             <span class="n">name</span> <span class="o">=</span> <span class="n">def_string</span><span class="o">+</span><span class="s2">&quot;&lt;sub&gt;&quot;</span><span class="o">+</span><span class="n">site_string</span><span class="o">+</span><span class="s2">&quot;&lt;/sub&gt;&quot;</span>
             <span class="c1">#series.append({&#39;data&#39;:xy, &#39;name&#39;:y_data[&#39;name&#39;]})</span>
             <span class="n">series</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;data&#39;</span><span class="p">:</span><span class="n">xy</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">:</span><span class="n">name</span><span class="p">})</span>
@@ -834,7 +834,7 @@
         <span class="s2">&quot;Please install it.&quot;</span><span class="p">)</span>
 <div class="viewcode-block" id="solute_site_preference_finder"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.html#pymatgen.analysis.defects.dilute_solution_model.solute_site_preference_finder">[docs]</a><span class="k">def</span> <span class="nf">solute_site_preference_finder</span><span class="p">(</span>
         <span class="n">structure</span><span class="p">,</span> <span class="n">e0</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">vac_defs</span><span class="p">,</span> <span class="n">antisite_defs</span><span class="p">,</span>  <span class="n">solute_defs</span><span class="p">,</span>
-        <span class="n">solute_concen</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">trial_chem_pot</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="n">solute_concen</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">trial_chem_pot</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Compute the solute defect densities using dilute solution model.</span>
@@ -1118,9 +1118,9 @@
         <span class="n">y_vect</span> <span class="o">=</span> <span class="n">host_specie_concen_ratio</span>
         <span class="n">vector_func</span> <span class="o">=</span> <span class="p">[</span><span class="n">y_vect</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="n">c_ratio</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m</span><span class="p">)]</span>
         <span class="n">vector_func</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">omega</span><span class="p">)</span>
-        <span class="n">min_diff</span> <span class="o">=</span> <span class="mf">1e10</span>
-        <span class="n">mu_vals</span> <span class="o">=</span> <span class="bp">None</span>
-        <span class="n">c_val</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">min_diff</span> <span class="o">=</span> <span class="mi">1</span><span class="n">e10</span>
+        <span class="n">mu_vals</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">c_val</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">m1_min</span> <span class="o">=</span> <span class="o">-</span><span class="mf">20.0</span>
         <span class="k">if</span> <span class="n">e0</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">m1_max</span> <span class="o">=</span> <span class="mi">10</span>            <span class="c1"># Search space needs to be modified</span>
@@ -1155,8 +1155,8 @@
         <span class="n">y_vect</span> <span class="o">=</span> <span class="n">host_specie_concen_ratio</span>
         <span class="n">vector_func</span> <span class="o">=</span> <span class="p">[</span><span class="n">y_vect</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="n">c_ratio</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">m</span><span class="p">)]</span>
         <span class="n">vector_func</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">omega</span><span class="p">)</span>
-        <span class="n">mu_vals</span> <span class="o">=</span> <span class="bp">None</span>
-        <span class="n">c_val</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">mu_vals</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">c_val</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">m_min</span> <span class="o">=</span> <span class="o">-</span><span class="mf">15.0</span>
         <span class="k">if</span> <span class="n">e0</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">m_max</span> <span class="o">=</span> <span class="mi">10</span>            <span class="c1"># Search space needs to be modified</span>
@@ -1367,7 +1367,7 @@
 <span class="nd">@requires</span><span class="p">(</span><span class="n">sympy_found</span><span class="p">,</span>
           <span class="s2">&quot;solute_defect_density requires Sympy module. Please install it.&quot;</span><span class="p">)</span>
 <div class="viewcode-block" id="solute_defect_density"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.html#pymatgen.analysis.defects.dilute_solution_model.solute_defect_density">[docs]</a><span class="k">def</span> <span class="nf">solute_defect_density</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">e0</span><span class="p">,</span> <span class="n">vac_defs</span><span class="p">,</span> <span class="n">antisite_defs</span><span class="p">,</span> <span class="n">solute_defs</span><span class="p">,</span>
-        <span class="n">solute_concen</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="mi">800</span><span class="p">,</span> <span class="n">trial_chem_pot</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span>
+        <span class="n">solute_concen</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">T</span><span class="o">=</span><span class="mi">800</span><span class="p">,</span> <span class="n">trial_chem_pot</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">plot_style</span><span class="o">=</span><span class="s2">&quot;highchargs&quot;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Wrapper for the solute_site_preference_finder.</span>
@@ -1424,7 +1424,7 @@
             <span class="n">name</span> <span class="o">=</span> <span class="n">y_data</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;$&#39;</span><span class="p">)</span>
             <span class="n">flds</span><span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)</span>
             <span class="n">def_string</span> <span class="o">=</span> <span class="n">flds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">site_string</span> <span class="o">=</span> <span class="n">flds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;{}&#39;</span><span class="p">)</span>
+            <span class="n">site_string</span> <span class="o">=</span> <span class="n">flds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">)</span>
             <span class="n">name</span> <span class="o">=</span> <span class="n">def_string</span><span class="o">+</span><span class="s2">&quot;&lt;sub&gt;&quot;</span><span class="o">+</span><span class="n">site_string</span><span class="o">+</span><span class="s2">&quot;&lt;/sub&gt;&quot;</span>
             <span class="c1">#series.append({&#39;data&#39;:xy, &#39;name&#39;:y_data[&#39;name&#39;]})</span>
             <span class="n">series</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s1">&#39;data&#39;</span><span class="p">:</span><span class="n">xy</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">:</span><span class="n">name</span><span class="p">})</span>
@@ -1449,7 +1449,7 @@
                 <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span><span class="n">data</span><span class="p">))))</span>
             <span class="k">return</span> <span class="n">rows</span>
         <span class="c1">#solute_site_pref_rows = data_to_rows(solute_site_pref_data, True)</span>
-        <span class="n">pt_def_conc_rows</span> <span class="o">=</span> <span class="n">data_to_rows</span><span class="p">(</span><span class="n">def_conc_data</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+        <span class="n">pt_def_conc_rows</span> <span class="o">=</span> <span class="n">data_to_rows</span><span class="p">(</span><span class="n">def_conc_data</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="c1">#return solute_site_pref_rows, pt_def_conc_rows</span>
         <span class="k">return</span> <span class="n">pt_def_conc_rows</span></div>
 
@@ -1483,14 +1483,14 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.0.2 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.1.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>
 
     <div class="footer" role="contentinfo">
         &copy; Copyright 2011, Pymatgen Development Team.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.4.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.5.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

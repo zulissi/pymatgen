@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.lammps.data &mdash; pymatgen 4.1.0 documentation</title>
+    <title>pymatgen.io.lammps.data &mdash; pymatgen 4.1.1 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '4.1.0',
+        VERSION:     '4.1.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 4.1.0 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 4.1.1 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.1.0 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.1.1 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -63,7 +63,18 @@
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">unicode_literals</span><span class="p">,</span> <span class="n">absolute_import</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">This module implements classes for generating/parsing Lammps data files.</span>
+<span class="sd">This module implements classes for generating/parsing Lammps data file i.e</span>
+<span class="sd">the file that defines the system configuration(atomic positions, bonds,</span>
+<span class="sd">angles and dihedrals) + values of various fit paramters.</span>
+
+<span class="sd">Restrictions:</span>
+<span class="sd">    The ATOMS section in the data file that defines the atomic positions</span>
+<span class="sd">    is assumed to be in the following format(atom style = full, this is the</span>
+<span class="sd">    superset of several other atom styles such as angle, bond, atomic, charge</span>
+<span class="sd">    and molecular):</span>
+<span class="sd">    atom_id, molecule_id, atom_type, charge(optional), x, y, z</span>
+
+<span class="sd">    For more info, please refer to: http://lammps.sandia.gov/doc/read_data.html</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span> <span class="nn">six.moves</span> <span class="k">import</span> <span class="nb">range</span>
@@ -455,7 +466,8 @@
             <span class="k">raise</span> <span class="ne">AttributeError</span></div>
 
     <span class="nd">@staticmethod</span>
-<div class="viewcode-block" id="LammpsForceFieldData.get_atoms_data"><a class="viewcode-back" href="../../../../pymatgen.io.lammps.html#pymatgen.io.lammps.data.LammpsForceFieldData.get_atoms_data">[docs]</a>    <span class="k">def</span> <span class="nf">get_atoms_data</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">mols_number</span><span class="p">,</span> <span class="n">molecule</span><span class="p">,</span> <span class="n">atomic_masses_dict</span><span class="p">,</span> <span class="n">topologies</span><span class="p">):</span>
+<div class="viewcode-block" id="LammpsForceFieldData.get_atoms_data"><a class="viewcode-back" href="../../../../pymatgen.io.lammps.html#pymatgen.io.lammps.data.LammpsForceFieldData.get_atoms_data">[docs]</a>    <span class="k">def</span> <span class="nf">get_atoms_data</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">mols_number</span><span class="p">,</span> <span class="n">molecule</span><span class="p">,</span> <span class="n">atomic_masses_dict</span><span class="p">,</span>
+                       <span class="n">topologies</span><span class="p">,</span> <span class="n">atom_to_mol</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return the atoms data.</span>
 
@@ -466,29 +478,38 @@
 <span class="sd">                in the mols list.</span>
 <span class="sd">            topologies (list): list of Topology objects, one for each molecule</span>
 <span class="sd">                type in mols list</span>
+<span class="sd">            atom_to_mol (dict):  maps atom_id --&gt; [mol_type, mol_id,</span>
+<span class="sd">                local atom id in the mol with id mol_id]</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            atoms_data: [[atom id, mol type, atom type, charge, x, y, z], ... ]</span>
 <span class="sd">            molid_to_atomid: [ [global atom id 1, id 2, ..], ...], the</span>
 <span class="sd">                index will be the global mol id</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">atom_to_mol</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="n">molid_to_atomid</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">atoms_data</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">nmols</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">)</span>
-        <span class="c1"># set up map atom_id --&gt; [mol_type, local atom id in the mol] in mols</span>
-        <span class="c1"># set up map gobal molecule id --&gt; [[atom_id,...],...]</span>
-        <span class="n">shift_</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="k">for</span> <span class="n">mol_type</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nmols</span><span class="p">):</span>
-            <span class="n">natoms</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">[</span><span class="n">mol_type</span><span class="p">])</span>
-            <span class="k">for</span> <span class="n">num_mol_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">mols_number</span><span class="p">[</span><span class="n">mol_type</span><span class="p">]):</span>
-                <span class="n">tmp</span> <span class="o">=</span> <span class="p">[]</span>
-                <span class="k">for</span> <span class="n">mol_atom_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">natoms</span><span class="p">):</span>
-                    <span class="n">atom_id</span> <span class="o">=</span> <span class="n">num_mol_id</span> <span class="o">*</span> <span class="n">natoms</span> <span class="o">+</span> <span class="n">mol_atom_id</span> <span class="o">+</span> <span class="n">shift_</span>
-                    <span class="n">atom_to_mol</span><span class="p">[</span><span class="n">atom_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">mol_type</span><span class="p">,</span> <span class="n">mol_atom_id</span><span class="p">]</span>
-                    <span class="n">tmp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">atom_id</span><span class="p">)</span>
-                <span class="n">molid_to_atomid</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tmp</span><span class="p">)</span>
-            <span class="n">shift_</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">[</span><span class="n">mol_type</span><span class="p">])</span> <span class="o">*</span> <span class="n">mols_number</span><span class="p">[</span><span class="n">mol_type</span><span class="p">]</span>
+        <span class="c1"># set up map atom_to_mol:</span>
+        <span class="c1">#   atom_id --&gt; [mol_type, mol_id, local atom id in the mol with id mol id]</span>
+        <span class="c1"># set up map molid_to_atomid:</span>
+        <span class="c1">#   gobal molecule id --&gt; [[atom_id1, atom_id2,...], ...]</span>
+        <span class="c1"># This assumes that the atomic order in the assembled molecule can be</span>
+        <span class="c1"># obtained from the atomic order in the constituent molecules.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">atom_to_mol</span><span class="p">:</span>
+            <span class="n">atom_to_mol</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">molid_to_atomid</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">shift_</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">mol_id</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">mol_type</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nmols</span><span class="p">):</span>
+                <span class="n">natoms</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">[</span><span class="n">mol_type</span><span class="p">])</span>
+                <span class="k">for</span> <span class="n">num_mol_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">mols_number</span><span class="p">[</span><span class="n">mol_type</span><span class="p">]):</span>
+                    <span class="n">tmp</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="k">for</span> <span class="n">mol_atom_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">natoms</span><span class="p">):</span>
+                        <span class="n">atom_id</span> <span class="o">=</span> <span class="n">num_mol_id</span> <span class="o">*</span> <span class="n">natoms</span> <span class="o">+</span> <span class="n">mol_atom_id</span> <span class="o">+</span> <span class="n">shift_</span>
+                        <span class="n">atom_to_mol</span><span class="p">[</span><span class="n">atom_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">mol_type</span><span class="p">,</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">mol_atom_id</span><span class="p">]</span>
+                        <span class="n">tmp</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">atom_id</span><span class="p">)</span>
+                    <span class="n">mol_id</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">molid_to_atomid</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tmp</span><span class="p">)</span>
+                <span class="n">shift_</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">[</span><span class="n">mol_type</span><span class="p">])</span> <span class="o">*</span> <span class="n">mols_number</span><span class="p">[</span><span class="n">mol_type</span><span class="p">]</span>
         <span class="c1"># set atoms data from the molecule assembly consisting of</span>
         <span class="c1"># molecules from mols list with their count from mol_number list.</span>
         <span class="c1"># atom id, mol id, atom type, charge from topology, x, y, z</span>
@@ -497,12 +518,13 @@
             <span class="c1"># atom_type = molecule.symbol_set.index(site.species_string) + 1</span>
             <span class="n">atom_id</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span>
             <span class="n">mol_type</span> <span class="o">=</span> <span class="n">atom_to_mol</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
-            <span class="n">mol_atom_id</span> <span class="o">=</span> <span class="n">atom_to_mol</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">mol_id</span> <span class="o">=</span> <span class="n">atom_to_mol</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">mol_atom_id</span> <span class="o">=</span> <span class="n">atom_to_mol</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
             <span class="n">charge</span> <span class="o">=</span> <span class="mf">0.0</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">topologies</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s2">&quot;charges&quot;</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">topologies</span><span class="p">[</span><span class="n">mol_type</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">charges</span><span class="p">:</span>
                     <span class="n">charge</span> <span class="o">=</span> <span class="n">topologies</span><span class="p">[</span><span class="n">mol_type</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">charges</span><span class="p">[</span><span class="n">mol_atom_id</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
-            <span class="n">atoms_data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">atom_id</span><span class="p">,</span> <span class="n">mol_type</span><span class="p">,</span> <span class="n">atom_type</span><span class="p">,</span> <span class="n">charge</span><span class="p">,</span>
+            <span class="n">atoms_data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">atom_id</span><span class="p">,</span> <span class="n">mol_id</span><span class="p">,</span> <span class="n">atom_type</span><span class="p">,</span> <span class="n">charge</span><span class="p">,</span>
                                <span class="n">site</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">site</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">site</span><span class="o">.</span><span class="n">z</span><span class="p">])</span>
         <span class="k">return</span> <span class="n">atoms_data</span><span class="p">,</span> <span class="n">molid_to_atomid</span></div>
 
@@ -532,54 +554,52 @@
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">topologies</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">param_name</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">topologies</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">param_name</span><span class="p">):</span>
             <span class="n">nmols</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">)</span>
             <span class="n">mol_id</span> <span class="o">=</span> <span class="mi">0</span>
-            <span class="c1"># set the map param_to_mol:</span>
-            <span class="c1"># {global param_id :[global mol id, mol_type, local param id in the param], ... }</span>
-            <span class="n">param_to_mol</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">skip</span> <span class="o">=</span> <span class="mi">0</span>
             <span class="n">shift_</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="c1"># set the parameter data using the topology info</span>
+            <span class="c1"># example: loop over all bonds in the system</span>
+            <span class="c1"># mol_id --&gt; global molecule id</span>
+            <span class="c1"># mol_type --&gt; type of molecule</span>
+            <span class="c1"># mol_param_id --&gt; local parameter id in that molecule</span>
             <span class="k">for</span> <span class="n">mol_type</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nmols</span><span class="p">):</span>
                 <span class="n">param_obj</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">topologies</span><span class="p">[</span><span class="n">mol_type</span><span class="p">],</span> <span class="n">param_name</span><span class="p">)</span>
                 <span class="n">nparams</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">param_obj</span><span class="p">)</span>
                 <span class="k">for</span> <span class="n">num_mol_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">mols_number</span><span class="p">[</span><span class="n">mol_type</span><span class="p">]):</span>
-                    <span class="n">mol_id</span> <span class="o">+=</span> <span class="mi">1</span>
                     <span class="k">for</span> <span class="n">mol_param_id</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nparams</span><span class="p">):</span>
                         <span class="n">param_id</span> <span class="o">=</span> <span class="n">num_mol_id</span> <span class="o">*</span> <span class="n">nparams</span> <span class="o">+</span> <span class="n">mol_param_id</span> <span class="o">+</span> <span class="n">shift_</span>
-                        <span class="n">param_to_mol</span><span class="p">[</span><span class="n">param_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">mol_id</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">mol_type</span><span class="p">,</span> <span class="n">mol_param_id</span><span class="p">]</span>
+                        <span class="c1"># example: get the bonds list for mol_type molecule</span>
+                        <span class="n">param_obj</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">topologies</span><span class="p">[</span><span class="n">mol_type</span><span class="p">],</span> <span class="n">param_name</span><span class="p">)</span>
+                        <span class="c1"># connectivity info(local atom ids and type) for the</span>
+                        <span class="c1"># parameter with the local id &#39;mol_param_id&#39;.</span>
+                        <span class="c1"># example: single bond = [i, j, bond_type]</span>
+                        <span class="n">param</span> <span class="o">=</span> <span class="n">param_obj</span><span class="p">[</span><span class="n">mol_param_id</span><span class="p">]</span>
+                        <span class="n">param_atomids</span> <span class="o">=</span> <span class="p">[]</span>
+                        <span class="c1"># loop over local atom ids that constitute the parameter</span>
+                        <span class="c1"># for the molecule type, mol_type</span>
+                        <span class="c1"># example: single bond = [i,j,bond_label]</span>
+                        <span class="k">for</span> <span class="n">atomid</span> <span class="ow">in</span> <span class="n">param</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+                            <span class="c1"># local atom id to global atom id</span>
+                            <span class="n">global_atom_id</span> <span class="o">=</span> <span class="n">molid_to_atomid</span><span class="p">[</span><span class="n">mol_id</span><span class="p">][</span><span class="n">atomid</span><span class="p">]</span>
+                            <span class="n">param_atomids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">global_atom_id</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+                        <span class="n">param_type</span> <span class="o">=</span> <span class="n">param</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="n">param_type_reversed</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">param_type</span><span class="p">))</span>
+                        <span class="c1"># example: get the unique number id for the bond_type</span>
+                        <span class="k">if</span> <span class="n">param_type</span> <span class="ow">in</span> <span class="n">param_map</span><span class="p">:</span>
+                            <span class="n">key</span> <span class="o">=</span> <span class="n">param_type</span>
+                        <span class="k">elif</span> <span class="n">param_type_reversed</span> <span class="ow">in</span> <span class="n">param_map</span><span class="p">:</span>
+                            <span class="n">key</span> <span class="o">=</span> <span class="n">param_type_reversed</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">key</span> <span class="o">=</span> <span class="kc">None</span>
+                        <span class="k">if</span> <span class="n">key</span><span class="p">:</span>
+                            <span class="n">param_type_id</span> <span class="o">=</span> <span class="n">param_map</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                            <span class="n">param_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                                <span class="p">[</span><span class="n">param_id</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">skip</span><span class="p">,</span> <span class="n">param_type_id</span><span class="p">]</span> <span class="o">+</span> <span class="n">param_atomids</span><span class="p">)</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">skip</span> <span class="o">+=</span> <span class="mi">1</span>
+                            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> or </span><span class="si">{}</span><span class="s2"> Not available&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">param_type</span><span class="p">,</span>
+                                                                  <span class="n">param_type_reversed</span><span class="p">))</span>
+                    <span class="n">mol_id</span> <span class="o">+=</span> <span class="mi">1</span>
                 <span class="n">shift_</span> <span class="o">+=</span> <span class="n">nparams</span> <span class="o">*</span> <span class="n">mols_number</span><span class="p">[</span><span class="n">mol_type</span><span class="p">]</span>
-            <span class="c1"># set the parameter data using the topology info</span>
-            <span class="c1"># example: loop over all bonds in the system</span>
-            <span class="n">skip</span> <span class="o">=</span> <span class="mi">0</span>
-            <span class="k">for</span> <span class="n">param_id</span><span class="p">,</span> <span class="n">pinfo</span> <span class="ow">in</span> <span class="n">param_to_mol</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="n">mol_id</span> <span class="o">=</span> <span class="n">pinfo</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># global molecule id</span>
-                <span class="n">mol_type</span> <span class="o">=</span> <span class="n">pinfo</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># type of molecule</span>
-                <span class="n">mol_param_id</span> <span class="o">=</span> <span class="n">pinfo</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>  <span class="c1"># local parameter id in that molecule</span>
-                <span class="c1"># example: get the bonds list for mol_type molecule</span>
-                <span class="n">param_obj</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">topologies</span><span class="p">[</span><span class="n">mol_type</span><span class="p">],</span> <span class="n">param_name</span><span class="p">)</span>
-                <span class="c1"># connectivity info(local atom ids and type) for the parameter with the local id</span>
-                <span class="c1"># &#39;mol_param_id&#39;. example: single bond = [i, j, bond_type]</span>
-                <span class="n">param</span> <span class="o">=</span> <span class="n">param_obj</span><span class="p">[</span><span class="n">mol_param_id</span><span class="p">]</span>
-                <span class="n">param_atomids</span> <span class="o">=</span> <span class="p">[]</span>
-                <span class="c1"># loop over local atom ids that constitute the parameter</span>
-                <span class="c1"># for the molecule type, mol_type</span>
-                <span class="c1"># example: single bond = [i,j,bond_label]</span>
-                <span class="k">for</span> <span class="n">atomid</span> <span class="ow">in</span> <span class="n">param</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
-                    <span class="c1"># local atom id to global atom id</span>
-                    <span class="n">global_atom_id</span> <span class="o">=</span> <span class="n">molid_to_atomid</span><span class="p">[</span><span class="n">mol_id</span><span class="p">][</span><span class="n">atomid</span><span class="p">]</span>
-                    <span class="n">param_atomids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">global_atom_id</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
-                <span class="n">param_type</span> <span class="o">=</span> <span class="n">param</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-                <span class="n">param_type_reversed</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">param_type</span><span class="p">))</span>
-                <span class="c1"># example: get the unique number id for the bond_type</span>
-                <span class="k">if</span> <span class="n">param_type</span> <span class="ow">in</span> <span class="n">param_map</span><span class="p">:</span>
-                    <span class="n">key</span> <span class="o">=</span> <span class="n">param_type</span>
-                <span class="k">elif</span> <span class="n">param_type_reversed</span> <span class="ow">in</span> <span class="n">param_map</span><span class="p">:</span>
-                    <span class="n">key</span> <span class="o">=</span> <span class="n">param_type_reversed</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">key</span> <span class="o">=</span> <span class="kc">None</span>
-                <span class="k">if</span> <span class="n">key</span><span class="p">:</span>
-                    <span class="n">param_type_id</span> <span class="o">=</span> <span class="n">param_map</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
-                    <span class="n">param_data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">param_id</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">skip</span><span class="p">,</span> <span class="n">param_type_id</span><span class="p">]</span> <span class="o">+</span> <span class="n">param_atomids</span><span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">skip</span> <span class="o">+=</span> <span class="mi">1</span>
-                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> or </span><span class="si">{}</span><span class="s2"> Not available&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">param_type</span><span class="p">,</span> <span class="n">param_type_reversed</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">param_data</span></div>
 
     <span class="nd">@staticmethod</span>
@@ -804,7 +824,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.1.0 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.1.1 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.core.lattice &mdash; pymatgen 4.1.1 documentation</title>
+    <title>pymatgen.core.lattice &mdash; pymatgen 4.2.0 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '4.1.1',
+        VERSION:     '4.2.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 4.1.1 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 4.2.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.1.1 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.2.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -61,6 +61,18 @@
 <span class="c1"># Distributed under the terms of the MIT License.</span>
 
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">unicode_literals</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+
+<span class="kn">from</span> <span class="nn">six.moves</span> <span class="k">import</span> <span class="nb">map</span><span class="p">,</span> <span class="nb">zip</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">numpy.linalg</span> <span class="k">import</span> <span class="n">inv</span>
+<span class="kn">from</span> <span class="nn">numpy</span> <span class="k">import</span> <span class="n">pi</span><span class="p">,</span> <span class="n">dot</span><span class="p">,</span> <span class="n">transpose</span><span class="p">,</span> <span class="n">radians</span>
+<span class="kn">from</span> <span class="nn">scipy.spatial</span> <span class="k">import</span> <span class="n">Voronoi</span>
+
+<span class="kn">from</span> <span class="nn">monty.json</span> <span class="k">import</span> <span class="n">MSONable</span>
+<span class="kn">from</span> <span class="nn">pymatgen.util.num_utils</span> <span class="k">import</span> <span class="n">abs_cap</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">This module defines the classes relating to 3D lattices.</span>
@@ -75,20 +87,14 @@
 <span class="n">__status__</span> <span class="o">=</span> <span class="s2">&quot;Production&quot;</span>
 <span class="n">__date__</span> <span class="o">=</span> <span class="s2">&quot;Sep 23, 2011&quot;</span>
 
-<span class="kn">import</span> <span class="nn">math</span>
-<span class="kn">import</span> <span class="nn">itertools</span>
 
-<span class="kn">from</span> <span class="nn">six.moves</span> <span class="k">import</span> <span class="nb">map</span><span class="p">,</span> <span class="nb">zip</span>
-
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">from</span> <span class="nn">numpy.linalg</span> <span class="k">import</span> <span class="n">inv</span>
-<span class="kn">from</span> <span class="nn">numpy</span> <span class="k">import</span> <span class="n">pi</span><span class="p">,</span> <span class="n">dot</span><span class="p">,</span> <span class="n">transpose</span><span class="p">,</span> <span class="n">radians</span>
-<span class="kn">from</span> <span class="nn">scipy.spatial</span> <span class="k">import</span> <span class="n">Voronoi</span>
-
-<span class="kn">from</span> <span class="nn">monty.json</span> <span class="k">import</span> <span class="n">MSONable</span>
-<span class="kn">from</span> <span class="nn">monty.dev</span> <span class="k">import</span> <span class="n">deprecated</span>
-<span class="kn">from</span> <span class="nn">pymatgen.util.num_utils</span> <span class="k">import</span> <span class="n">abs_cap</span>
-<span class="kn">from</span> <span class="nn">pymatgen.core.units</span> <span class="k">import</span> <span class="n">ArrayWithUnit</span>
+<span class="c1"># TODO: Improve efficiency of minimum image convention algorithm</span>
+<span class="c1"># Construct images ahead of time.</span>
+<span class="c1"># Note that this is an extremely inefficient both computationally and memory</span>
+<span class="c1"># wise. It is also not 100% accurate, though probability of error is very small.</span>
+<span class="c1"># We will need to fix the algorithm in a more intelligent way later.</span>
+<span class="n">MIC_RANGE</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
+<span class="n">MIC_IMAGES</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="n">MIC_RANGE</span><span class="p">,</span> <span class="n">MIC_RANGE</span><span class="p">,</span> <span class="n">MIC_RANGE</span><span class="p">)))</span>
 
 
 <div class="viewcode-block" id="Lattice"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.lattice.Lattice">[docs]</a><span class="k">class</span> <span class="nc">Lattice</span><span class="p">(</span><span class="n">MSONable</span><span class="p">):</span>
@@ -1025,36 +1031,27 @@
 <span class="sd">            2d array of cartesian distances. E.g the distance between</span>
 <span class="sd">            fcoords1[i] and fcoords2[j] is distances[i,j]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1">#ensure correct shape</span>
+        <span class="c1"># ensure correct shape</span>
         <span class="n">fcoords1</span><span class="p">,</span> <span class="n">fcoords2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_2d</span><span class="p">(</span><span class="n">fcoords1</span><span class="p">,</span> <span class="n">fcoords2</span><span class="p">)</span>
 
-        <span class="c1">#ensure that all points are in the unit cell</span>
+        <span class="c1"># ensure that all points are in the unit cell</span>
         <span class="n">fcoords1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mod</span><span class="p">(</span><span class="n">fcoords1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
         <span class="n">fcoords2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mod</span><span class="p">(</span><span class="n">fcoords2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
 
-        <span class="c1">#create images, 2d array of all length 3 combinations of [-1,0,1]</span>
-        <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-        <span class="n">arange</span> <span class="o">=</span> <span class="n">r</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
-        <span class="n">brange</span> <span class="o">=</span> <span class="n">r</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">])[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
-        <span class="n">crange</span> <span class="o">=</span> <span class="n">r</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
-        <span class="n">images</span> <span class="o">=</span> <span class="n">arange</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">brange</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">+</span>\
-            <span class="n">crange</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
-        <span class="n">images</span> <span class="o">=</span> <span class="n">images</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">27</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
-
-        <span class="c1">#create images of f2</span>
-        <span class="n">shifted_f2</span> <span class="o">=</span> <span class="n">fcoords2</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">images</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
+        <span class="c1"># create images of f2</span>
+        <span class="n">shifted_f2</span> <span class="o">=</span> <span class="n">fcoords2</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">MIC_IMAGES</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
 
         <span class="n">cart_f1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_cartesian_coords</span><span class="p">(</span><span class="n">fcoords1</span><span class="p">)</span>
         <span class="n">cart_f2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_cartesian_coords</span><span class="p">(</span><span class="n">shifted_f2</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">cart_f1</span><span class="o">.</span><span class="n">size</span> <span class="o">*</span> <span class="n">cart_f2</span><span class="o">.</span><span class="n">size</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="n">e5</span><span class="p">:</span>
-            <span class="c1">#all vectors from f1 to f2</span>
+            <span class="c1"># all vectors from f1 to f2</span>
             <span class="n">vectors</span> <span class="o">=</span> <span class="n">cart_f2</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">cart_f1</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
             <span class="n">d_2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">vectors</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
             <span class="n">distances</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">d_2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="mf">0.5</span>
             <span class="k">return</span> <span class="n">distances</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="c1">#memory will overflow, so do a loop</span>
+            <span class="c1"># memory will overflow, so do a loop</span>
             <span class="n">distances</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">c1</span> <span class="ow">in</span> <span class="n">cart_f1</span><span class="p">:</span>
                 <span class="n">vectors</span> <span class="o">=</span> <span class="n">cart_f2</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:]</span> <span class="o">-</span> <span class="n">c1</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
@@ -1088,25 +1085,23 @@
 <span class="sd">            This means that the distance between frac_coords1 and (jimage +</span>
 <span class="sd">            frac_coords2) is equal to distance.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1">#The following code is heavily vectorized to maximize speed.</span>
-        <span class="c1">#Get the image adjustment necessary to bring coords to unit_cell.</span>
+        <span class="c1"># The following code is heavily vectorized to maximize speed.</span>
+        <span class="c1"># Get the image adjustment necessary to bring coords to unit_cell.</span>
         <span class="n">adj1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">frac_coords1</span><span class="p">)</span>
         <span class="n">adj2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">frac_coords2</span><span class="p">)</span>
-        <span class="c1">#Shift coords to unitcell</span>
+        <span class="c1"># Shift coords to unitcell</span>
         <span class="n">coord1</span> <span class="o">=</span> <span class="n">frac_coords1</span> <span class="o">-</span> <span class="n">adj1</span>
         <span class="n">coord2</span> <span class="o">=</span> <span class="n">frac_coords2</span> <span class="o">-</span> <span class="n">adj2</span>
         <span class="c1"># Generate set of images required for testing.</span>
         <span class="c1"># This is a cheat to create an 8x3 array of all length 3</span>
         <span class="c1"># combinations of 0,1</span>
-        <span class="n">test_set</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unpackbits</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">5</span><span class="p">,</span> <span class="mi">57</span><span class="p">,</span> <span class="mi">119</span><span class="p">],</span>
-                                          <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">))</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
-        <span class="n">images</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copysign</span><span class="p">(</span><span class="n">test_set</span><span class="p">,</span> <span class="n">coord1</span> <span class="o">-</span> <span class="n">coord2</span><span class="p">)</span>
+
         <span class="c1"># Create tiled cartesian coords for computing distances.</span>
-        <span class="n">vec</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">coord2</span> <span class="o">-</span> <span class="n">coord1</span><span class="p">,</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span> <span class="o">+</span> <span class="n">images</span>
+        <span class="n">vec</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">coord2</span> <span class="o">-</span> <span class="n">coord1</span><span class="p">,</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">MIC_IMAGES</span><span class="p">),</span> <span class="mi">1</span><span class="p">))</span> <span class="o">+</span> <span class="n">MIC_IMAGES</span>
         <span class="n">vec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_cartesian_coords</span><span class="p">(</span><span class="n">vec</span><span class="p">)</span>
         <span class="c1"># Compute distances manually.</span>
         <span class="n">dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">vec</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
-        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">dist</span><span class="p">,</span> <span class="n">adj1</span> <span class="o">-</span> <span class="n">adj2</span> <span class="o">+</span> <span class="n">images</span><span class="p">))</span></div>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">dist</span><span class="p">,</span> <span class="n">adj1</span> <span class="o">-</span> <span class="n">adj2</span> <span class="o">+</span> <span class="n">MIC_IMAGES</span><span class="p">))</span></div>
 
 <div class="viewcode-block" id="Lattice.get_distance_and_image"><a class="viewcode-back" href="../../../pymatgen.core.html#pymatgen.core.lattice.Lattice.get_distance_and_image">[docs]</a>    <span class="k">def</span> <span class="nf">get_distance_and_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">frac_coords1</span><span class="p">,</span> <span class="n">frac_coords2</span><span class="p">,</span> <span class="n">jimage</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -1169,7 +1164,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.1.1 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.2.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

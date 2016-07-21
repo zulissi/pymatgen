@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.matproj.rest &mdash; pymatgen 4.1.1 documentation</title>
+    <title>pymatgen.matproj.rest &mdash; pymatgen 4.2.0 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '4.1.1',
+        VERSION:     '4.2.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 4.1.1 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 4.2.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.1.1 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.2.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -61,7 +61,27 @@
 <span class="c1"># Distributed under the terms of the MIT License.</span>
 
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">from</span> <span class="nn">monty.json</span> <span class="k">import</span> <span class="n">MontyDecoder</span><span class="p">,</span> <span class="n">MontyEncoder</span>
 <span class="kn">from</span> <span class="nn">six</span> <span class="k">import</span> <span class="n">string_types</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.apps.borg.hive</span> <span class="k">import</span> <span class="n">VaspToComputedEntryDrone</span>
+<span class="kn">from</span> <span class="nn">pymatgen.apps.borg.queen</span> <span class="k">import</span> <span class="n">BorgQueen</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.composition</span> <span class="k">import</span> <span class="n">Composition</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="k">import</span> <span class="n">Element</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="k">import</span> <span class="n">Structure</span>
+<span class="kn">from</span> <span class="nn">pymatgen.entries.compatibility</span> <span class="k">import</span> <span class="n">MaterialsProjectCompatibility</span>
+<span class="kn">from</span> <span class="nn">pymatgen.entries.computed_entries</span> <span class="k">import</span> <span class="n">ComputedEntry</span><span class="p">,</span> \
+    <span class="n">ComputedStructureEntry</span>
+<span class="kn">from</span> <span class="nn">pymatgen.entries.exp_entries</span> <span class="k">import</span> <span class="n">ExpEntry</span>
+<span class="kn">from</span> <span class="nn">pymatgen.matproj.snl</span> <span class="k">import</span> <span class="n">StructureNL</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">This module provides classes to interface with the Materials Project REST</span>
@@ -81,25 +101,8 @@
 <span class="n">__email__</span> <span class="o">=</span> <span class="s2">&quot;shyuep@gmail.com&quot;</span>
 <span class="n">__date__</span> <span class="o">=</span> <span class="s2">&quot;Feb 22, 2013&quot;</span>
 
-<span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">import</span> <span class="nn">requests</span>
-<span class="kn">import</span> <span class="nn">json</span>
-<span class="kn">import</span> <span class="nn">warnings</span>
-<span class="kn">import</span> <span class="nn">re</span>
-<span class="kn">import</span> <span class="nn">itertools</span>
 
-<span class="kn">from</span> <span class="nn">monty.json</span> <span class="k">import</span> <span class="n">MontyEncoder</span><span class="p">,</span> <span class="n">MontyDecoder</span>
 
-<span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="k">import</span> <span class="n">Element</span>
-<span class="kn">from</span> <span class="nn">pymatgen.core.composition</span> <span class="k">import</span> <span class="n">Composition</span>
-<span class="kn">from</span> <span class="nn">pymatgen.entries.computed_entries</span> <span class="k">import</span> <span class="n">ComputedEntry</span><span class="p">,</span> \
-    <span class="n">ComputedStructureEntry</span>
-<span class="kn">from</span> <span class="nn">pymatgen.entries.compatibility</span> <span class="k">import</span> <span class="n">MaterialsProjectCompatibility</span>
-<span class="kn">from</span> <span class="nn">pymatgen.entries.exp_entries</span> <span class="k">import</span> <span class="n">ExpEntry</span>
-<span class="kn">from</span> <span class="nn">pymatgen.apps.borg.hive</span> <span class="k">import</span> <span class="n">VaspToComputedEntryDrone</span>
-<span class="kn">from</span> <span class="nn">pymatgen.apps.borg.queen</span> <span class="k">import</span> <span class="n">BorgQueen</span>
-<span class="kn">from</span> <span class="nn">pymatgen.matproj.snl</span> <span class="k">import</span> <span class="n">StructureNL</span>
-<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="k">import</span> <span class="n">Structure</span>
 
 
 <div class="viewcode-block" id="MPRester"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRester">[docs]</a><span class="k">class</span> <span class="nc">MPRester</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -463,8 +466,8 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            ComputedEntry or ComputedStructureEntry object.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_entries</span><span class="p">(</span><span class="n">material_id</span><span class="p">,</span> <span class="n">compatible_only</span><span class="o">=</span><span class="n">compatible_only</span><span class="p">,</span>\
-               <span class="n">inc_structure</span><span class="o">=</span><span class="n">inc_structure</span><span class="p">,</span> <span class="n">property_data</span><span class="o">=</span><span class="n">property_data</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_entries</span><span class="p">(</span><span class="n">material_id</span><span class="p">,</span> <span class="n">compatible_only</span><span class="o">=</span><span class="n">compatible_only</span><span class="p">,</span>
+                                <span class="n">inc_structure</span><span class="o">=</span><span class="n">inc_structure</span><span class="p">,</span> <span class="n">property_data</span><span class="o">=</span><span class="n">property_data</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div>
 
 <div class="viewcode-block" id="MPRester.get_dos_by_material_id"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRester.get_dos_by_material_id">[docs]</a>    <span class="k">def</span> <span class="nf">get_dos_by_material_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">material_id</span><span class="p">):</span>
@@ -889,6 +892,37 @@
                                   <span class="n">payload</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;reactants[]&quot;</span><span class="p">:</span> <span class="n">reactants</span><span class="p">,</span>
                                            <span class="s2">&quot;products[]&quot;</span><span class="p">:</span> <span class="n">products</span><span class="p">})</span></div>
 
+<div class="viewcode-block" id="MPRester.get_substrates"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRester.get_substrates">[docs]</a>    <span class="k">def</span> <span class="nf">get_substrates</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">material_id</span><span class="p">,</span> <span class="n">number</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">orient</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get a substrate list for a material id. The list is in order of</span>
+<span class="sd">        increasing elastic energy if a elastic tensor is available for</span>
+<span class="sd">        the material_id. Otherwise the list is in order of increasing</span>
+<span class="sd">        matching area.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            material_id (str): Materials Project material_id, e.g. &#39;mp-123&#39;.</span>
+<span class="sd">            orient (list) : substrate orientation to look for</span>
+<span class="sd">            number (int) : number of substrates to return;</span>
+<span class="sd">                n=0 returns all available matches</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            list of dicts with substrate matches</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">req</span> <span class="o">=</span> <span class="s2">&quot;/materials/</span><span class="si">{}</span><span class="s2">/substrates?n=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">material_id</span><span class="p">,</span> <span class="n">number</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">orient</span><span class="p">:</span>
+            <span class="n">req</span> <span class="o">+=</span> <span class="s2">&quot;&amp;orient=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">orient</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_request</span><span class="p">(</span><span class="n">req</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MPRester.get_all_substrates"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRester.get_all_substrates">[docs]</a>    <span class="k">def</span> <span class="nf">get_all_substrates</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Gets the list of all possible substrates considered in the</span>
+<span class="sd">        Materials Project substrate database</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            list of material_ids corresponding to possible substrates</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_request</span><span class="p">(</span><span class="s2">&quot;/materials/all_substrate_ids&quot;</span><span class="p">)</span></div>
+
     <span class="nd">@staticmethod</span>
 <div class="viewcode-block" id="MPRester.parse_criteria"><a class="viewcode-back" href="../../../pymatgen.matproj.html#pymatgen.matproj.rest.MPRester.parse_criteria">[docs]</a>    <span class="k">def</span> <span class="nf">parse_criteria</span><span class="p">(</span><span class="n">criteria_string</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -954,7 +988,7 @@
                 <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="o">*</span><span class="n">parts</span><span class="p">):</span>
                     <span class="n">c</span> <span class="o">=</span> <span class="n">Composition</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">f</span><span class="p">))</span>
                     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="o">==</span> <span class="n">nelements</span><span class="p">:</span>
-                        <span class="c1">#Check for valid Elements in keys.</span>
+                        <span class="c1"># Check for valid Elements in keys.</span>
                         <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">c</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
                             <span class="n">Element</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">symbol</span><span class="p">)</span>
                         <span class="n">all_formulas</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">reduced_formula</span><span class="p">)</span>
@@ -1036,7 +1070,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.1.1 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.2.0 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

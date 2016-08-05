@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.transformations.advanced_transformations &mdash; pymatgen 4.2.0 documentation</title>
+    <title>pymatgen.transformations.advanced_transformations &mdash; pymatgen 4.2.1 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '4.2.0',
+        VERSION:     '4.2.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 4.2.0 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 4.2.1 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.2.0 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.2.1 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
       </ul>
     </div>  
@@ -62,27 +62,19 @@
 
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">unicode_literals</span>
 
-<span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">This module implements more advanced transformations.</span>
-<span class="sd">&quot;&quot;&quot;</span>
-
-
-<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;Shyue Ping Ong, Stephen Dacek&quot;</span>
-<span class="n">__copyright__</span> <span class="o">=</span> <span class="s2">&quot;Copyright 2012, The Materials Project&quot;</span>
-<span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;1.0&quot;</span>
-<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s2">&quot;Shyue Ping Ong&quot;</span>
-<span class="n">__email__</span> <span class="o">=</span> <span class="s2">&quot;shyuep@gmail.com&quot;</span>
-<span class="n">__date__</span> <span class="o">=</span> <span class="s2">&quot;Jul 24, 2012&quot;</span>
-
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">fractions</span> <span class="k">import</span> <span class="n">gcd</span><span class="p">,</span> <span class="n">Fraction</span>
 <span class="kn">from</span> <span class="nn">itertools</span> <span class="k">import</span> <span class="n">groupby</span>
 <span class="kn">from</span> <span class="nn">warnings</span> <span class="k">import</span> <span class="n">warn</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">math</span>
 
 <span class="kn">import</span> <span class="nn">six</span>
+<span class="kn">from</span> <span class="nn">monty.json</span> <span class="k">import</span> <span class="n">MontyDecoder</span>
+<span class="kn">from</span> <span class="nn">monty.fractions</span> <span class="k">import</span> <span class="n">lcm</span>
 
-<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="k">import</span> <span class="n">Specie</span><span class="p">,</span> <span class="n">Composition</span>
-<span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="k">import</span> <span class="n">get_el_sp</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="k">import</span> <span class="n">Composition</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="k">import</span> <span class="n">Element</span><span class="p">,</span> <span class="n">Specie</span><span class="p">,</span> <span class="n">get_el_sp</span>
 <span class="kn">from</span> <span class="nn">pymatgen.transformations.transformation_abc</span> <span class="k">import</span> <span class="n">AbstractTransformation</span>
 <span class="kn">from</span> <span class="nn">pymatgen.transformations.standard_transformations</span> <span class="k">import</span> \
     <span class="n">SubstitutionTransformation</span><span class="p">,</span> <span class="n">OrderDisorderedStructureTransformation</span>
@@ -95,7 +87,22 @@
 <span class="kn">from</span> <span class="nn">pymatgen.analysis.structure_matcher</span> <span class="k">import</span> <span class="n">StructureMatcher</span><span class="p">,</span> \
     <span class="n">SpinComparator</span>
 <span class="kn">from</span> <span class="nn">pymatgen.analysis.energy_models</span> <span class="k">import</span> <span class="n">SymmetryModel</span>
-<span class="kn">from</span> <span class="nn">monty.json</span> <span class="k">import</span> <span class="n">MontyDecoder</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.bond_valence</span> <span class="k">import</span> <span class="n">BVAnalyzer</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module implements more advanced transformations.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;Shyue Ping Ong, Stephen Dacek, Anubhav Jain&quot;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s2">&quot;Copyright 2012, The Materials Project&quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;1.0&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s2">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s2">&quot;shyuep@gmail.com&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span> <span class="s2">&quot;Jul 24, 2012&quot;</span>
+
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="ChargeBalanceTransformation"><a class="viewcode-back" href="../../../pymatgen.transformations.html#pymatgen.transformations.advanced_transformations.ChargeBalanceTransformation">[docs]</a><span class="k">class</span> <span class="nc">ChargeBalanceTransformation</span><span class="p">(</span><span class="n">AbstractTransformation</span><span class="p">):</span>
@@ -120,8 +127,8 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;addition of specie not yet supported by &quot;</span>
                              <span class="s2">&quot;ChargeBalanceTransformation&quot;</span><span class="p">)</span>
         <span class="n">trans</span> <span class="o">=</span> <span class="n">SubstitutionTransformation</span><span class="p">(</span>
-            <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_charge_balance_sp</span><span class="p">:</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_charge_balance_sp</span><span class="p">:</span>
-                <span class="mi">1</span> <span class="o">-</span> <span class="n">removal_fraction</span><span class="p">}})</span>
+            <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_charge_balance_sp</span><span class="p">:</span> <span class="p">{</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_charge_balance_sp</span><span class="p">:</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">removal_fraction</span><span class="p">}})</span>
         <span class="k">return</span> <span class="n">trans</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -497,7 +504,7 @@
             <span class="n">output</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;structure&#39;</span><span class="p">:</span> <span class="n">st</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">structure</span><span class="p">),</span>
                       <span class="s1">&#39;probability&#39;</span><span class="p">:</span> <span class="n">pred</span><span class="p">[</span><span class="s1">&#39;probability&#39;</span><span class="p">],</span>
                       <span class="s1">&#39;threshold&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_threshold</span><span class="p">,</span> <span class="s1">&#39;substitutions&#39;</span><span class="p">:</span> <span class="p">{}}</span>
-            <span class="c1">#dictionary keys have to be converted to strings for JSON</span>
+            <span class="c1"># dictionary keys have to be converted to strings for JSON</span>
             <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">pred</span><span class="p">[</span><span class="s1">&#39;substitutions&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                 <span class="n">output</span><span class="p">[</span><span class="s1">&#39;substitutions&#39;</span><span class="p">][</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
             <span class="n">outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
@@ -581,7 +588,7 @@
         <span class="k">return</span> <span class="n">lcm</span><span class="p">(</span><span class="n">n_gcd</span><span class="p">,</span> <span class="n">denom</span><span class="p">)</span> <span class="o">/</span> <span class="n">n_gcd</span></div>
 
 <div class="viewcode-block" id="MagOrderingTransformation.apply_transformation"><a class="viewcode-back" href="../../../pymatgen.transformations.html#pymatgen.transformations.advanced_transformations.MagOrderingTransformation.apply_transformation">[docs]</a>    <span class="k">def</span> <span class="nf">apply_transformation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">return_ranked_list</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="c1">#Make a mutable structure first</span>
+        <span class="c1"># Make a mutable structure first</span>
         <span class="n">mods</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_sites</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">sp</span><span class="p">,</span> <span class="n">spin</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">mag_species_spin</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="n">sp</span> <span class="o">=</span> <span class="n">get_el_sp</span><span class="p">(</span><span class="n">sp</span><span class="p">)</span>
@@ -675,6 +682,248 @@
             <span class="n">energy_model</span><span class="o">=</span><span class="n">MontyDecoder</span><span class="p">()</span><span class="o">.</span><span class="n">process_decoded</span><span class="p">(</span>
                 <span class="n">init</span><span class="p">[</span><span class="s2">&quot;energy_model&quot;</span><span class="p">]),</span>
             <span class="o">**</span><span class="n">init</span><span class="p">[</span><span class="s2">&quot;enum_kwargs&quot;</span><span class="p">])</span></div></div>
+
+
+<span class="k">def</span> <span class="nf">_find_codopant</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">oxidation_state</span><span class="p">,</span> <span class="n">allowed_elements</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Finds the element from &quot;allowed elements&quot; that (i) possesses the desired</span>
+<span class="sd">    &quot;oxidation state&quot; and (ii) is closest in ionic radius to the target specie</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        target: (Specie) provides target ionic radius.</span>
+<span class="sd">        oxidation_state: (float) codopant oxidation state.</span>
+<span class="sd">        allowed_elements: ([str]) List of allowed elements. If None,</span>
+<span class="sd">            all elements are tried.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        (Specie) with oxidation_state that has ionic radius closest to</span>
+<span class="sd">        target.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ref_radius</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">ionic_radius</span>
+    <span class="n">candidates</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">symbols</span> <span class="o">=</span> <span class="n">allowed_elements</span> <span class="ow">or</span> <span class="p">[</span><span class="n">el</span><span class="o">.</span><span class="n">symbol</span> <span class="k">for</span> <span class="n">el</span> <span class="ow">in</span> <span class="n">Element</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">sym</span> <span class="ow">in</span> <span class="n">symbols</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">sp</span> <span class="o">=</span> <span class="n">Specie</span><span class="p">(</span><span class="n">sym</span><span class="p">,</span> <span class="n">oxidation_state</span><span class="p">)</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">ionic_radius</span>
+            <span class="k">if</span> <span class="n">r</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">candidates</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">r</span><span class="p">,</span> <span class="n">sp</span><span class="p">))</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">pass</span>
+    <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="n">candidates</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">l</span><span class="p">:</span> <span class="nb">abs</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="n">ref_radius</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))[</span><span class="mi">1</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="DopingTransformation"><a class="viewcode-back" href="../../../pymatgen.transformations.html#pymatgen.transformations.advanced_transformations.DopingTransformation">[docs]</a><span class="k">class</span> <span class="nc">DopingTransformation</span><span class="p">(</span><span class="n">AbstractTransformation</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A transformation that performs doping of a structure.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dopant</span><span class="p">,</span> <span class="n">ionic_radius_tol</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">),</span> <span class="n">min_length</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                 <span class="n">alio_tol</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">codopant</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">max_structures_per_enum</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+                 <span class="n">allowed_doping_species</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            dopant (Specie-like): E.g., Al3+. Must have oxidation state.</span>
+<span class="sd">            ionic_radius_tol (float): E.g., Fractional allowable ionic radii</span>
+<span class="sd">                mismatch for dopant to fit into a site. Default of inf means</span>
+<span class="sd">                that any dopant with the right oxidation state is allowed.</span>
+<span class="sd">            min_Length (float): Min. lattice parameter between periodic</span>
+<span class="sd">                images of dopant. Defaults to 10A for now.</span>
+<span class="sd">            alio_tol (int): If this is not 0, attempt will be made to dope</span>
+<span class="sd">                sites with oxidation_states +- alio_tol of the dopant. E.g.,</span>
+<span class="sd">                1 means that the ions like Ca2+ and Ti4+ are considered as</span>
+<span class="sd">                potential doping sites for Al3+.</span>
+<span class="sd">            codopant (bool): If True, doping will be carried out with a</span>
+<span class="sd">                codopant to maintain charge neutrality. Otherwise, vacancies</span>
+<span class="sd">                will be used.</span>
+<span class="sd">            max_structures_per_enum (float): Maximum number of structures to</span>
+<span class="sd">                return per enumeration. Note that there can be more than one</span>
+<span class="sd">                candidate doping site, and each site enumeration will return at</span>
+<span class="sd">                max max_structures_per_enum structures. Defaults to 100.</span>
+<span class="sd">            allowed_doping_species (list): Species that are allowed to be</span>
+<span class="sd">                doping sites. This is an inclusionary list. If specified,</span>
+<span class="sd">                any sites which are not</span>
+<span class="sd">            \*\*kwargs:</span>
+<span class="sd">                Same keyword args as :class:`EnumerateStructureTransformation`,</span>
+<span class="sd">                i.e., min_cell_size, etc.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dopant</span> <span class="o">=</span> <span class="n">get_el_sp</span><span class="p">(</span><span class="n">dopant</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ionic_radius_tol</span> <span class="o">=</span> <span class="n">ionic_radius_tol</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_length</span> <span class="o">=</span> <span class="n">min_length</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alio_tol</span> <span class="o">=</span> <span class="n">alio_tol</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">codopant</span> <span class="o">=</span> <span class="n">codopant</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_structures_per_enum</span> <span class="o">=</span> <span class="n">max_structures_per_enum</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">allowed_doping_species</span> <span class="o">=</span> <span class="n">allowed_doping_species</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
+
+<div class="viewcode-block" id="DopingTransformation.apply_transformation"><a class="viewcode-back" href="../../../pymatgen.transformations.html#pymatgen.transformations.advanced_transformations.DopingTransformation.apply_transformation">[docs]</a>    <span class="k">def</span> <span class="nf">apply_transformation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">return_ranked_list</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Args:</span>
+<span class="sd">            structure (Structure): Input structure to dope</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            [{&quot;structure&quot;: Structure, &quot;energy&quot;: float}]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">comp</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">composition</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Composition: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">comp</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">comp</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">sp</span><span class="o">.</span><span class="n">oxi_state</span>
+            <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                <span class="n">analyzer</span> <span class="o">=</span> <span class="n">BVAnalyzer</span><span class="p">()</span>
+                <span class="n">structure</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">get_oxi_state_decorated_structure</span><span class="p">(</span>
+                    <span class="n">structure</span><span class="p">)</span>
+                <span class="n">comp</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">composition</span>
+                <span class="k">break</span>
+
+        <span class="n">ox</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dopant</span><span class="o">.</span><span class="n">oxi_state</span>
+        <span class="n">radius</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dopant</span><span class="o">.</span><span class="n">ionic_radius</span>
+
+        <span class="n">compatible_species</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">sp</span> <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">comp</span> <span class="k">if</span> <span class="n">sp</span><span class="o">.</span><span class="n">oxi_state</span> <span class="o">==</span> <span class="n">ox</span> <span class="ow">and</span>
+            <span class="nb">abs</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">ionic_radius</span> <span class="o">/</span> <span class="n">radius</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">ionic_radius_tol</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">compatible_species</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">alio_tol</span><span class="p">:</span>
+            <span class="c1"># We only consider aliovalent doping if there are no compatible</span>
+            <span class="c1"># isovalent species.</span>
+            <span class="n">compatible_species</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">sp</span> <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">comp</span>
+                <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">oxi_state</span> <span class="o">-</span> <span class="n">ox</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alio_tol</span> <span class="ow">and</span>
+                <span class="nb">abs</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">ionic_radius</span> <span class="o">/</span> <span class="n">radius</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">ionic_radius_tol</span> <span class="ow">and</span>
+                <span class="n">sp</span><span class="o">.</span><span class="n">oxi_state</span> <span class="o">*</span> <span class="n">ox</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">allowed_doping_species</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Only keep allowed doping species.</span>
+            <span class="n">compatible_species</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">sp</span> <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">compatible_species</span>
+                <span class="k">if</span> <span class="n">sp</span> <span class="ow">in</span> <span class="p">[</span><span class="n">get_el_sp</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">allowed_doping_species</span><span class="p">]]</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Compatible species: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">compatible_species</span><span class="p">)</span>
+
+        <span class="n">lengths</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">abc</span>
+        <span class="n">scaling</span> <span class="o">=</span> <span class="p">[</span><span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">min_length</span><span class="o">/</span><span class="n">x</span><span class="p">))))</span>
+                   <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">lengths</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Lengths are </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">lengths</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Scaling = </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">scaling</span><span class="p">))</span>
+
+        <span class="n">all_structures</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">EnumerateStructureTransformation</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">compatible_species</span><span class="p">:</span>
+            <span class="n">supercell</span> <span class="o">=</span> <span class="n">structure</span> <span class="o">*</span> <span class="n">scaling</span>
+            <span class="n">nsp</span> <span class="o">=</span> <span class="n">supercell</span><span class="o">.</span><span class="n">composition</span><span class="p">[</span><span class="n">sp</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">sp</span><span class="o">.</span><span class="n">oxi_state</span> <span class="o">==</span> <span class="n">ox</span><span class="p">:</span>
+                <span class="n">supercell</span><span class="o">.</span><span class="n">replace_species</span><span class="p">({</span><span class="n">sp</span><span class="p">:</span> <span class="p">{</span><span class="n">sp</span><span class="p">:</span> <span class="p">(</span><span class="n">nsp</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span><span class="o">/</span><span class="n">nsp</span><span class="p">,</span>
+                                                <span class="bp">self</span><span class="o">.</span><span class="n">dopant</span><span class="p">:</span> <span class="mi">1</span><span class="o">/</span><span class="n">nsp</span><span class="p">}})</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Doping </span><span class="si">%s</span><span class="s2"> for </span><span class="si">%s</span><span class="s2"> at level </span><span class="si">%.3f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                    <span class="n">sp</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dopant</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">nsp</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">codopant</span><span class="p">:</span>
+                <span class="n">codopant</span> <span class="o">=</span> <span class="n">_find_codopant</span><span class="p">(</span><span class="n">sp</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">sp</span><span class="o">.</span><span class="n">oxi_state</span> <span class="o">-</span> <span class="n">ox</span><span class="p">)</span>
+                <span class="n">supercell</span><span class="o">.</span><span class="n">replace_species</span><span class="p">({</span><span class="n">sp</span><span class="p">:</span> <span class="p">{</span><span class="n">sp</span><span class="p">:</span> <span class="p">(</span><span class="n">nsp</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">nsp</span><span class="p">,</span>
+                                                <span class="bp">self</span><span class="o">.</span><span class="n">dopant</span><span class="p">:</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">nsp</span><span class="p">,</span>
+                                                <span class="n">codopant</span><span class="p">:</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">nsp</span><span class="p">}})</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Doping </span><span class="si">%s</span><span class="s2"> for </span><span class="si">%s</span><span class="s2"> + </span><span class="si">%s</span><span class="s2"> at level </span><span class="si">%.3f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                    <span class="n">sp</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dopant</span><span class="p">,</span> <span class="n">codopant</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">nsp</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="nb">abs</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">oxi_state</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">abs</span><span class="p">(</span><span class="n">ox</span><span class="p">):</span>
+                <span class="c1"># Strategy: replace the target species with a</span>
+                <span class="c1"># combination of dopant and vacancy.</span>
+                <span class="c1"># We will choose the lowest oxidation state species as a</span>
+                <span class="c1"># vacancy compensation species as it is likely to be lower in</span>
+                <span class="c1"># energy</span>
+                <span class="n">sp_to_remove</span> <span class="o">=</span> <span class="nb">min</span><span class="p">([</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">comp</span> <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">oxi_state</span> <span class="o">*</span> <span class="n">ox</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">],</span>
+                                    <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">ss</span><span class="p">:</span> <span class="nb">abs</span><span class="p">(</span><span class="n">ss</span><span class="o">.</span><span class="n">oxi_state</span><span class="p">))</span>
+
+                <span class="k">if</span> <span class="n">sp_to_remove</span> <span class="o">==</span> <span class="n">sp</span><span class="p">:</span>
+                    <span class="n">common_charge</span> <span class="o">=</span> <span class="n">lcm</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">oxi_state</span><span class="p">)),</span> <span class="nb">int</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">ox</span><span class="p">)))</span>
+                    <span class="n">ndopant</span> <span class="o">=</span> <span class="n">common_charge</span> <span class="o">/</span> <span class="nb">abs</span><span class="p">(</span><span class="n">ox</span><span class="p">)</span>
+                    <span class="n">nsp_to_remove</span> <span class="o">=</span> <span class="n">common_charge</span> <span class="o">/</span> <span class="nb">abs</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">oxi_state</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Doping </span><span class="si">%d</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> with </span><span class="si">%d</span><span class="s2"> </span><span class="si">%s</span><span class="s2">.&quot;</span> <span class="o">%</span>
+                                <span class="p">(</span><span class="n">nsp_to_remove</span><span class="p">,</span> <span class="n">sp</span><span class="p">,</span> <span class="n">ndopant</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dopant</span><span class="p">))</span>
+                    <span class="n">supercell</span><span class="o">.</span><span class="n">replace_species</span><span class="p">(</span>
+                        <span class="p">{</span><span class="n">sp</span><span class="p">:</span> <span class="p">{</span><span class="n">sp</span><span class="p">:</span> <span class="p">(</span><span class="n">nsp</span> <span class="o">-</span> <span class="n">nsp_to_remove</span><span class="p">)</span> <span class="o">/</span> <span class="n">nsp</span><span class="p">,</span>
+                              <span class="bp">self</span><span class="o">.</span><span class="n">dopant</span><span class="p">:</span> <span class="n">ndopant</span> <span class="o">/</span> <span class="n">nsp</span><span class="p">}})</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">ox_diff</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">oxi_state</span> <span class="o">-</span> <span class="n">ox</span><span class="p">)))</span>
+                    <span class="n">vac_ox</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">sp_to_remove</span><span class="o">.</span><span class="n">oxi_state</span><span class="p">))</span>
+                    <span class="n">common_charge</span> <span class="o">=</span> <span class="n">lcm</span><span class="p">(</span><span class="n">vac_ox</span><span class="p">,</span> <span class="n">ox_diff</span><span class="p">)</span>
+                    <span class="n">ndopant</span> <span class="o">=</span> <span class="n">common_charge</span> <span class="o">/</span> <span class="n">ox_diff</span>
+                    <span class="n">nx_to_remove</span> <span class="o">=</span> <span class="n">common_charge</span> <span class="o">/</span> <span class="n">vac_ox</span>
+                    <span class="n">nx</span> <span class="o">=</span> <span class="n">supercell</span><span class="o">.</span><span class="n">composition</span><span class="p">[</span><span class="n">sp_to_remove</span><span class="p">]</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Doping </span><span class="si">%d</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> with </span><span class="si">%s</span><span class="s2"> and removing </span><span class="si">%d</span><span class="s2"> </span><span class="si">%s</span><span class="s2">.&quot;</span> <span class="o">%</span>
+                                <span class="p">(</span><span class="n">ndopant</span><span class="p">,</span> <span class="n">sp</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dopant</span><span class="p">,</span>
+                                 <span class="n">nx_to_remove</span><span class="p">,</span> <span class="n">sp_to_remove</span><span class="p">))</span>
+                    <span class="n">supercell</span><span class="o">.</span><span class="n">replace_species</span><span class="p">(</span>
+                        <span class="p">{</span><span class="n">sp</span><span class="p">:</span> <span class="p">{</span><span class="n">sp</span><span class="p">:</span> <span class="p">(</span><span class="n">nsp</span> <span class="o">-</span> <span class="n">ndopant</span><span class="p">)</span> <span class="o">/</span> <span class="n">nsp</span><span class="p">,</span>
+                              <span class="bp">self</span><span class="o">.</span><span class="n">dopant</span><span class="p">:</span> <span class="n">ndopant</span> <span class="o">/</span> <span class="n">nsp</span><span class="p">},</span>
+                         <span class="n">sp_to_remove</span><span class="p">:</span> <span class="p">{</span>
+                             <span class="n">sp_to_remove</span><span class="p">:</span> <span class="p">(</span><span class="n">nx</span> <span class="o">-</span> <span class="n">nx_to_remove</span><span class="p">)</span> <span class="o">/</span> <span class="n">nx</span><span class="p">}})</span>
+            <span class="k">elif</span> <span class="nb">abs</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">oxi_state</span><span class="p">)</span> <span class="o">&gt;</span> <span class="nb">abs</span><span class="p">(</span><span class="n">ox</span><span class="p">):</span>
+                <span class="c1"># Strategy: replace the target species with dopant and also</span>
+                <span class="c1"># remove some opposite charged species for charge neutrality</span>
+                <span class="k">if</span> <span class="n">ox</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">sp_to_remove</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">supercell</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span>
+                                       <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">el</span><span class="p">:</span> <span class="n">el</span><span class="o">.</span><span class="n">X</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">sp_to_remove</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">supercell</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span>
+                                       <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">el</span><span class="p">:</span> <span class="n">el</span><span class="o">.</span><span class="n">X</span><span class="p">)</span>
+                <span class="c1"># Confirm species are of opposite oxidation states.</span>
+                <span class="k">assert</span> <span class="n">sp_to_remove</span><span class="o">.</span><span class="n">oxi_state</span> <span class="o">*</span> <span class="n">sp</span><span class="o">.</span><span class="n">oxi_state</span> <span class="o">&lt;</span> <span class="mi">0</span>
+
+                <span class="n">ox_diff</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">oxi_state</span> <span class="o">-</span> <span class="n">ox</span><span class="p">)))</span>
+                <span class="n">anion_ox</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">sp_to_remove</span><span class="o">.</span><span class="n">oxi_state</span><span class="p">))</span>
+                <span class="n">nx</span> <span class="o">=</span> <span class="n">supercell</span><span class="o">.</span><span class="n">composition</span><span class="p">[</span><span class="n">sp_to_remove</span><span class="p">]</span>
+                <span class="n">common_charge</span> <span class="o">=</span> <span class="n">lcm</span><span class="p">(</span><span class="n">anion_ox</span><span class="p">,</span> <span class="n">ox_diff</span><span class="p">)</span>
+                <span class="n">ndopant</span> <span class="o">=</span> <span class="n">common_charge</span> <span class="o">/</span> <span class="n">ox_diff</span>
+                <span class="n">nx_to_remove</span> <span class="o">=</span> <span class="n">common_charge</span> <span class="o">/</span> <span class="n">anion_ox</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Doping </span><span class="si">%d</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> with </span><span class="si">%s</span><span class="s2"> and removing </span><span class="si">%d</span><span class="s2"> </span><span class="si">%s</span><span class="s2">.&quot;</span> <span class="o">%</span>
+                            <span class="p">(</span><span class="n">ndopant</span><span class="p">,</span> <span class="n">sp</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dopant</span><span class="p">,</span>
+                             <span class="n">nx_to_remove</span><span class="p">,</span> <span class="n">sp_to_remove</span><span class="p">))</span>
+                <span class="n">supercell</span><span class="o">.</span><span class="n">replace_species</span><span class="p">(</span>
+                    <span class="p">{</span><span class="n">sp</span><span class="p">:</span> <span class="p">{</span><span class="n">sp</span><span class="p">:</span> <span class="p">(</span><span class="n">nsp</span> <span class="o">-</span> <span class="n">ndopant</span><span class="p">)</span> <span class="o">/</span> <span class="n">nsp</span><span class="p">,</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">dopant</span><span class="p">:</span> <span class="n">ndopant</span> <span class="o">/</span> <span class="n">nsp</span><span class="p">},</span>
+                     <span class="n">sp_to_remove</span><span class="p">:</span> <span class="p">{</span><span class="n">sp_to_remove</span><span class="p">:</span> <span class="p">(</span><span class="n">nx</span> <span class="o">-</span> <span class="n">nx_to_remove</span><span class="p">)</span><span class="o">/</span><span class="n">nx</span><span class="p">}})</span>
+
+            <span class="n">ss</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span>
+                <span class="n">supercell</span><span class="p">,</span> <span class="n">return_ranked_list</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_structures_per_enum</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> distinct structures&quot;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">ss</span><span class="p">))</span>
+            <span class="n">all_structures</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">ss</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Total </span><span class="si">%s</span><span class="s2"> doped structures&quot;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_structures</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">return_ranked_list</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">all_structures</span><span class="p">[:</span><span class="n">return_ranked_list</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">all_structures</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;structure&quot;</span><span class="p">]</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">inverse</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_one_to_many</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+<div class="viewcode-block" id="DopingTransformation.as_dict"><a class="viewcode-back" href="../../../pymatgen.transformations.html#pymatgen.transformations.advanced_transformations.DopingTransformation.as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="n">__version__</span><span class="p">,</span>
+            <span class="s2">&quot;init_args&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;dopant&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dopant</span><span class="p">),</span>
+                          <span class="s2">&quot;ionic_radius_tol&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">ionic_radius_tol</span><span class="p">,</span>
+                          <span class="s2">&quot;min_length&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_length</span><span class="p">,</span>
+                          <span class="s2">&quot;alio_tol&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">alio_tol</span><span class="p">,</span>
+                          <span class="s2">&quot;codopant&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">codopant</span><span class="p">,</span>
+                          <span class="s2">&quot;max_structures_per_enum&quot;</span><span class="p">:</span>
+                              <span class="bp">self</span><span class="o">.</span><span class="n">max_structures_per_enum</span><span class="p">,</span>
+                          <span class="s2">&quot;allowed_doping_species&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">allowed_doping_species</span><span class="p">,</span>
+                          <span class="s2">&quot;kwargs&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">},</span>
+            <span class="s2">&quot;@module&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span><span class="p">,</span>
+            <span class="s2">&quot;@class&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">}</span></div>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="DopingTransformation.from_dict"><a class="viewcode-back" href="../../../pymatgen.transformations.html#pymatgen.transformations.advanced_transformations.DopingTransformation.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
+        <span class="n">init</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;init_args&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">init</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;kwargs&quot;</span><span class="p">)</span>
+        <span class="n">init</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">DopingTransformation</span><span class="p">(</span><span class="o">**</span><span class="n">init</span><span class="p">)</span></div></div>
 </pre></div>
 
           </div>
@@ -705,7 +954,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.2.0 documentation</a> &raquo;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.2.1 documentation</a> &raquo;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &raquo;</li> 
       </ul>
     </div>

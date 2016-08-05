@@ -99,7 +99,7 @@ class WulffShape(object):
     .. attribute:: show_area
 
     .. attribute:: off_color
-        color of planes off wulff
+        color of facets off wulff
 
     .. attribute:: input_miller_fig
         ($input_miller$) for legend on figures
@@ -130,7 +130,7 @@ class WulffShape(object):
 
     .. attribute:: normal_e_m: item:
         [normal, e_surf, normal_pt, dual_pt, color_plane, m_ind_orig, miller]
-        for all planes considering symm
+        for all facets considering symm
 
     .. attribute:: dual_cv_simp
         simplices from the dual convex hull (dual_pt)
@@ -184,7 +184,7 @@ class WulffShape(object):
             axis_off(bool): default is Ture
             show_area(bool): default is False
             alpha: chosen from 0 to 1 (float), default is 1
-            off_color: color_legend for off_wulff planes on show_area legend
+            off_color: color_legend for off_wulff facets on show_area legend
             symprec: for recp_operation, default is 0.01
         """
         latt = lattice.scale(1)
@@ -279,7 +279,7 @@ class WulffShape(object):
             get miller_list(unique_miller), e_surf_list and symmetry
             operations(symmops) according to lattice
         apply symmops to get all the miller index, then get normal,
-        get all the planes functions for wulff shape calculation:
+        get all the facets functions for wulff shape calculation:
             |normal| = 1, e_surf is plane's distance to (0, 0, 0),
             normal[0]x + normal[1]y + normal[2]z = e_surf
 
@@ -408,7 +408,7 @@ class WulffShape(object):
 
     def get_colors(self):
         """
-        assign colors according to the surface energies of on_wulff planes.
+        assign colors according to the surface energies of on_wulff facets.
 
         return:
             (color_list, color_proxy, color_proxy_on_wulff, miller_on_wulff,
@@ -492,7 +492,7 @@ class WulffShape(object):
             if len(plane[2]) < 1:
                 # empty, plane is not on_wulff.
                 continue
-            # assign the color for on_wulff planes according to its
+            # assign the color for on_wulff facets according to its
             # color_plane index and the color_list for on_wulff
             plane_color = self.color_list[plane[4]]
             # plane[3]: [simpx]

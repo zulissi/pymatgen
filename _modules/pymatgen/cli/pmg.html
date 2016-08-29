@@ -1,0 +1,807 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.cli.pmg &#8212; pymatgen 4.2.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '4.2.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
+    <link rel="top" title="pymatgen 4.2.1 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" />
+ 
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-33990148-1']);
+  _gaq.push(['_trackPageview']);
+</script>
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.2.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pymatgen.cli.pmg</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python</span>
+<span class="c1"># coding: utf-8</span>
+<span class="c1"># Copyright (c) Pymatgen Development Team.</span>
+<span class="c1"># Distributed under the terms of the MIT License.</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">unicode_literals</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">OrderedDict</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+
+<span class="kn">from</span> <span class="nn">six.moves</span> <span class="k">import</span> <span class="nb">input</span>
+
+<span class="kn">from</span> <span class="nn">tabulate</span> <span class="k">import</span> <span class="n">tabulate</span><span class="p">,</span> <span class="n">tabulate_formats</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen</span> <span class="k">import</span> <span class="n">Structure</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.vasp</span> <span class="k">import</span> <span class="n">Outcar</span><span class="p">,</span> <span class="n">Vasprun</span><span class="p">,</span> <span class="n">Chgcar</span><span class="p">,</span> <span class="n">Incar</span>
+<span class="kn">from</span> <span class="nn">pymatgen.apps.borg.hive</span> <span class="k">import</span> <span class="n">SimpleVaspToComputedEntryDrone</span><span class="p">,</span> \
+    <span class="n">VaspToComputedEntryDrone</span>
+<span class="kn">from</span> <span class="nn">pymatgen.apps.borg.queen</span> <span class="k">import</span> <span class="n">BorgQueen</span>
+<span class="kn">from</span> <span class="nn">pymatgen.electronic_structure.plotter</span> <span class="k">import</span> <span class="n">DosPlotter</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.vasp</span> <span class="k">import</span> <span class="n">Poscar</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.cif</span> <span class="k">import</span> <span class="n">CifParser</span><span class="p">,</span> <span class="n">CifWriter</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.vasp.sets</span> <span class="k">import</span> <span class="n">MPRelaxSet</span><span class="p">,</span> <span class="n">MITRelaxSet</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.cssr</span> <span class="k">import</span> <span class="n">Cssr</span>
+<span class="kn">from</span> <span class="nn">pymatgen.symmetry.analyzer</span> <span class="k">import</span> <span class="n">SpacegroupAnalyzer</span>
+<span class="kn">from</span> <span class="nn">pymatgen.alchemy.materials</span> <span class="k">import</span> <span class="n">TransformedStructure</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.diffraction.xrd</span> <span class="k">import</span> <span class="n">XRDCalculator</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">A master convenience script with many tools for vasp and structure analysis.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s2">&quot;Copyright 2012, The Materials Project&quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;4.0&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s2">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s2">&quot;ongsp@ucsd.edu&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span> <span class="s2">&quot;Aug 13 2016&quot;</span>
+
+
+<span class="n">SAVE_FILE</span> <span class="o">=</span> <span class="s2">&quot;vasp_data.gz&quot;</span>
+
+
+<div class="viewcode-block" id="get_energies"><a class="viewcode-back" href="../../../pymatgen.cli.html#pymatgen.cli.pmg.get_energies">[docs]</a><span class="k">def</span> <span class="nf">get_energies</span><span class="p">(</span><span class="n">rootdir</span><span class="p">,</span> <span class="n">reanalyze</span><span class="p">,</span> <span class="n">verbose</span><span class="p">,</span> <span class="n">detailed</span><span class="p">,</span> <span class="n">sort</span><span class="p">,</span> <span class="n">fmt</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Doc string.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="n">logformat</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%(relativeCreated)d</span><span class="s2"> msecs : </span><span class="si">%(message)s</span><span class="s2">&quot;</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="n">logformat</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">detailed</span><span class="p">:</span>
+        <span class="n">drone</span> <span class="o">=</span> <span class="n">SimpleVaspToComputedEntryDrone</span><span class="p">(</span><span class="n">inc_structure</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">drone</span> <span class="o">=</span> <span class="n">VaspToComputedEntryDrone</span><span class="p">(</span><span class="n">inc_structure</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                         <span class="n">data</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;filename&quot;</span><span class="p">,</span>
+                                               <span class="s2">&quot;initial_structure&quot;</span><span class="p">])</span>
+
+    <span class="n">ncpus</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Detected </span><span class="si">{}</span><span class="s2"> cpus&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ncpus</span><span class="p">))</span>
+    <span class="n">queen</span> <span class="o">=</span> <span class="n">BorgQueen</span><span class="p">(</span><span class="n">drone</span><span class="p">,</span> <span class="n">number_of_drones</span><span class="o">=</span><span class="n">ncpus</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">SAVE_FILE</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">reanalyze</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Using previously assimilated data from </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">SAVE_FILE</span><span class="p">)</span> \
+            <span class="o">+</span> <span class="s2">&quot; Use -r to force re-analysis.&quot;</span>
+        <span class="n">queen</span><span class="o">.</span><span class="n">load_data</span><span class="p">(</span><span class="n">SAVE_FILE</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">ncpus</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">queen</span><span class="o">.</span><span class="n">parallel_assimilate</span><span class="p">(</span><span class="n">rootdir</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">queen</span><span class="o">.</span><span class="n">serial_assimilate</span><span class="p">(</span><span class="n">rootdir</span><span class="p">)</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Analysis results saved to </span><span class="si">{}</span><span class="s2"> for faster &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">SAVE_FILE</span><span class="p">)</span> <span class="o">+</span> \
+              <span class="s2">&quot;subsequent loading.&quot;</span>
+        <span class="n">queen</span><span class="o">.</span><span class="n">save_data</span><span class="p">(</span><span class="n">SAVE_FILE</span><span class="p">)</span>
+
+    <span class="n">entries</span> <span class="o">=</span> <span class="n">queen</span><span class="o">.</span><span class="n">get_data</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">sort</span> <span class="o">==</span> <span class="s2">&quot;energy_per_atom&quot;</span><span class="p">:</span>
+        <span class="n">entries</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">entries</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">energy_per_atom</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">sort</span> <span class="o">==</span> <span class="s2">&quot;filename&quot;</span><span class="p">:</span>
+        <span class="n">entries</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">entries</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;filename&quot;</span><span class="p">])</span>
+
+    <span class="n">all_data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">detailed</span><span class="p">:</span>
+            <span class="n">delta_vol</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{:.2f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;delta_volume&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">100</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">delta_vol</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">structure</span><span class="o">.</span><span class="n">volume</span> <span class="o">/</span> \
+                <span class="n">e</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;initial_structure&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">volume</span> <span class="o">-</span> <span class="mi">1</span>
+            <span class="n">delta_vol</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{:.2f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">delta_vol</span> <span class="o">*</span> <span class="mi">100</span><span class="p">)</span>
+        <span class="n">all_data</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">e</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;filename&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;./&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                         <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s2">&quot;\s+&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">formula</span><span class="p">),</span>
+                         <span class="s2">&quot;</span><span class="si">{:.5f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">energy</span><span class="p">),</span>
+                         <span class="s2">&quot;</span><span class="si">{:.5f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">energy_per_atom</span><span class="p">),</span>
+                         <span class="n">delta_vol</span><span class="p">))</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_data</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;Directory&quot;</span><span class="p">,</span> <span class="s2">&quot;Formula&quot;</span><span class="p">,</span> <span class="s2">&quot;Energy&quot;</span><span class="p">,</span> <span class="s2">&quot;E/Atom&quot;</span><span class="p">,</span> <span class="s2">&quot;% vol chg&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">tabulate</span><span class="p">(</span><span class="n">all_data</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="n">tablefmt</span><span class="o">=</span><span class="n">fmt</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No valid vasp run found.&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_magnetizations"><a class="viewcode-back" href="../../../pymatgen.cli.html#pymatgen.cli.pmg.get_magnetizations">[docs]</a><span class="k">def</span> <span class="nf">get_magnetizations</span><span class="p">(</span><span class="n">mydir</span><span class="p">,</span> <span class="n">ion_list</span><span class="p">):</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">max_row</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">subdirs</span><span class="p">,</span> <span class="n">files</span><span class="p">)</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">mydir</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s2">&quot;OUTCAR*&quot;</span><span class="p">,</span> <span class="n">f</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">row</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="n">fullpath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+                    <span class="n">outcar</span> <span class="o">=</span> <span class="n">Outcar</span><span class="p">(</span><span class="n">fullpath</span><span class="p">)</span>
+                    <span class="n">mags</span> <span class="o">=</span> <span class="n">outcar</span><span class="o">.</span><span class="n">magnetization</span>
+                    <span class="n">mags</span> <span class="o">=</span> <span class="p">[</span><span class="n">m</span><span class="p">[</span><span class="s2">&quot;tot&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">mags</span><span class="p">]</span>
+                    <span class="n">all_ions</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mags</span><span class="p">)))</span>
+                    <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fullpath</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;./&quot;</span><span class="p">))</span>
+                    <span class="k">if</span> <span class="n">ion_list</span><span class="p">:</span>
+                        <span class="n">all_ions</span> <span class="o">=</span> <span class="n">ion_list</span>
+                    <span class="k">for</span> <span class="n">ion</span> <span class="ow">in</span> <span class="n">all_ions</span><span class="p">:</span>
+                        <span class="n">row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">mags</span><span class="p">[</span><span class="n">ion</span><span class="p">]))</span>
+                    <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_ions</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">max_row</span><span class="p">:</span>
+                        <span class="n">max_row</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_ions</span><span class="p">)</span>
+                <span class="k">except</span><span class="p">:</span>
+                    <span class="k">pass</span>
+
+    <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">max_row</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">d</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s2">&quot;&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">max_row</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">d</span><span class="p">)))</span>
+    <span class="n">headers</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Filename&quot;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_row</span><span class="p">):</span>
+        <span class="n">headers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">tabulate</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">headers</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="plot_dos"><a class="viewcode-back" href="../../../pymatgen.cli.html#pymatgen.cli.pmg.plot_dos">[docs]</a><span class="k">def</span> <span class="nf">plot_dos</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="n">Vasprun</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">filename</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">dos</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">complete_dos</span>
+
+    <span class="n">all_dos</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+    <span class="n">all_dos</span><span class="p">[</span><span class="s2">&quot;Total&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dos</span>
+
+    <span class="n">structure</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">final_structure</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">site</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">structure</span><span class="p">)):</span>
+            <span class="n">site</span> <span class="o">=</span> <span class="n">structure</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">all_dos</span><span class="p">[</span><span class="s2">&quot;Site &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span> <span class="o">+</span> <span class="n">site</span><span class="o">.</span><span class="n">specie</span><span class="o">.</span><span class="n">symbol</span><span class="p">]</span> <span class="o">=</span> \
+                <span class="n">dos</span><span class="o">.</span><span class="n">get_site_dos</span><span class="p">(</span><span class="n">site</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">element</span><span class="p">:</span>
+        <span class="n">syms</span> <span class="o">=</span> <span class="p">[</span><span class="n">tok</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">tok</span> <span class="ow">in</span> <span class="n">args</span><span class="o">.</span><span class="n">element</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)]</span>
+        <span class="n">all_dos</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">el</span><span class="p">,</span> <span class="n">dos</span> <span class="ow">in</span> <span class="n">dos</span><span class="o">.</span><span class="n">get_element_dos</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">el</span><span class="o">.</span><span class="n">symbol</span> <span class="ow">in</span> <span class="n">syms</span><span class="p">:</span>
+                <span class="n">all_dos</span><span class="p">[</span><span class="n">el</span><span class="p">]</span> <span class="o">=</span> <span class="n">dos</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">orbital</span><span class="p">:</span>
+        <span class="n">all_dos</span> <span class="o">=</span> <span class="n">dos</span><span class="o">.</span><span class="n">get_spd_dos</span><span class="p">()</span>
+
+    <span class="n">plotter</span> <span class="o">=</span> <span class="n">DosPlotter</span><span class="p">()</span>
+    <span class="n">plotter</span><span class="o">.</span><span class="n">add_dos_dict</span><span class="p">(</span><span class="n">all_dos</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">file</span><span class="p">:</span>
+        <span class="n">plotter</span><span class="o">.</span><span class="n">get_plot</span><span class="p">()</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">file</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">plotter</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="plot_chgint"><a class="viewcode-back" href="../../../pymatgen.cli.html#pymatgen.cli.pmg.plot_chgint">[docs]</a><span class="k">def</span> <span class="nf">plot_chgint</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="n">chgcar</span> <span class="o">=</span> <span class="n">Chgcar</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">filename</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">chgcar</span><span class="o">.</span><span class="n">structure</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">inds</span><span class="p">:</span>
+        <span class="n">atom_ind</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">args</span><span class="o">.</span><span class="n">inds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">finder</span> <span class="o">=</span> <span class="n">SpacegroupAnalyzer</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+        <span class="n">sites</span> <span class="o">=</span> <span class="p">[</span><span class="n">sites</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">sites</span> <span class="ow">in</span>
+                 <span class="n">finder</span><span class="o">.</span><span class="n">get_symmetrized_structure</span><span class="p">()</span><span class="o">.</span><span class="n">equivalent_sites</span><span class="p">]</span>
+        <span class="n">atom_ind</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">sites</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">site</span><span class="p">)</span> <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">sites</span><span class="p">]</span>
+
+    <span class="kn">from</span> <span class="nn">pymatgen.util.plotting_utils</span> <span class="k">import</span> <span class="n">get_publication_quality_plot</span>
+    <span class="n">plt</span> <span class="o">=</span> <span class="n">get_publication_quality_plot</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">8</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">atom_ind</span><span class="p">:</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">chgcar</span><span class="o">.</span><span class="n">get_integrated_diff</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">radius</span><span class="p">,</span> <span class="mi">30</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">d</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">d</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span>
+                 <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Atom </span><span class="si">{}</span><span class="s2"> - </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">species_string</span><span class="p">))</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s2">&quot;upper left&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Radius (A)&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Integrated charge (e)&quot;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="parse_vasp"><a class="viewcode-back" href="../../../pymatgen.cli.html#pymatgen.cli.pmg.parse_vasp">[docs]</a><span class="k">def</span> <span class="nf">parse_vasp</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+
+    <span class="n">default_energies</span> <span class="o">=</span> <span class="ow">not</span> <span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">get_energies</span> <span class="ow">or</span> <span class="n">args</span><span class="o">.</span><span class="n">ion_list</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">get_energies</span> <span class="ow">or</span> <span class="n">default_energies</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">args</span><span class="o">.</span><span class="n">directories</span><span class="p">:</span>
+            <span class="n">get_energies</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">reanalyze</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">verbose</span><span class="p">,</span>
+                         <span class="n">args</span><span class="o">.</span><span class="n">detailed</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">sort</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">args</span><span class="o">.</span><span class="n">format</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">ion_list</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">ion_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;All&quot;</span><span class="p">:</span>
+            <span class="n">ion_list</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">)</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">ion_list</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span>
+            <span class="n">ion_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">args</span><span class="o">.</span><span class="n">directories</span><span class="p">:</span>
+            <span class="n">get_magnetizations</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">ion_list</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="convert_fmt"><a class="viewcode-back" href="../../../pymatgen.cli.html#pymatgen.cli.pmg.convert_fmt">[docs]</a><span class="k">def</span> <span class="nf">convert_fmt</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="n">iformat</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">input_format</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">oformat</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">output_format</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">filename</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">input_filename</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">out_filename</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">output_filename</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">try</span><span class="p">:</span>
+
+        <span class="k">if</span> <span class="n">iformat</span> <span class="o">==</span> <span class="s2">&quot;POSCAR&quot;</span><span class="p">:</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="n">Poscar</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+            <span class="n">structure</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">structure</span>
+        <span class="k">elif</span> <span class="n">iformat</span> <span class="o">==</span> <span class="s2">&quot;CIF&quot;</span><span class="p">:</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+            <span class="n">structure</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">get_structures</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">iformat</span> <span class="o">==</span> <span class="s2">&quot;CONVENTIONAL_CIF&quot;</span><span class="p">:</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+            <span class="n">structure</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="n">primitive</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">iformat</span> <span class="o">==</span> <span class="s2">&quot;CSSR&quot;</span><span class="p">:</span>
+            <span class="n">structure</span> <span class="o">=</span> <span class="n">Cssr</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="o">.</span><span class="n">structure</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">structure</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">oformat</span> <span class="o">==</span> <span class="s2">&quot;smart&quot;</span><span class="p">:</span>
+            <span class="n">structure</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="n">out_filename</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">oformat</span> <span class="o">==</span> <span class="s2">&quot;POSCAR&quot;</span><span class="p">:</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="n">Poscar</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
+            <span class="n">p</span><span class="o">.</span><span class="n">write_file</span><span class="p">(</span><span class="n">out_filename</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">oformat</span> <span class="o">==</span> <span class="s2">&quot;CIF&quot;</span><span class="p">:</span>
+            <span class="n">w</span> <span class="o">=</span> <span class="n">CifWriter</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
+            <span class="n">w</span><span class="o">.</span><span class="n">write_file</span><span class="p">(</span><span class="n">out_filename</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">oformat</span> <span class="o">==</span> <span class="s2">&quot;CSSR&quot;</span><span class="p">:</span>
+            <span class="n">c</span> <span class="o">=</span> <span class="n">Cssr</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span>
+            <span class="n">c</span><span class="o">.</span><span class="n">write_file</span><span class="p">(</span><span class="n">out_filename</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">oformat</span> <span class="o">==</span> <span class="s2">&quot;VASP&quot;</span><span class="p">:</span>
+            <span class="n">ts</span> <span class="o">=</span> <span class="n">TransformedStructure</span><span class="p">(</span>
+                <span class="n">structure</span><span class="p">,</span> <span class="p">[],</span>
+                <span class="n">history</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;source&quot;</span><span class="p">:</span> <span class="s2">&quot;file&quot;</span><span class="p">,</span>
+                          <span class="s2">&quot;datetime&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()),</span>
+                          <span class="s2">&quot;original_file&quot;</span><span class="p">:</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()}])</span>
+            <span class="n">ts</span><span class="o">.</span><span class="n">write_vasp_input</span><span class="p">(</span><span class="n">MPRelaxSet</span><span class="p">,</span> <span class="n">output_dir</span><span class="o">=</span><span class="n">out_filename</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">oformat</span> <span class="o">==</span> <span class="s2">&quot;MITVASP&quot;</span><span class="p">:</span>
+            <span class="n">ts</span> <span class="o">=</span> <span class="n">TransformedStructure</span><span class="p">(</span>
+                <span class="n">structure</span><span class="p">,</span> <span class="p">[],</span>
+                <span class="n">history</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;source&quot;</span><span class="p">:</span> <span class="s2">&quot;file&quot;</span><span class="p">,</span>
+                          <span class="s2">&quot;datetime&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()),</span>
+                          <span class="s2">&quot;original_file&quot;</span><span class="p">:</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()}])</span>
+            <span class="n">ts</span><span class="o">.</span><span class="n">write_vasp_input</span><span class="p">(</span><span class="n">MITRelaxSet</span><span class="p">,</span> <span class="n">output_dir</span><span class="o">=</span><span class="n">out_filename</span><span class="p">)</span>
+
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error converting file. Are they in the right format?&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">ex</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="parse_symmetry"><a class="viewcode-back" href="../../../pymatgen.cli.html#pymatgen.cli.pmg.parse_symmetry">[docs]</a><span class="k">def</span> <span class="nf">parse_symmetry</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+
+    <span class="n">tolerance</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">tolerance</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">args</span><span class="o">.</span><span class="n">filenames</span><span class="p">:</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">spacegroup</span><span class="p">:</span>
+            <span class="n">finder</span> <span class="o">=</span> <span class="n">SpacegroupAnalyzer</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">tolerance</span><span class="p">)</span>
+            <span class="n">dataset</span> <span class="o">=</span> <span class="n">finder</span><span class="o">.</span><span class="n">get_symmetry_dataset</span><span class="p">()</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Spacegroup  : </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dataset</span><span class="p">[</span><span class="s2">&quot;international&quot;</span><span class="p">]))</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Int number  : </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dataset</span><span class="p">[</span><span class="s2">&quot;number&quot;</span><span class="p">]))</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hall symbol : </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dataset</span><span class="p">[</span><span class="s2">&quot;hall&quot;</span><span class="p">]))</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="analyze_structure"><a class="viewcode-back" href="../../../pymatgen.cli.html#pymatgen.cli.pmg.analyze_structure">[docs]</a><span class="k">def</span> <span class="nf">analyze_structure</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="n">bonds</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">bond</span> <span class="ow">in</span> <span class="n">args</span><span class="o">.</span><span class="n">localenv</span><span class="p">:</span>
+        <span class="n">toks</span> <span class="o">=</span> <span class="n">bond</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">)</span>
+        <span class="n">species</span> <span class="o">=</span> <span class="n">toks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)</span>
+        <span class="n">bonds</span><span class="p">[(</span><span class="n">species</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">species</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">toks</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">args</span><span class="o">.</span><span class="n">filenames</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Analyzing </span><span class="si">%s</span><span class="s2">...&quot;</span> <span class="o">%</span> <span class="n">filename</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">site</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">species</span><span class="p">,</span> <span class="n">dist</span> <span class="ow">in</span> <span class="n">bonds</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">species</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="p">[</span><span class="n">sp</span><span class="o">.</span><span class="n">symbol</span>
+                                  <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">site</span><span class="o">.</span><span class="n">species_and_occu</span><span class="o">.</span><span class="n">keys</span><span class="p">()]:</span>
+                    <span class="n">dists</span> <span class="o">=</span> <span class="p">[</span><span class="n">d</span> <span class="k">for</span> <span class="n">nn</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">get_neighbors</span><span class="p">(</span><span class="n">site</span><span class="p">,</span> <span class="n">dist</span><span class="p">)</span>
+                             <span class="k">if</span> <span class="n">species</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">in</span>
+                             <span class="p">[</span><span class="n">sp</span><span class="o">.</span><span class="n">symbol</span> <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">nn</span><span class="o">.</span><span class="n">species_and_occu</span><span class="o">.</span><span class="n">keys</span><span class="p">()]]</span>
+                    <span class="n">dists</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s2">&quot;</span><span class="si">%.3f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">dists</span><span class="p">)])</span>
+                    <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">i</span><span class="p">,</span> <span class="n">species</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">species</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">dists</span><span class="p">])</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">tabulate</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;#&quot;</span><span class="p">,</span> <span class="s2">&quot;Center&quot;</span><span class="p">,</span> <span class="s2">&quot;Ligand&quot;</span><span class="p">,</span> <span class="s2">&quot;Dists&quot;</span><span class="p">]))</span></div>
+
+
+<div class="viewcode-block" id="parse_view"><a class="viewcode-back" href="../../../pymatgen.cli.html#pymatgen.cli.pmg.parse_view">[docs]</a><span class="k">def</span> <span class="nf">parse_view</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">pymatgen.vis.structure_vtk</span> <span class="k">import</span> <span class="n">StructureVis</span>
+    <span class="n">excluded_bonding_elements</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">exclude_bonding</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)</span> \
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">exclude_bonding</span> <span class="k">else</span> <span class="p">[]</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">filename</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">vis</span> <span class="o">=</span> <span class="n">StructureVis</span><span class="p">(</span><span class="n">excluded_bonding_elements</span><span class="o">=</span><span class="n">excluded_bonding_elements</span><span class="p">)</span>
+    <span class="n">vis</span><span class="o">.</span><span class="n">set_structure</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="n">vis</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="compare_structures"><a class="viewcode-back" href="../../../pymatgen.cli.html#pymatgen.cli.pmg.compare_structures">[docs]</a><span class="k">def</span> <span class="nf">compare_structures</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="n">filenames</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">filenames</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;You need more than one structure to compare!&quot;</span><span class="p">)</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">structures</span> <span class="o">=</span> <span class="p">[</span><span class="n">Structure</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span> <span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">filenames</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error converting file. Are they in the right format?&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">ex</span><span class="p">))</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="kn">from</span> <span class="nn">pymatgen.analysis.structure_matcher</span> <span class="k">import</span> <span class="n">StructureMatcher</span><span class="p">,</span> \
+        <span class="n">ElementComparator</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">StructureMatcher</span><span class="p">()</span> <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">oxi</span> \
+        <span class="k">else</span> <span class="n">StructureMatcher</span><span class="p">(</span><span class="n">comparator</span><span class="o">=</span><span class="n">ElementComparator</span><span class="p">())</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">grp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group_structures</span><span class="p">(</span><span class="n">structures</span><span class="p">)):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Group </span><span class="si">{}</span><span class="s2">: &quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">grp</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;- </span><span class="si">{}</span><span class="s2"> (</span><span class="si">{}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">filenames</span><span class="p">[</span><span class="n">structures</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">s</span><span class="p">)],</span>
+                                     <span class="n">s</span><span class="o">.</span><span class="n">formula</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="generate_files"><a class="viewcode-back" href="../../../pymatgen.cli.html#pymatgen.cli.pmg.generate_files">[docs]</a><span class="k">def</span> <span class="nf">generate_files</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">pymatgen.io.vasp.inputs</span> <span class="k">import</span> <span class="n">Potcar</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">symbols</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="n">Potcar</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">symbols</span><span class="p">,</span> <span class="n">functional</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">functional</span><span class="p">)</span>
+            <span class="n">p</span><span class="o">.</span><span class="n">write_file</span><span class="p">(</span><span class="s2">&quot;POTCAR&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;An error has occurred: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">ex</span><span class="p">)))</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No valid options selected.&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="generate_diffraction_plot"><a class="viewcode-back" href="../../../pymatgen.cli.html#pymatgen.cli.pmg.generate_diffraction_plot">[docs]</a><span class="k">def</span> <span class="nf">generate_diffraction_plot</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">XRDCalculator</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">outfile</span><span class="p">:</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">get_xrd_plot</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">outfile</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">c</span><span class="o">.</span><span class="n">show_xrd_plot</span><span class="p">(</span><span class="n">s</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="setup_potcar"><a class="viewcode-back" href="../../../pymatgen.cli.html#pymatgen.cli.pmg.setup_potcar">[docs]</a><span class="k">def</span> <span class="nf">setup_potcar</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="n">pspdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">input_potcar_dir</span><span class="p">)</span>
+    <span class="n">targetdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">output_potcar_dir</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">targetdir</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Destination directory exists. Continue (y/n)? &quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">r</span> <span class="o">!=</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Exiting ...&quot;</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Generating pymatgen resources directory...&quot;</span><span class="p">)</span>
+
+    <span class="n">name_mappings</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;potpaw_PBE&quot;</span><span class="p">:</span> <span class="s2">&quot;POT_GGA_PAW_PBE&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;potpaw_PBE_52&quot;</span><span class="p">:</span> <span class="s2">&quot;POT_GGA_PAW_PBE_52&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;potpaw_PBE_54&quot;</span><span class="p">:</span> <span class="s2">&quot;POT_GGA_PAW_PBE_54&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;potpaw_PBE.52&quot;</span><span class="p">:</span> <span class="s2">&quot;POT_GGA_PAW_PBE_52&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;potpaw_PBE.54&quot;</span><span class="p">:</span> <span class="s2">&quot;POT_GGA_PAW_PBE_54&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;potpaw_LDA&quot;</span><span class="p">:</span> <span class="s2">&quot;POT_LDA_PAW&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;potpaw_LDA.52&quot;</span><span class="p">:</span> <span class="s2">&quot;POT_LDA_PAW_52&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;potpaw_LDA.54&quot;</span><span class="p">:</span> <span class="s2">&quot;POT_LDA_PAW_54&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;potpaw_LDA_52&quot;</span><span class="p">:</span> <span class="s2">&quot;POT_LDA_PAW_52&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;potpaw_LDA_54&quot;</span><span class="p">:</span> <span class="s2">&quot;POT_LDA_PAW_54&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;potUSPP_LDA&quot;</span><span class="p">:</span> <span class="s2">&quot;POT_LDA_US&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;potpaw_GGA&quot;</span><span class="p">:</span> <span class="s2">&quot;POT_GGA_PAW_PW91&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;potUSPP_GGA&quot;</span><span class="p">:</span> <span class="s2">&quot;POT_GGA_US_PW91&quot;</span>
+    <span class="p">}</span>
+
+    <span class="k">for</span> <span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">subdirs</span><span class="p">,</span> <span class="n">files</span><span class="p">)</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">pspdir</span><span class="p">):</span>
+        <span class="n">basename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">parent</span><span class="p">)</span>
+        <span class="n">basename</span> <span class="o">=</span> <span class="n">name_mappings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">basename</span><span class="p">,</span> <span class="n">basename</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">subdir</span> <span class="ow">in</span> <span class="n">subdirs</span><span class="p">:</span>
+            <span class="n">filenames</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parent</span><span class="p">,</span> <span class="n">subdir</span><span class="p">,</span> <span class="s2">&quot;POTCAR*&quot;</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">basedir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">targetdir</span><span class="p">,</span> <span class="n">basename</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">basedir</span><span class="p">):</span>
+                        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">basedir</span><span class="p">)</span>
+                    <span class="n">fname</span> <span class="o">=</span> <span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">dest</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">basedir</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">fname</span><span class="p">))</span>
+                    <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">dest</span><span class="p">)</span>
+                    <span class="n">ext</span> <span class="o">=</span> <span class="n">fname</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">ext</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;Z&quot;</span><span class="p">,</span> <span class="s2">&quot;GZ&quot;</span><span class="p">]:</span>
+                        <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">([</span><span class="s2">&quot;gunzip&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="p">])</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
+                    <span class="k">elif</span> <span class="n">ext</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;BZ2&quot;</span><span class="p">]:</span>
+                        <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">([</span><span class="s2">&quot;bunzip2&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="p">])</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">subdir</span> <span class="o">==</span> <span class="s2">&quot;Osmium&quot;</span><span class="p">:</span>
+                        <span class="n">subdir</span> <span class="o">=</span> <span class="s2">&quot;Os&quot;</span>
+                    <span class="n">dest</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">basedir</span><span class="p">,</span> <span class="s2">&quot;POTCAR.</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">subdir</span><span class="p">))</span>
+                    <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">basedir</span><span class="p">,</span> <span class="s2">&quot;POTCAR&quot;</span><span class="p">),</span> <span class="n">dest</span><span class="p">)</span>
+                    <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">([</span><span class="s2">&quot;gzip&quot;</span><span class="p">,</span> <span class="s2">&quot;-f&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="p">])</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">ex</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;An error has occured. Message is </span><span class="si">%s</span><span class="s2">. Trying to &quot;</span>
+                          <span class="s2">&quot;continue... &quot;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">ex</span><span class="p">))</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;PSP resources directory generated. It is recommended that you add &quot;</span>
+          <span class="s2">&quot;the following to your environment or .bash_profile if you are on &quot;</span>
+          <span class="s2">&quot;Unix-based systems.&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;export VASP_PSP_DIR=</span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">targetdir</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;posix&quot;</span><span class="p">:</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Do you want us to try to automatically do this? (y/n)&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">r</span> <span class="o">==</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span>
+            <span class="n">bash_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;HOME&quot;</span><span class="p">],</span> <span class="s2">&quot;.bash_profile&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">bash_file</span><span class="p">):</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">bash_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                    <span class="n">contents</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+                <span class="n">contents</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">#Added by pymatgen</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="n">contents</span> <span class="o">+=</span> <span class="s2">&quot;export VASP_PSP_DIR=</span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span>
+                    <span class="n">targetdir</span><span class="p">)</span>
+                <span class="n">r</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;We can also add your Materials Project API key to &quot;</span>
+                          <span class="s2">&quot;the MAPI_KEY environment variable. This makes it &quot;</span>
+                          <span class="s2">&quot;easier to use MPRester without having to enter &quot;</span>
+                          <span class="s2">&quot;your API key each time. Enter an API key (from &quot;</span>
+                          <span class="s2">&quot;https://www.materialsproject.org/dashboard) to do &quot;</span>
+                          <span class="s2">&quot;this: &quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">r</span><span class="p">:</span>
+                    <span class="n">contents</span> <span class="o">+=</span> <span class="s2">&quot;export MAPI_KEY=</span><span class="se">\&quot;</span><span class="si">%s</span><span class="se">\&quot;\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">r</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">bash_file</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">contents</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Start a new terminal to ensure that your environment variables &quot;</span>
+          <span class="s2">&quot;are properly set.&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="diff_incar"><a class="viewcode-back" href="../../../pymatgen.cli.html#pymatgen.cli.pmg.diff_incar">[docs]</a><span class="k">def</span> <span class="nf">diff_incar</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="n">filepath1</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">filepath2</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">filenames</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">incar1</span> <span class="o">=</span> <span class="n">Incar</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">filepath1</span><span class="p">)</span>
+    <span class="n">incar2</span> <span class="o">=</span> <span class="n">Incar</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">filepath2</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">format_lists</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+            <span class="k">return</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s2">&quot;</span><span class="si">%d</span><span class="s2">*</span><span class="si">%.2f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">group</span><span class="p">)),</span> <span class="n">i</span><span class="p">)</span>
+                             <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">group</span><span class="p">)</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">v</span><span class="p">)])</span>
+        <span class="k">return</span> <span class="n">v</span>
+
+    <span class="n">d</span> <span class="o">=</span> <span class="n">incar1</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">incar2</span><span class="p">)</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="p">[[</span><span class="s1">&#39;SAME PARAMS&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">]]</span>
+    <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s1">&#39;---------------&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">])</span>
+    <span class="n">output</span><span class="o">.</span><span class="n">extend</span><span class="p">([(</span><span class="n">k</span><span class="p">,</span> <span class="n">format_lists</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;Same&#39;</span><span class="p">][</span><span class="n">k</span><span class="p">]),</span> <span class="n">format_lists</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;Same&#39;</span><span class="p">][</span><span class="n">k</span><span class="p">]))</span>
+                   <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;Same&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="s2">&quot;SYSTEM&quot;</span><span class="p">])</span>
+    <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">])</span>
+    <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s1">&#39;DIFFERENT PARAMS&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">])</span>
+    <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s1">&#39;----------------&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">])</span>
+    <span class="n">output</span><span class="o">.</span><span class="n">extend</span><span class="p">([(</span><span class="n">k</span><span class="p">,</span> <span class="n">format_lists</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;Different&#39;</span><span class="p">][</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;INCAR1&#39;</span><span class="p">]),</span>
+                    <span class="n">format_lists</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;Different&#39;</span><span class="p">][</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;INCAR2&#39;</span><span class="p">]))</span>
+                   <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;Different&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="k">if</span> <span class="n">k</span> <span class="o">!=</span> <span class="s2">&quot;SYSTEM&quot;</span><span class="p">])</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">tabulate</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">filepath1</span><span class="p">,</span> <span class="n">filepath2</span><span class="p">]))</span></div>
+
+
+<div class="viewcode-block" id="main"><a class="viewcode-back" href="../../../pymatgen.cli.html#pymatgen.cli.pmg.main">[docs]</a><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    pmg is a convenient script that uses pymatgen to perform many</span>
+<span class="s2">    analyses, plotting and format conversions. This script works based on</span>
+<span class="s2">    several sub-commands with their own options. To see the options for the</span>
+<span class="s2">    sub-commands, type &quot;pmg sub-command -h&quot;.&quot;&quot;&quot;</span><span class="p">,</span>
+                                     <span class="n">epilog</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    Author: Shyue Ping Ong</span>
+<span class="s2">    Version: </span><span class="si">{}</span><span class="s2"></span>
+<span class="s2">    Last updated: </span><span class="si">{}</span><span class="s2">&quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">__version__</span><span class="p">,</span> <span class="n">__date__</span><span class="p">))</span>
+
+    <span class="n">subparsers</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">add_subparsers</span><span class="p">()</span>
+
+    <span class="n">parser_setup</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;setup&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Setup pymatgen.&quot;</span><span class="p">)</span>
+    <span class="n">parser_setup</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-i&quot;</span><span class="p">,</span> <span class="s2">&quot;--input_potcar_dir&quot;</span><span class="p">,</span>
+                              <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;input_potcar_dir&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                              <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Initial directory where downloaded VASP &quot;</span>
+                                   <span class="s2">&quot;POTCARs are extracted to. This should be &quot;</span>
+                                   <span class="s2">&quot;the parent directory that contains the &quot;</span>
+                                   <span class="s2">&quot;POT_GGA_PAW_PBE or potpaw_PBE type &quot;</span>
+                                   <span class="s2">&quot;subdirectories.&quot;</span><span class="p">)</span>
+    <span class="n">parser_setup</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;--output_potcar_dir&quot;</span><span class="p">,</span>
+                              <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;output_potcar_dir&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                              <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output directory where the &quot;</span>
+                                   <span class="s2">&quot;reorganized POTCARs will be stored.&quot;</span><span class="p">)</span>
+    <span class="n">parser_setup</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">setup_potcar</span><span class="p">)</span>
+
+    <span class="n">parser_vasp</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;analyze&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Vasp run analysis.&quot;</span><span class="p">)</span>
+    <span class="n">parser_vasp</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;directories&quot;</span><span class="p">,</span> <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;dir&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">,</span>
+                             <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="s2">&quot;*&quot;</span><span class="p">,</span>
+                             <span class="n">help</span><span class="o">=</span><span class="s2">&quot;directory to process (default to .)&quot;</span><span class="p">)</span>
+    <span class="n">parser_vasp</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-e&quot;</span><span class="p">,</span> <span class="s2">&quot;--energies&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;get_energies&quot;</span><span class="p">,</span>
+                             <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Print energies&quot;</span><span class="p">)</span>
+    <span class="n">parser_vasp</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-m&quot;</span><span class="p">,</span> <span class="s2">&quot;--mag&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;ion_list&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                             <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Print magmoms. ION LIST can be a range &quot;</span>
+                             <span class="s2">&quot;(e.g., 1-2) or the string &#39;All&#39; for all ions.&quot;</span><span class="p">)</span>
+    <span class="n">parser_vasp</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-r&quot;</span><span class="p">,</span> <span class="s2">&quot;--reanalyze&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;reanalyze&quot;</span><span class="p">,</span>
+                             <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                             <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Force reanalysis. Typically, vasp_analyzer&quot;</span>
+                             <span class="s2">&quot; will just reuse a vasp_analyzer_data.gz if &quot;</span>
+                             <span class="s2">&quot;present. This forces the analyzer to reanalyze &quot;</span>
+                             <span class="s2">&quot;the data.&quot;</span><span class="p">)</span>
+    <span class="n">parser_vasp</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-f&quot;</span><span class="p">,</span> <span class="s2">&quot;--format&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;format&quot;</span><span class="p">,</span>
+                             <span class="n">choices</span><span class="o">=</span><span class="n">tabulate_formats</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;simple&quot;</span><span class="p">,</span>
+                             <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+                             <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Format for table. Supports all options in &quot;</span>
+                                  <span class="s2">&quot;tabulate package.&quot;</span><span class="p">)</span>
+    <span class="n">parser_vasp</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-v&quot;</span><span class="p">,</span> <span class="s2">&quot;--verbose&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;verbose&quot;</span><span class="p">,</span>
+                             <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                             <span class="n">help</span><span class="o">=</span><span class="s2">&quot;verbose mode. Provides detailed output on &quot;</span>
+                             <span class="s2">&quot;progress.&quot;</span><span class="p">)</span>
+    <span class="n">parser_vasp</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-d&quot;</span><span class="p">,</span> <span class="s2">&quot;--detailed&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;detailed&quot;</span><span class="p">,</span>
+                             <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                             <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Detailed mode. Parses vasprun.xml instead &quot;</span>
+                             <span class="s2">&quot;of separate vasp input. Slower.&quot;</span><span class="p">)</span>
+    <span class="n">parser_vasp</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-s&quot;</span><span class="p">,</span> <span class="s2">&quot;--sort&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;sort&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                             <span class="n">default</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;energy_per_atom&quot;</span><span class="p">],</span>
+                             <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Sort criteria. Defaults to energy / atom.&quot;</span><span class="p">)</span>
+    <span class="n">parser_vasp</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">parse_vasp</span><span class="p">)</span>
+
+    <span class="n">parser_plot</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;plotdos&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Plotting for dos.&quot;</span><span class="p">)</span>
+    <span class="n">parser_plot</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;filename&quot;</span><span class="p">,</span> <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;filename&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                             <span class="n">help</span><span class="o">=</span><span class="s2">&quot;vasprun.xml file to plot&quot;</span><span class="p">)</span>
+    <span class="n">parser_plot</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-s&quot;</span><span class="p">,</span> <span class="s2">&quot;--site&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;site&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_const&quot;</span><span class="p">,</span>
+                             <span class="n">const</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Plot site projected DOS&quot;</span><span class="p">)</span>
+    <span class="n">parser_plot</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-e&quot;</span><span class="p">,</span> <span class="s2">&quot;--element&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;element&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+                             <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                             <span class="n">help</span><span class="o">=</span><span class="s2">&quot;List of elements to plot as comma-separated&quot;</span>
+                             <span class="s2">&quot; values e.g., Fe,Mn&quot;</span><span class="p">)</span>
+    <span class="n">parser_plot</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;--orbital&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;orbital&quot;</span><span class="p">,</span>
+                             <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_const&quot;</span><span class="p">,</span> <span class="n">const</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                             <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Plot orbital projected DOS&quot;</span><span class="p">)</span>
+    <span class="n">parser_plot</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-f&quot;</span><span class="p">,</span> <span class="s2">&quot;--file&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;file&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                             <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Save to file.&quot;</span><span class="p">)</span>
+    <span class="n">parser_plot</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">plot_dos</span><span class="p">)</span>
+
+    <span class="n">parser_plotchg</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;plotchgint&quot;</span><span class="p">,</span>
+                                           <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Plotting for the charge &quot;</span>
+                                                <span class="s2">&quot;integration.&quot;</span><span class="p">)</span>
+    <span class="n">parser_plotchg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;filename&quot;</span><span class="p">,</span> <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;filename&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+                                <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;CHGCAR file to plot&quot;</span><span class="p">)</span>
+    <span class="n">parser_plotchg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-i&quot;</span><span class="p">,</span> <span class="s2">&quot;--indices&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;inds&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+                                <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                                <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Comma-separated list of indices to plot&quot;</span>
+                                     <span class="s2">&quot;, e.g., 1,2,3,4. If not provided, &quot;</span>
+                                     <span class="s2">&quot;the code will plot the chgint for all &quot;</span>
+                                     <span class="s2">&quot;symmetrically distinct atoms detected.&quot;</span><span class="p">)</span>
+    <span class="n">parser_plotchg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-r&quot;</span><span class="p">,</span> <span class="s2">&quot;--radius&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;radius&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                                <span class="n">default</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+                                <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Radius of integration.&quot;</span><span class="p">)</span>
+    <span class="n">parser_plotchg</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">plot_chgint</span><span class="p">)</span>
+
+    <span class="n">parser_convert</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span>
+        <span class="s2">&quot;convert&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;File format conversion tools.&quot;</span><span class="p">)</span>
+    <span class="n">parser_convert</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;input_filename&quot;</span><span class="p">,</span> <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;input_filename&quot;</span><span class="p">,</span>
+                                <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Input filename.&quot;</span><span class="p">)</span>
+    <span class="n">parser_convert</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;output_filename&quot;</span><span class="p">,</span> <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;output_filename&quot;</span><span class="p">,</span>
+                                <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                                <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output filename (for POSCAR/CIF/CSSR &quot;</span>
+                                <span class="s2">&quot;output) / dirname (VASP output)&quot;</span><span class="p">)</span>
+    <span class="n">parser_convert</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-i&quot;</span><span class="p">,</span> <span class="s2">&quot;--input&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;input_format&quot;</span><span class="p">,</span>
+                                <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="o">.</span><span class="n">upper</span><span class="p">,</span>
+                                <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                                <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;POSCAR&quot;</span><span class="p">,</span> <span class="s2">&quot;CIF&quot;</span><span class="p">,</span> <span class="s2">&quot;CSSR&quot;</span><span class="p">,</span> <span class="s2">&quot;smart&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;CONVENTIONAL_CIF&quot;</span><span class="p">],</span>
+                                <span class="n">default</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;smart&quot;</span><span class="p">],</span>
+                                <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Input file format. By default, smart is &quot;</span>
+                                <span class="s2">&quot;selected, which guesses the format from the &quot;</span>
+                                <span class="s2">&quot;filename. Other formats can be enforced as &quot;</span>
+                                <span class="s2">&quot;needed. If CONVENTIONAL_CIF is chosen instead &quot;</span>
+                                <span class="s2">&quot;of CIF, no primitive cell reduction is done.&quot;</span><span class="p">)</span>
+
+    <span class="n">parser_convert</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;output_format&quot;</span><span class="p">,</span>
+                                <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="o">.</span><span class="n">upper</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                                <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;POSCAR&quot;</span><span class="p">,</span> <span class="s2">&quot;CIF&quot;</span><span class="p">,</span> <span class="s2">&quot;CSSR&quot;</span><span class="p">,</span> <span class="s2">&quot;VASP&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;MITVASP&quot;</span><span class="p">,</span>
+                                         <span class="s2">&quot;smart&quot;</span><span class="p">],</span>
+                                <span class="n">default</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;smart&quot;</span><span class="p">],</span>
+                                <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output file format. By default, smart is&quot;</span>
+                                <span class="s2">&quot; selected, which guesses the format from the &quot;</span>
+                                <span class="s2">&quot;filename. Other formats can be enforced as &quot;</span>
+                                <span class="s2">&quot;needed. VASP is a special output form, which &quot;</span>
+                                <span class="s2">&quot;outputs a set of VASP input files to a &quot;</span>
+                                <span class="s2">&quot;directory. MITVASP uses the MIT input set &quot;</span>
+                                <span class="s2">&quot;instead of the default Materials project &quot;</span>
+                                <span class="s2">&quot;input set.&quot;</span><span class="p">)</span>
+    <span class="n">parser_convert</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">convert_fmt</span><span class="p">)</span>
+
+    <span class="n">parser_symm</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;symm&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Symmetry tools.&quot;</span><span class="p">)</span>
+    <span class="n">parser_symm</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;filenames&quot;</span><span class="p">,</span> <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;filenames&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+                             <span class="n">nargs</span><span class="o">=</span><span class="s2">&quot;+&quot;</span><span class="p">,</span>
+                             <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Filenames to determine symmetry.&quot;</span><span class="p">)</span>
+    <span class="n">parser_symm</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-t&quot;</span><span class="p">,</span> <span class="s2">&quot;--tolerance&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;tolerance&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+                             <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="p">[</span><span class="mf">0.1</span><span class="p">],</span>
+                             <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Tolerance for symmetry determination&quot;</span><span class="p">)</span>
+    <span class="n">parser_symm</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-s&quot;</span><span class="p">,</span> <span class="s2">&quot;--spacegroup&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;spacegroup&quot;</span><span class="p">,</span>
+                             <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                             <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Determine symmetry&quot;</span><span class="p">)</span>
+    <span class="n">parser_symm</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">parse_symmetry</span><span class="p">)</span>
+
+    <span class="n">parser_view</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;view&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Visualize structures&quot;</span><span class="p">)</span>
+    <span class="n">parser_view</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;filename&quot;</span><span class="p">,</span> <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;filename&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+                             <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Filename&quot;</span><span class="p">)</span>
+    <span class="n">parser_view</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-e&quot;</span><span class="p">,</span> <span class="s2">&quot;--exclude_bonding&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;exclude_bonding&quot;</span><span class="p">,</span>
+                             <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                             <span class="n">help</span><span class="o">=</span><span class="s2">&quot;List of elements to exclude from bonding &quot;</span>
+                             <span class="s2">&quot;analysis. E.g., Li,Na&quot;</span><span class="p">)</span>
+    <span class="n">parser_view</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">parse_view</span><span class="p">)</span>
+
+    <span class="n">parser_cmp</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;compare&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Compare structures&quot;</span><span class="p">)</span>
+    <span class="n">parser_cmp</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;filenames&quot;</span><span class="p">,</span> <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;filenames&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+                            <span class="n">nargs</span><span class="o">=</span><span class="s2">&quot;*&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;List of filenames to compare.&quot;</span><span class="p">)</span>
+    <span class="n">parser_cmp</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;--oxi&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;oxi&quot;</span><span class="p">,</span>
+                            <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                            <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Oxi mode means that different oxidation &quot;</span>
+                                 <span class="s2">&quot;states will not match to each other, i.e.,&quot;</span>
+                                 <span class="s2">&quot; Fe2+ amd Fe3+ will be treated as &quot;</span>
+                                 <span class="s2">&quot;different species for the purposes of &quot;</span>
+                                 <span class="s2">&quot;matching.&quot;</span><span class="p">)</span>
+    <span class="n">parser_cmp</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">compare_structures</span><span class="p">)</span>
+
+    <span class="n">parser_diffincar</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;diff_incar&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Helpful diffing tool for INCARs&quot;</span><span class="p">)</span>
+    <span class="n">parser_diffincar</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;filenames&quot;</span><span class="p">,</span> <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;filenames&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+                            <span class="n">nargs</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;List of INCARs to compare.&quot;</span><span class="p">)</span>
+    <span class="n">parser_diffincar</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">diff_incar</span><span class="p">)</span>
+
+    <span class="n">parser_generate</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;generate&quot;</span><span class="p">,</span>
+                                            <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Generate input files&quot;</span><span class="p">)</span>
+    <span class="n">parser_generate</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-f&quot;</span><span class="p">,</span> <span class="s2">&quot;--functional&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;functional&quot;</span><span class="p">,</span>
+                                 <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
+                                 <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;LDA&quot;</span><span class="p">,</span> <span class="s2">&quot;PBE&quot;</span><span class="p">,</span> <span class="s2">&quot;PW91&quot;</span><span class="p">,</span> <span class="s2">&quot;LDA_US&quot;</span><span class="p">],</span>
+                                 <span class="n">default</span><span class="o">=</span><span class="s2">&quot;PBE&quot;</span><span class="p">,</span>
+                                 <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Functional to use. Unless otherwise &quot;</span>
+                                      <span class="s2">&quot;stated (e.g., US), &quot;</span>
+                                      <span class="s2">&quot;refers to PAW psuedopotential.&quot;</span><span class="p">)</span>
+    <span class="n">parser_generate</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-p&quot;</span><span class="p">,</span> <span class="s2">&quot;--potcar&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;symbols&quot;</span><span class="p">,</span>
+                                 <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="s2">&quot;+&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                 <span class="n">help</span><span class="o">=</span><span class="s2">&quot;List of POTCAR symbols. Use -f to set &quot;</span>
+                                      <span class="s2">&quot;functional. Defaults to PBE.&quot;</span><span class="p">)</span>
+    <span class="n">parser_generate</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">generate_files</span><span class="p">)</span>
+
+    <span class="n">parser_structure</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span>
+        <span class="s2">&quot;structure&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Structure analysis tools.&quot;</span><span class="p">)</span>
+    <span class="n">parser_structure</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;filenames&quot;</span><span class="p">,</span> <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;filenames&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="s2">&quot;+&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;List of input structure files to analyze.&quot;</span><span class="p">)</span>
+    <span class="n">parser_structure</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-l&quot;</span><span class="p">,</span> <span class="s2">&quot;--localenv&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;localenv&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="s2">&quot;+&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Local environment analysis. Provide bonds in the format of&quot;</span>
+             <span class="s2">&quot;Center Species-Ligand Species=max_dist, e.g., H-O=0.5.&quot;</span><span class="p">)</span>
+    <span class="n">parser_structure</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">analyze_structure</span><span class="p">)</span>
+
+    <span class="n">parser_diffraction</span> <span class="o">=</span> <span class="n">subparsers</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span>
+        <span class="s2">&quot;diffraction&quot;</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Generate diffraction plots. Current supports XRD only.&quot;</span><span class="p">)</span>
+    <span class="n">parser_diffraction</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;filenames&quot;</span><span class="p">,</span> <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;filenames&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;List of input structure files to generate diffraction plot.&quot;</span><span class="p">)</span>
+    <span class="n">parser_diffraction</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+        <span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;--output_filename&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;outfile&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">nargs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Save to file given by filename.&quot;</span><span class="p">)</span>
+    <span class="n">parser_diffraction</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">generate_diffraction_plot</span><span class="p">)</span>
+
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="nb">getattr</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="s2">&quot;func&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+        <span class="n">parser</span><span class="o">.</span><span class="n">print_help</span><span class="p">()</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">args</span><span class="o">.</span><span class="n">func</span><span class="p">(</span><span class="n">args</span><span class="p">)</span></div>
+
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.2.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2011, Pymatgen Development Team.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.6.
+    </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+<script type="text/javascript">
+  (function() {
+    var ga = document.createElement('script');
+    ga.src = ('https:' == document.location.protocol ?
+              'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    ga.setAttribute('async', 'true');
+    document.documentElement.firstChild.appendChild(ga);
+  })();
+</script>
+</div>
+
+  </body>
+</html>

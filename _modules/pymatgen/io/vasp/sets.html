@@ -112,10 +112,11 @@
 <span class="sd">The above are recommendations. The following are UNBREAKABLE rules:</span>
 <span class="sd">1. All input sets must take in a structure or list of structures as the first</span>
 <span class="sd">   argument.</span>
-<span class="sd">2. user_incar_settings is absolute. Any new sets you implement must obey</span>
-<span class="sd">   this. If a user wants to override your settings, you assume he knows what he</span>
-<span class="sd">   is doing. Do not magically override user supplied settings. You can of course</span>
-<span class="sd">   issue a warning if you think the user is wrong.</span>
+<span class="sd">2. user_incar_settings and user_kpoints_settings are absolute. Any new sets you</span>
+<span class="sd">   implement must obey this. If a user wants to override your settings,</span>
+<span class="sd">   you assume he knows what he is doing. Do not magically override user</span>
+<span class="sd">   supplied settings. You can of course issue a warning if you think the user</span>
+<span class="sd">   is wrong.</span>
 <span class="sd">3. All input sets must save all supplied args and kwargs as instance variables.</span>
 <span class="sd">   E.g., self.my_arg = myarg and self.kwargs = kwargs in the __init__. This</span>
 <span class="sd">   ensures the as_dict and from_dict work correctly.</span>
@@ -261,6 +262,9 @@
 <span class="sd">            scales with # of atoms, the latter does not. If both are</span>
 <span class="sd">            present, EDIFF is preferred. To force such settings, just supply</span>
 <span class="sd">            user_incar_settings={&quot;EDIFF&quot;: 1e-5, &quot;LDAU&quot;: False} for example.</span>
+<span class="sd">        user_kpoints_settings (dict): Allow user to override kpoints setting by</span>
+<span class="sd">            supplying a dict. E.g., {&quot;reciprocal_density&quot;: 1000}. Default is</span>
+<span class="sd">            None.</span>
 <span class="sd">        constrain_total_magmom (bool): Whether to constrain the total magmom</span>
 <span class="sd">            (NUPDOWN in INCAR) to be the sum of the expected MAGMOM for all</span>
 <span class="sd">            species. Defaults to False.</span>
@@ -278,11 +282,12 @@
 <span class="sd">            cells, and Monkhorst-Pack otherwise.</span>
 <span class="sd">        reduce_structure (None/str): Before generating the input files,</span>
 <span class="sd">            generate the reduced structure. Default (None), does not</span>
-<span class="sd">            alter the structure. Valid values: None, &quot;niggli&quot;, &quot;LLL&quot;</span>
+<span class="sd">            alter the structure. Valid values: None, &quot;niggli&quot;, &quot;LLL&quot;.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">config_dict</span><span class="p">,</span>
                  <span class="n">files_to_transfer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">user_incar_settings</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">user_kpoints_settings</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">constrain_total_magmom</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sort_structure</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                  <span class="n">potcar_functional</span><span class="o">=</span><span class="s2">&quot;PBE&quot;</span><span class="p">,</span> <span class="n">force_gamma</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                  <span class="n">reduce_structure</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -299,6 +304,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">force_gamma</span> <span class="o">=</span> <span class="n">force_gamma</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">reduce_structure</span> <span class="o">=</span> <span class="n">reduce_structure</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">user_incar_settings</span> <span class="o">=</span> <span class="n">user_incar_settings</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user_kpoints_settings</span> <span class="o">=</span> <span class="n">user_kpoints_settings</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">incar</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -392,7 +398,8 @@
 <span class="sd">            Uses a simple approach scaling the number of divisions along each</span>
 <span class="sd">            reciprocal lattice vector proportional to its length.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">settings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_dict</span><span class="p">[</span><span class="s2">&quot;KPOINTS&quot;</span><span class="p">]</span>
+        <span class="n">settings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">user_kpoints_settings</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_dict</span><span class="p">[</span><span class="s2">&quot;KPOINTS&quot;</span><span class="p">]</span>
+
         <span class="c1"># If grid_density is in the kpoints_settings use</span>
         <span class="c1"># Kpoints.automatic_density</span>
         <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;grid_density&#39;</span><span class="p">):</span>
@@ -497,8 +504,10 @@
 <span class="sd">            prev_incar (Incar): Incar file from previous run.</span>
 <span class="sd">            prev_kpoints (Kpoints): Kpoints from previous run.</span>
 <span class="sd">            lepsilon (bool): Whether to add static dielectric calculation</span>
-<span class="sd">            reciprocal_density (int): density of k-mesh by reciprocal</span>
-<span class="sd">                volume (defaults to 100).</span>
+<span class="sd">            reciprocal_density (int): For static calculations,</span>
+<span class="sd">                we usually set the reciprocal density by voluyme. This is a</span>
+<span class="sd">                convenience arg to change that, rather than using</span>
+<span class="sd">                user_kpoints_settings. Defaults to 100.</span>
 <span class="sd">            \*\*kwargs: kwargs supported by MPRelaxSet.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">MPStaticSet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -556,7 +565,8 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">kpoints</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">config_dict</span><span class="p">[</span><span class="s2">&quot;KPOINTS&quot;</span><span class="p">][</span><span class="s2">&quot;reciprocal_density&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reciprocal_density</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config_dict</span><span class="p">[</span><span class="s2">&quot;KPOINTS&quot;</span><span class="p">][</span><span class="s2">&quot;reciprocal_density&quot;</span><span class="p">]</span> <span class="o">=</span> \
+            <span class="bp">self</span><span class="o">.</span><span class="n">reciprocal_density</span>
         <span class="n">kpoints</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">MPStaticSet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">kpoints</span>
         <span class="c1"># Prefer to use k-point scheme from previous run</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">prev_kpoints</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">prev_kpoints</span><span class="o">.</span><span class="n">style</span> <span class="o">!=</span> <span class="n">kpoints</span><span class="o">.</span><span class="n">style</span><span class="p">:</span>

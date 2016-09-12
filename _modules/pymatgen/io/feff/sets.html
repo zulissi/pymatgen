@@ -71,139 +71,88 @@
 <span class="sd">runs.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">import</span> <span class="nn">six</span>
-
-<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;Alan Dozier&quot;</span>
+<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;Alan Dozier, Kiran Mathew&quot;</span>
 <span class="n">__credits__</span> <span class="o">=</span> <span class="s2">&quot;Anubhav Jain, Shyue Ping Ong&quot;</span>
-<span class="n">__copyright__</span> <span class="o">=</span> <span class="s2">&quot;Copyright 2011, The Materials Project&quot;</span>
-<span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;1.0.3&quot;</span>
-<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s2">&quot;Alan Dozier&quot;</span>
-<span class="n">__email__</span> <span class="o">=</span> <span class="s2">&quot;adozier@uky.edu&quot;</span>
-<span class="n">__date__</span> <span class="o">=</span> <span class="s2">&quot;April 7, 2013&quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;1.1&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s2">&quot;Kiran Mathew&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s2">&quot;kmathew@lbl.gov&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span> <span class="s2">&quot;Sept 10, 2016&quot;</span>
 
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">abc</span>
+<span class="kn">import</span> <span class="nn">six</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="k">import</span> <span class="n">deepcopy</span>
 
 <span class="kn">from</span> <span class="nn">monty.serialization</span> <span class="k">import</span> <span class="n">loadfn</span>
+<span class="kn">from</span> <span class="nn">monty.json</span> <span class="k">import</span> <span class="n">MSONable</span>
 
-<span class="kn">from</span> <span class="nn">pymatgen.io.feff</span> <span class="k">import</span> <span class="n">FeffAtoms</span><span class="p">,</span> <span class="n">FeffTags</span><span class="p">,</span> <span class="n">FeffPot</span><span class="p">,</span> <span class="n">Header</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.feff.inputs</span> <span class="k">import</span> <span class="n">Atoms</span><span class="p">,</span> <span class="n">Tags</span><span class="p">,</span> <span class="n">Potential</span><span class="p">,</span> <span class="n">Header</span>
 
 
-<div class="viewcode-block" id="AbstractFeffInputSet"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.AbstractFeffInputSet">[docs]</a><span class="k">class</span> <span class="nc">AbstractFeffInputSet</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">with_metaclass</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span><span class="p">,</span> <span class="nb">object</span><span class="p">)):</span>
+<span class="n">MODULE_DIR</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">__file__</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="AbstractFeffInputSet"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.AbstractFeffInputSet">[docs]</a><span class="k">class</span> <span class="nc">AbstractFeffInputSet</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">with_metaclass</span><span class="p">(</span><span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span><span class="p">,</span> <span class="n">MSONable</span><span class="p">)):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Abstract base class representing a set of Feff input parameters.</span>
 <span class="sd">    The idea is that using a FeffInputSet, a complete set of input files</span>
-<span class="sd">    (feffPOT,feffXANES, feffEXAFS, ATOMS, feff.inp)set_</span>
+<span class="sd">    (feffPOT, feffXANES, feffEXAFS, ATOMS, feff.inp)set_</span>
 <span class="sd">    can be generated in an automated fashion for any structure.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-<div class="viewcode-block" id="AbstractFeffInputSet.get_feff_atoms"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.AbstractFeffInputSet.get_feff_atoms">[docs]</a>    <span class="k">def</span> <span class="nf">get_feff_atoms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">central_atom</span><span class="p">):</span>
+<div class="viewcode-block" id="AbstractFeffInputSet.header"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.AbstractFeffInputSet.header">[docs]</a>    <span class="k">def</span> <span class="nf">header</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns header to be used in feff.inp file from a pymatgen structure</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractproperty</span>
+    <span class="k">def</span> <span class="nf">atoms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns Atoms string from a structure that goes in feff.inp file.</span>
 
-<span class="sd">        Args:</span>
-<span class="sd">            structure: pymatgen structure object</span>
-<span class="sd">            central_atom: atom symbol string for absorbing atom</span>
-
 <span class="sd">        Returns:</span>
-<span class="sd">            FeffAtoms object.</span>
+<span class="sd">            Atoms object.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span></div>
+        <span class="k">pass</span>
 
-    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-<div class="viewcode-block" id="AbstractFeffInputSet.get_feff_tags"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.AbstractFeffInputSet.get_feff_tags">[docs]</a>    <span class="k">def</span> <span class="nf">get_feff_tags</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">calc_type</span><span class="p">):</span>
+    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractproperty</span>
+    <span class="k">def</span> <span class="nf">tags</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns standard calculation paramters for either an FEFF XANES or</span>
-<span class="sd">        EXAFS input.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            calc_type: At this time either &#39;XANES&#39; or &#39;EXAFS&#39; string is</span>
-<span class="sd">                supported for K shell excitation. In the future this will be</span>
-<span class="sd">                expanded to include other shells and material class</span>
-<span class="sd">                differentiation.</span>
+<span class="sd">        Returns standard calculation paramters.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span></div>
+        <span class="k">return</span>
 
-    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-<div class="viewcode-block" id="AbstractFeffInputSet.get_feff_pot"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.AbstractFeffInputSet.get_feff_pot">[docs]</a>    <span class="k">def</span> <span class="nf">get_feff_pot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">central_atom</span><span class="p">):</span>
+    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractproperty</span>
+    <span class="k">def</span> <span class="nf">potential</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns POTENTIAL section used in feff.inp from a structure.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            structure: pymatgen structure object</span>
-<span class="sd">            central_atom: atom symbol string for absorbing atom</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span></div>
+        <span class="k">pass</span>
 
-    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
-<div class="viewcode-block" id="AbstractFeffInputSet.get_header"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.AbstractFeffInputSet.get_header">[docs]</a>    <span class="k">def</span> <span class="nf">get_header</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">comment</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Returns header to be used in feff.inp file from a pymatgen structure</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            structure: A pymatgen structure object</span>
-<span class="sd">            source: Source identifier used to create structure, can be defined</span>
-<span class="sd">                however user wants to organize structures, calculations, etc.</span>
-<span class="sd">                example would be Materials Project material ID number.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span></div>
-
-<div class="viewcode-block" id="AbstractFeffInputSet.get_all_feff_input"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.AbstractFeffInputSet.get_all_feff_input">[docs]</a>    <span class="k">def</span> <span class="nf">get_all_feff_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">calc_type</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">central_atom</span><span class="p">,</span>
-                           <span class="n">comment</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+<div class="viewcode-block" id="AbstractFeffInputSet.all_input"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.AbstractFeffInputSet.all_input">[docs]</a>    <span class="k">def</span> <span class="nf">all_input</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Returns all input files as a dict of {filename: feffio object}</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            structure: Structure object</span>
-<span class="sd">            calc_type: At this time either &#39;XANES&#39; or &#39;EXAFS&#39; string is</span>
-<span class="sd">                supported for K shell excitation. In the future this will be</span>
-<span class="sd">                expanded to inlude other shells and material class</span>
-<span class="sd">                differentiation.</span>
-<span class="sd">            source: Source identifier used to create structure, can be defined</span>
-<span class="sd">                however user wants to organize structures, calculations, etc.</span>
-<span class="sd">                example would be Materials Project material ID number.</span>
-<span class="sd">            central_atom: Atom symbol string for absorbing atom</span>
-<span class="sd">            comment: Comment to appear in Header.</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            dict of objects used to create feff.inp file i.e. Header, FeffTags,</span>
-<span class="sd">            FeffPot, FeffAtoms</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;HEADER&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">header</span><span class="p">(),</span>
+                <span class="s2">&quot;PARAMETERS&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tags</span><span class="p">(),</span>
+                <span class="s2">&quot;POTENTIALS&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">potential</span><span class="p">(),</span>
+                <span class="s2">&quot;ATOMS&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">()}</span></div>
 
-        <span class="n">feff</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;HEADER&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_header</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">comment</span><span class="p">),</span>
-                <span class="s2">&quot;PARAMETERS&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_feff_tags</span><span class="p">(</span><span class="n">calc_type</span><span class="p">),</span>
-                <span class="s2">&quot;POTENTIALS&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_feff_pot</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">central_atom</span><span class="p">),</span>
-                <span class="s2">&quot;ATOMS&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_feff_atoms</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">central_atom</span><span class="p">)}</span>
-
-        <span class="k">return</span> <span class="n">feff</span></div>
-
-<div class="viewcode-block" id="AbstractFeffInputSet.write_input"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.AbstractFeffInputSet.write_input">[docs]</a>    <span class="k">def</span> <span class="nf">write_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">calc_type</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">central_atom</span><span class="p">,</span>
-                    <span class="n">comment</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="n">make_dir_if_not_present</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="AbstractFeffInputSet.write_input"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.AbstractFeffInputSet.write_input">[docs]</a>    <span class="k">def</span> <span class="nf">write_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="n">make_dir_if_not_present</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Writes a set of FEFF input to a directory.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            structure: Structure object</span>
-<span class="sd">            calc_type: At this time either &#39;XANES&#39; or &#39;EXAFS&#39; string is</span>
-<span class="sd">                supported for K shell excitation. In the future this will be</span>
-<span class="sd">                expanded to include other shells and material class</span>
-<span class="sd">                differentiation.</span>
-<span class="sd">            source: Source identifier used to create structure, can be defined</span>
-<span class="sd">                however user wants to organize structures, calculations, etc.</span>
-<span class="sd">                example would be Materials Project material ID number.</span>
-<span class="sd">            central_atom: Atom symbol string for absorbing atom</span>
 <span class="sd">            output_dir: Directory to output the FEFF input files</span>
-<span class="sd">            comment: comment for Header</span>
 <span class="sd">            make_dir_if_not_present: Set to True if you want the directory (</span>
 <span class="sd">                and the whole path) to be created if it is not present.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-
         <span class="k">if</span> <span class="n">make_dir_if_not_present</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">output_dir</span><span class="p">):</span>
             <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">output_dir</span><span class="p">)</span>
 
-        <span class="n">feff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_all_feff_input</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">calc_type</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span>
-                                       <span class="n">central_atom</span><span class="p">,</span> <span class="n">comment</span><span class="p">)</span>
+        <span class="n">feff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_input</span><span class="p">()</span>
 
         <span class="n">feff_input</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">feff</span><span class="p">[</span><span class="n">f</span><span class="p">])</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;HEADER&quot;</span><span class="p">,</span> <span class="s2">&quot;PARAMETERS&quot;</span><span class="p">,</span>
                                  <span class="s2">&quot;POTENTIALS&quot;</span><span class="p">,</span> <span class="s2">&quot;ATOMS&quot;</span><span class="p">])</span>
@@ -214,132 +163,116 @@
 
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output_dir</span><span class="p">,</span> <span class="s2">&quot;feff.inp&quot;</span><span class="p">),</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
             <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">feff_input</span><span class="p">)</span>
-        <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
-
-<div class="viewcode-block" id="AbstractFeffInputSet.as_dict"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.AbstractFeffInputSet.as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">calc_type</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">central_atom</span><span class="p">,</span>
-                <span class="n">comment</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Creates a feff.inp dictionary as a string&quot;&quot;&quot;</span>
-
-        <span class="n">feff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_all_feff_input</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">calc_type</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span>
-                                       <span class="n">central_atom</span><span class="p">,</span> <span class="n">comment</span><span class="p">)</span>
-        <span class="n">feff_input</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">feff</span><span class="p">[</span><span class="n">f</span><span class="p">])</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;HEADER&quot;</span><span class="p">,</span> <span class="s2">&quot;PARAMETERS&quot;</span><span class="p">,</span>
-                                 <span class="s2">&quot;POTENTIALS&quot;</span><span class="p">,</span> <span class="s2">&quot;ATOMS&quot;</span><span class="p">])</span>
-        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;@module&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span><span class="p">,</span>
-                <span class="s1">&#39;@class&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span>
-                <span class="s1">&#39;feff.inp&#39;</span><span class="p">:</span> <span class="n">feff_input</span><span class="p">}</span></div>
-
-    <span class="nd">@staticmethod</span>
-<div class="viewcode-block" id="AbstractFeffInputSet.from_dict"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.AbstractFeffInputSet.from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Return feff.inp from a dictionary string representation&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;feff.inp&#39;</span><span class="p">]</span></div></div>
+        <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div></div>
 
 
-<div class="viewcode-block" id="FeffInputSet"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.FeffInputSet">[docs]</a><span class="k">class</span> <span class="nc">FeffInputSet</span><span class="p">(</span><span class="n">AbstractFeffInputSet</span><span class="p">):</span>
+<div class="viewcode-block" id="FEFFDictSet"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.FEFFDictSet">[docs]</a><span class="k">class</span> <span class="nc">FEFFDictSet</span><span class="p">(</span><span class="n">AbstractFeffInputSet</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Standard implementation of FeffInputSet, which can be extended by specific</span>
 <span class="sd">    implementations.</span>
-
-<span class="sd">    Args:</span>
-<span class="sd">        name: The name of a grouping of input parameter sets such as</span>
-<span class="sd">            &quot;MaterialsProject&quot;.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
-        <span class="n">module_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">__file__</span><span class="p">))</span>
-        <span class="n">config</span> <span class="o">=</span> <span class="n">loadfn</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">module_dir</span><span class="p">,</span> <span class="s2">&quot;FeffInputSets.yaml&quot;</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">xanes_settings</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;feffXANES&quot;</span><span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">exafs_settings</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;feffEXAFS&quot;</span><span class="p">]</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">absorbing_atom</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">config_dict</span><span class="p">,</span>
+                 <span class="n">name</span><span class="o">=</span><span class="s2">&quot;MPFEFF&quot;</span><span class="p">,</span> <span class="n">user_tag_settings</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
 
-<div class="viewcode-block" id="FeffInputSet.get_header"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.FeffInputSet.get_header">[docs]</a>    <span class="k">def</span> <span class="nf">get_header</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">comment</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+<span class="sd">        Args:</span>
+<span class="sd">            absorbing_atom (str): absorbing atom symbol</span>
+<span class="sd">            structure (Structure): input structure</span>
+<span class="sd">            radius (float): cluster radius</span>
+<span class="sd">            config_dict (dict): control tag settings dict</span>
+<span class="sd">            name (str)</span>
+<span class="sd">            user_tag_settings (dict): override default tag settings</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">absorbing_atom</span> <span class="o">=</span> <span class="n">absorbing_atom</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">structure</span> <span class="o">=</span> <span class="n">structure</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">radius</span> <span class="o">=</span> <span class="n">radius</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config_dict</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">config_dict</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">user_tag_settings</span> <span class="o">=</span> <span class="n">user_tag_settings</span> <span class="ow">or</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="FEFFDictSet.header"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.FEFFDictSet.header">[docs]</a>    <span class="k">def</span> <span class="nf">header</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">comment</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Creates header string from structure object</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            structure: A pymatgen structure object</span>
 <span class="sd">            source: Source identifier used to create structure, can be defined</span>
 <span class="sd">                however user wants to organize structures, calculations, etc.</span>
 <span class="sd">                example would be Materials Project material ID number.</span>
 <span class="sd">            comment: comment to include in header</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            Header object to be used in feff.inp file from a pymatgen structure</span>
+<span class="sd">            Header</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">Header</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">comment</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">Header</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="n">comment</span><span class="p">)</span></div>
 
-<div class="viewcode-block" id="FeffInputSet.get_feff_tags"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.FeffInputSet.get_feff_tags">[docs]</a>    <span class="k">def</span> <span class="nf">get_feff_tags</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">calc_type</span><span class="p">):</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">tags</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Reads standard parameters for XANES or EXAFS calculation</span>
-<span class="sd">        from FeffInputSets.yaml file.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            calc_type: At this time either &#39;XANES&#39; or &#39;EXAFS&#39; string is</span>
-<span class="sd">                supported for K shell excitation. In the future this will be</span>
-<span class="sd">                expanded to include other shells and material class</span>
-<span class="sd">                differentiation.</span>
+<span class="sd">        FEFF job parameters.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            FeffTags object</span>
+<span class="sd">            Tags</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">settings</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config_dict</span><span class="p">)</span>
+        <span class="n">settings</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">user_tag_settings</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">calc_type</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;XANES&quot;</span><span class="p">:</span>
-            <span class="n">fefftags</span> <span class="o">=</span> <span class="n">FeffTags</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">xanes_settings</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">calc_type</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;EXAFS&quot;</span><span class="p">:</span>
-            <span class="n">fefftags</span> <span class="o">=</span> <span class="n">FeffTags</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exafs_settings</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> is not a valid calculation type&quot;</span>
-                             <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">calc_type</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">Tags</span><span class="p">(</span><span class="n">settings</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">fefftags</span></div>
-
-<div class="viewcode-block" id="FeffInputSet.get_feff_pot"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.FeffInputSet.get_feff_pot">[docs]</a>    <span class="k">def</span> <span class="nf">get_feff_pot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">central_atom</span><span class="p">):</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">potential</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Creates string representation of potentials used in POTENTIAL file and</span>
-<span class="sd">        feff.inp.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            structure: pymatgen structure object</span>
-<span class="sd">            central_atom: atom symbol string for absorbing atom</span>
+<span class="sd">        FEFF potential</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            FeffPot object</span>
+<span class="sd">            Potential</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">FeffPot</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">central_atom</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">Potential</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">absorbing_atom</span><span class="p">)</span>
 
-<div class="viewcode-block" id="FeffInputSet.get_feff_atoms"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.FeffInputSet.get_feff_atoms">[docs]</a>    <span class="k">def</span> <span class="nf">get_feff_atoms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">central_atom</span><span class="p">):</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">atoms</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Creates string representation of atomic shell coordinates using in</span>
-<span class="sd">        ATOMS file and feff.inp.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            structure: pymatgen structure object</span>
-<span class="sd">            central_atom: atom symbol string for absorbing atom</span>
+<span class="sd">        absorber + the rest</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            FeffAtoms object</span>
+<span class="sd">            Atoms</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">FeffAtoms</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">central_atom</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">Atoms</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">absorbing_atom</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_dict</span>
         <span class="n">output</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
-        <span class="n">section_names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;XANES&quot;</span><span class="p">,</span> <span class="s2">&quot;EXAFS&quot;</span><span class="p">]</span>
-        <span class="k">for</span> <span class="n">ns</span> <span class="ow">in</span> <span class="n">section_names</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">xanes_settings</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">exafs_settings</span><span class="p">]:</span>
-                <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ns</span><span class="p">)</span>
-                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
-                    <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> = </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">)))</span>
-                <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
-
+        <span class="n">output</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> = </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">))</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="n">d</span><span class="p">)])</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="MaterialsProjectFeffInputSet"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.MaterialsProjectFeffInputSet">[docs]</a><span class="k">class</span> <span class="nc">MaterialsProjectFeffInputSet</span><span class="p">(</span><span class="n">FeffInputSet</span><span class="p">):</span>
+<div class="viewcode-block" id="MPXANESSet"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.MPXANESSet">[docs]</a><span class="k">class</span> <span class="nc">MPXANESSet</span><span class="p">(</span><span class="n">FEFFDictSet</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Implementation of FeffInputSet utilizing parameters in the public</span>
-<span class="sd">    Materials Project.</span>
+<span class="sd">    FeffDictSet for XANES</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">MaterialsProjectFeffInputSet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="s2">&quot;MaterialsProject&quot;</span><span class="p">)</span></div>
+
+    <span class="n">CONFIG</span> <span class="o">=</span> <span class="n">loadfn</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s2">&quot;MPXANESSet.yaml&quot;</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">absorbing_atom</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mf">10.</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;MPXANES&quot;</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">MPXANESSet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">absorbing_atom</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span>
+                                         <span class="n">MPXANESSet</span><span class="o">.</span><span class="n">CONFIG</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="n">kwargs</span></div>
+
+
+<div class="viewcode-block" id="MPEXAFSSet"><a class="viewcode-back" href="../../../../pymatgen.io.feff.html#pymatgen.io.feff.sets.MPEXAFSSet">[docs]</a><span class="k">class</span> <span class="nc">MPEXAFSSet</span><span class="p">(</span><span class="n">FEFFDictSet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    FeffDictSet for EXAFS.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">CONFIG</span> <span class="o">=</span> <span class="n">loadfn</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">MODULE_DIR</span><span class="p">,</span> <span class="s2">&quot;MPEXAFSSet.yaml&quot;</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">absorbing_atom</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mf">10.</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;MPEXAFS&quot;</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">MPEXAFSSet</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">absorbing_atom</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span>
+                                         <span class="n">MPEXAFSSet</span><span class="o">.</span><span class="n">CONFIG</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="n">kwargs</span></div>
 </pre></div>
 
           </div>

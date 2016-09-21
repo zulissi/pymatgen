@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.vasp.outputs &#8212; pymatgen 4.3.1 documentation</title>
+    <title>pymatgen.io.vasp.outputs &#8212; pymatgen 4.3.2 documentation</title>
     
     <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../../',
-        VERSION:     '4.3.1',
+        VERSION:     '4.3.2',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -25,7 +25,7 @@
     <script type="text/javascript" src="../../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
-    <link rel="top" title="pymatgen 4.3.1 documentation" href="../../../../index.html" />
+    <link rel="top" title="pymatgen 4.3.2 documentation" href="../../../../index.html" />
     <link rel="up" title="Module code" href="../../../index.html" />
  
 <script type="text/javascript">
@@ -45,7 +45,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.3.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.3.2 documentation</a> &#187;</li>
           <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
       </ul>
     </div>  
@@ -296,8 +296,9 @@
 
 <span class="sd">    .. attribute:: projected_eigenvalues</span>
 
-<span class="sd">        Final projected eigenvalues as a dict of</span>
-<span class="sd">        {(atom index, band index, kpoint index, Orbital, Spin):float}</span>
+<span class="sd">        Final projected eigenvalues as a dict of {spin: nd-array}. To access</span>
+<span class="sd">        a particular value, you need to do</span>
+<span class="sd">        Vasprun.projected_eigenvalues[spin][kpoint index][band index][atom index][orbital_index]</span>
 <span class="sd">        This representation is based on actual ordering in VASP and is meant as</span>
 <span class="sd">        an intermediate representation to be converted into proper objects. The</span>
 <span class="sd">        kpoint, band and atom indices are 0-based (unlike the 1-based indexing</span>
@@ -757,35 +758,30 @@
 
         <span class="n">kpoints</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">actual_kpoints</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
                    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">actual_kpoints</span><span class="p">))]</span>
-        <span class="n">dict_eigen</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()[</span><span class="s1">&#39;output&#39;</span><span class="p">][</span><span class="s1">&#39;eigenvalues&#39;</span><span class="p">]</span>
-        <span class="n">dict_p_eigen</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">if</span> <span class="s1">&#39;projected_eigenvalues&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()[</span><span class="s1">&#39;output&#39;</span><span class="p">]:</span>
-            <span class="n">dict_p_eigen</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()[</span><span class="s1">&#39;output&#39;</span><span class="p">][</span><span class="s1">&#39;projected_eigenvalues&#39;</span><span class="p">]</span>
 
         <span class="n">p_eigenvals</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
         <span class="n">eigenvals</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
 
-        <span class="n">neigenvalues</span> <span class="o">=</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="s1">&#39;1&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">dict_eigen</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+        <span class="n">nkpts</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">kpoints</span><span class="p">)</span>
+
+        <span class="n">neigenvalues</span> <span class="o">=</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">eigenvalues</span><span class="p">[</span><span class="n">Spin</span><span class="o">.</span><span class="n">up</span><span class="p">]]</span>
         <span class="n">min_eigenvalues</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">neigenvalues</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">min_eigenvalues</span><span class="p">):</span>
-            <span class="n">eigenvals</span><span class="p">[</span><span class="n">Spin</span><span class="o">.</span><span class="n">up</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">dict_eigen</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">j</span><span class="p">)][</span><span class="s1">&#39;1&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-                                       <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">kpoints</span><span class="p">))])</span>
-            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dict_p_eigen</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">p_eigenvals</span><span class="p">[</span><span class="n">Spin</span><span class="o">.</span><span class="n">up</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                    <span class="p">[{</span><span class="n">Orbital</span><span class="p">[</span><span class="n">orb</span><span class="p">]:</span> <span class="n">dict_p_eigen</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="s1">&#39;1&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="n">orb</span><span class="p">]</span>
-                      <span class="k">for</span> <span class="n">orb</span> <span class="ow">in</span> <span class="n">dict_p_eigen</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="s1">&#39;1&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]}</span>
-                     <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">kpoints</span><span class="p">))])</span>
-        <span class="k">if</span> <span class="s2">&quot;1&quot;</span> <span class="ow">in</span> <span class="n">dict_eigen</span><span class="p">[</span><span class="s2">&quot;0&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="s2">&quot;-1&quot;</span> <span class="ow">in</span> <span class="n">dict_eigen</span><span class="p">[</span><span class="s2">&quot;0&quot;</span><span class="p">]</span> \
-                <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">incar</span><span class="p">[</span><span class="s1">&#39;ISPIN&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">min_eigenvalues</span><span class="p">):</span>
-                <span class="n">eigenvals</span><span class="p">[</span><span class="n">Spin</span><span class="o">.</span><span class="n">down</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">dict_eigen</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">j</span><span class="p">)][</span><span class="s1">&#39;-1&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
-                                             <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">kpoints</span><span class="p">))])</span>
-                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dict_p_eigen</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-                    <span class="n">p_eigenvals</span><span class="p">[</span><span class="n">Spin</span><span class="o">.</span><span class="n">down</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                        <span class="p">[{</span><span class="n">Orbital</span><span class="p">[</span><span class="n">orb</span><span class="p">]:</span> <span class="n">dict_p_eigen</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="s1">&#39;-1&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="n">orb</span><span class="p">]</span>
-                          <span class="k">for</span> <span class="n">orb</span> <span class="ow">in</span> <span class="n">dict_p_eigen</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="s1">&#39;-1&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]}</span>
-                         <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">kpoints</span><span class="p">))]</span>
-                    <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">spin</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">eigenvalues</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">eigenvals</span><span class="p">[</span><span class="n">spin</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">projected_eigenvalues</span><span class="p">:</span>
+                <span class="n">peigen</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">projected_eigenvalues</span><span class="p">[</span><span class="n">spin</span><span class="p">]</span>
+                <span class="c1"># Original axes for self.projected_eigenvalues are kpoints,</span>
+                <span class="c1"># band, ion, orb.</span>
+                <span class="c1"># For BS input, we need band, kpoints, orb, ion.</span>
+                <span class="n">peigen</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="n">peigen</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>  <span class="c1"># Swap kpoint and band axes</span>
+                <span class="n">peigen</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="n">peigen</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>  <span class="c1"># Swap ion and orb axes</span>
+                <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">min_eigenvalues</span><span class="p">):</span>
+                    <span class="n">p_eigenvals</span><span class="p">[</span><span class="n">spin</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="p">[{</span><span class="n">Orbital</span><span class="p">(</span><span class="n">orb</span><span class="p">):</span> <span class="n">v</span> <span class="k">for</span> <span class="n">orb</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">peigen</span><span class="p">[</span><span class="n">b</span><span class="p">,</span> <span class="n">k</span><span class="p">])}</span>
+                         <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nkpts</span><span class="p">)])</span>
 
         <span class="c1"># check if we have an hybrid band structure computation</span>
         <span class="c1"># for this we look at the presence of the LHFCALC tag</span>
@@ -850,14 +846,15 @@
         <span class="n">vbm_kpoint</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">cbm</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;inf&quot;</span><span class="p">)</span>
         <span class="n">cbm_kpoint</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">for</span> <span class="p">(</span><span class="n">spin</span><span class="p">,</span> <span class="n">k</span><span class="p">),</span> <span class="n">val</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">eigenvalues</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">for</span> <span class="p">(</span><span class="n">eigenval</span><span class="p">,</span> <span class="n">occu</span><span class="p">)</span> <span class="ow">in</span> <span class="n">val</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">occu</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">occu_tol</span> <span class="ow">and</span> <span class="n">eigenval</span> <span class="o">&gt;</span> <span class="n">vbm</span><span class="p">:</span>
-                    <span class="n">vbm</span> <span class="o">=</span> <span class="n">eigenval</span>
-                    <span class="n">vbm_kpoint</span> <span class="o">=</span> <span class="n">k</span>
-                <span class="k">elif</span> <span class="n">occu</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">occu_tol</span> <span class="ow">and</span> <span class="n">eigenval</span> <span class="o">&lt;</span> <span class="n">cbm</span><span class="p">:</span>
-                    <span class="n">cbm</span> <span class="o">=</span> <span class="n">eigenval</span>
-                    <span class="n">cbm_kpoint</span> <span class="o">=</span> <span class="n">k</span>
+        <span class="k">for</span> <span class="n">spin</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">eigenvalues</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+                <span class="k">for</span> <span class="p">(</span><span class="n">eigenval</span><span class="p">,</span> <span class="n">occu</span><span class="p">)</span> <span class="ow">in</span> <span class="n">val</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">occu</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">occu_tol</span> <span class="ow">and</span> <span class="n">eigenval</span> <span class="o">&gt;</span> <span class="n">vbm</span><span class="p">:</span>
+                        <span class="n">vbm</span> <span class="o">=</span> <span class="n">eigenval</span>
+                        <span class="n">vbm_kpoint</span> <span class="o">=</span> <span class="n">k</span>
+                    <span class="k">elif</span> <span class="n">occu</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">occu_tol</span> <span class="ow">and</span> <span class="n">eigenval</span> <span class="o">&lt;</span> <span class="n">cbm</span><span class="p">:</span>
+                        <span class="n">cbm</span> <span class="o">=</span> <span class="n">eigenval</span>
+                        <span class="n">cbm_kpoint</span> <span class="o">=</span> <span class="n">k</span>
         <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="n">cbm</span> <span class="o">-</span> <span class="n">vbm</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">cbm</span><span class="p">,</span> <span class="n">vbm</span><span class="p">,</span> <span class="n">vbm_kpoint</span> <span class="o">==</span> <span class="n">cbm_kpoint</span>
 
 <div class="viewcode-block" id="Vasprun.update_potcar_spec"><a class="viewcode-back" href="../../../../pymatgen.io.vasp.html#pymatgen.io.vasp.outputs.Vasprun.update_potcar_spec">[docs]</a>    <span class="k">def</span> <span class="nf">update_potcar_spec</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
@@ -951,30 +948,17 @@
                     <span class="s2">&quot;efermi&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">efermi</span><span class="p">}</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">eigenvalues</span><span class="p">:</span>
-            <span class="n">eigen</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
-            <span class="k">for</span> <span class="p">(</span><span class="n">spin</span><span class="p">,</span> <span class="n">index</span><span class="p">),</span> <span class="n">values</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">eigenvalues</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="n">eigen</span><span class="p">[</span><span class="n">index</span><span class="p">][</span><span class="nb">str</span><span class="p">(</span><span class="n">spin</span><span class="p">)]</span> <span class="o">=</span> <span class="n">values</span>
-                <span class="n">neigen</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+            <span class="n">eigen</span> <span class="o">=</span> <span class="p">{</span><span class="nb">str</span><span class="p">(</span><span class="n">spin</span><span class="p">):</span> <span class="n">v</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+                     <span class="k">for</span> <span class="n">spin</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">eigenvalues</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
             <span class="n">vout</span><span class="p">[</span><span class="s2">&quot;eigenvalues&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">eigen</span>
             <span class="p">(</span><span class="n">gap</span><span class="p">,</span> <span class="n">cbm</span><span class="p">,</span> <span class="n">vbm</span><span class="p">,</span> <span class="n">is_direct</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">eigenvalue_band_properties</span>
             <span class="n">vout</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">bandgap</span><span class="o">=</span><span class="n">gap</span><span class="p">,</span> <span class="n">cbm</span><span class="o">=</span><span class="n">cbm</span><span class="p">,</span> <span class="n">vbm</span><span class="o">=</span><span class="n">vbm</span><span class="p">,</span>
                              <span class="n">is_gap_direct</span><span class="o">=</span><span class="n">is_direct</span><span class="p">))</span>
 
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">projected_eigenvalues</span><span class="p">:</span>
-                <span class="n">peigen</span> <span class="o">=</span> <span class="p">[]</span>
-                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">eigen</span><span class="p">)):</span>
-                    <span class="n">peigen</span><span class="o">.</span><span class="n">append</span><span class="p">({})</span>
-                <span class="k">for</span> <span class="p">(</span><span class="n">spin</span><span class="p">,</span> <span class="n">kpoint_index</span><span class="p">,</span> <span class="n">band_index</span><span class="p">,</span> <span class="n">ion_index</span><span class="p">,</span> <span class="n">orbital</span><span class="p">),</span> \
-                        <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">projected_eigenvalues</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                    <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">spin</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">peigen</span><span class="p">[</span><span class="n">kpoint_index</span><span class="p">]:</span>
-                        <span class="n">peigen</span><span class="p">[</span><span class="n">kpoint_index</span><span class="p">][</span><span class="nb">str</span><span class="p">(</span><span class="n">spin</span><span class="p">)]</span> <span class="o">=</span> <span class="p">[]</span>
-                        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">neigen</span><span class="p">):</span>
-                            <span class="n">peigen</span><span class="p">[</span><span class="n">kpoint_index</span><span class="p">][</span><span class="nb">str</span><span class="p">(</span><span class="n">spin</span><span class="p">)]</span><span class="o">.</span><span class="n">append</span><span class="p">({})</span>
-                    <span class="n">beigen</span> <span class="o">=</span> <span class="n">peigen</span><span class="p">[</span><span class="n">kpoint_index</span><span class="p">][</span><span class="nb">str</span><span class="p">(</span><span class="n">spin</span><span class="p">)][</span><span class="n">band_index</span><span class="p">]</span>
-                    <span class="k">if</span> <span class="n">orbital</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">beigen</span><span class="p">:</span>
-                        <span class="n">beigen</span><span class="p">[</span><span class="n">orbital</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">]</span> <span class="o">*</span> <span class="n">nsites</span>
-                    <span class="n">beigen</span><span class="p">[</span><span class="n">orbital</span><span class="p">][</span><span class="n">ion_index</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
-                <span class="n">vout</span><span class="p">[</span><span class="s1">&#39;projected_eigenvalues&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">peigen</span>
+                <span class="n">vout</span><span class="p">[</span><span class="s1">&#39;projected_eigenvalues&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">spin</span><span class="p">):</span> <span class="n">v</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+                    <span class="k">for</span> <span class="n">spin</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">projected_eigenvalues</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
 
         <span class="n">vout</span><span class="p">[</span><span class="s1">&#39;epsilon_static&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">epsilon_static</span>
         <span class="n">vout</span><span class="p">[</span><span class="s1">&#39;epsilon_static_wolfe&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">epsilon_static_wolfe</span>
@@ -1075,7 +1059,6 @@
         <span class="k">return</span> <span class="p">[</span><span class="n">e</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">imag</span><span class="p">],</span> \
                <span class="p">[</span><span class="n">e</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">real</span><span class="p">],</span> <span class="p">[</span><span class="n">e</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">imag</span><span class="p">]</span>
 
-
     <span class="k">def</span> <span class="nf">_parse_chemical_shift_calculation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elem</span><span class="p">):</span>
         <span class="n">calculation</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">istep</span> <span class="o">=</span> <span class="p">{}</span>
@@ -1107,7 +1090,6 @@
                 <span class="k">pass</span>
         <span class="n">calculation</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">calculation</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;electronic_steps&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
         <span class="k">return</span> <span class="n">calculation</span>
-
 
     <span class="k">def</span> <span class="nf">_parse_calculation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elem</span><span class="p">):</span>
         <span class="k">try</span><span class="p">:</span>
@@ -1175,25 +1157,30 @@
             <span class="n">Dos</span><span class="p">(</span><span class="n">efermi</span><span class="p">,</span> <span class="n">energies</span><span class="p">,</span> <span class="n">idensities</span><span class="p">),</span> <span class="n">pdoss</span>
 
     <span class="k">def</span> <span class="nf">_parse_eigen</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elem</span><span class="p">):</span>
-        <span class="n">eigenvalues</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">eigenvalues</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">elem</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;array&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;set&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s2">&quot;set&quot;</span><span class="p">):</span>
             <span class="n">spin</span> <span class="o">=</span> <span class="n">Spin</span><span class="o">.</span><span class="n">up</span> <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s2">&quot;comment&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;spin 1&quot;</span> <span class="k">else</span> <span class="n">Spin</span><span class="o">.</span><span class="n">down</span>
-            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">ss</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s2">&quot;set&quot;</span><span class="p">)):</span>
-                <span class="n">eigenvalues</span><span class="p">[(</span><span class="n">spin</span><span class="p">,</span> <span class="n">i</span><span class="p">)]</span> <span class="o">=</span> <span class="n">_parse_varray</span><span class="p">(</span><span class="n">ss</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">ss</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s2">&quot;set&quot;</span><span class="p">):</span>
+                <span class="n">eigenvalues</span><span class="p">[</span><span class="n">spin</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_parse_varray</span><span class="p">(</span><span class="n">ss</span><span class="p">))</span>
+        <span class="n">eigenvalues</span> <span class="o">=</span> <span class="p">{</span><span class="n">spin</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">spin</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">eigenvalues</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
         <span class="n">elem</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">eigenvalues</span>
 
     <span class="k">def</span> <span class="nf">_parse_projected_eigen</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elem</span><span class="p">):</span>
         <span class="n">root</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;array&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;set&quot;</span><span class="p">)</span>
-        <span class="n">proj_eigen</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">proj_eigen</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">root</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s2">&quot;set&quot;</span><span class="p">):</span>
             <span class="n">spin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s2">&quot;spin(\d+)&quot;</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">attrib</span><span class="p">[</span><span class="s2">&quot;comment&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+
+            <span class="c1"># Force spin to be +1 or -1</span>
+            <span class="n">spin</span> <span class="o">=</span> <span class="n">Spin</span><span class="o">.</span><span class="n">up</span> <span class="k">if</span> <span class="n">spin</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">Spin</span><span class="o">.</span><span class="n">down</span>
             <span class="k">for</span> <span class="n">kpt</span><span class="p">,</span> <span class="n">ss</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s2">&quot;set&quot;</span><span class="p">)):</span>
+                <span class="n">dk</span> <span class="o">=</span> <span class="p">[]</span>
                 <span class="k">for</span> <span class="n">band</span><span class="p">,</span> <span class="n">sss</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">ss</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s2">&quot;set&quot;</span><span class="p">)):</span>
-                    <span class="k">for</span> <span class="n">atom</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">_parse_varray</span><span class="p">(</span><span class="n">sss</span><span class="p">)):</span>
-                        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
-                            <span class="n">orb</span> <span class="o">=</span> <span class="n">Orbital</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
-                            <span class="n">proj_eigen</span><span class="p">[(</span><span class="n">spin</span><span class="p">,</span> <span class="n">kpt</span><span class="p">,</span> <span class="n">band</span><span class="p">,</span> <span class="n">atom</span><span class="p">,</span> <span class="n">orb</span><span class="p">)]</span> <span class="o">=</span> <span class="n">v</span>
+                    <span class="n">db</span> <span class="o">=</span> <span class="n">_parse_varray</span><span class="p">(</span><span class="n">sss</span><span class="p">)</span>
+                    <span class="n">dk</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">db</span><span class="p">)</span>
+                <span class="n">proj_eigen</span><span class="p">[</span><span class="n">spin</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dk</span><span class="p">)</span>
+        <span class="n">proj_eigen</span> <span class="o">=</span> <span class="p">{</span><span class="n">spin</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">spin</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">proj_eigen</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
         <span class="n">elem</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">proj_eigen</span>
 
@@ -1310,16 +1297,14 @@
         <span class="n">vin</span><span class="p">[</span><span class="s2">&quot;lattice_rec&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lattice_rec</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span>
         <span class="n">d</span><span class="p">[</span><span class="s2">&quot;input&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">vin</span>
 
-        <span class="n">nsites</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">final_structure</span><span class="p">)</span>
-
         <span class="n">vout</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;crystal&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">final_structure</span><span class="o">.</span><span class="n">as_dict</span><span class="p">(),</span>
                 <span class="s2">&quot;efermi&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">efermi</span><span class="p">}</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">eigenvalues</span><span class="p">:</span>
             <span class="n">eigen</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
-            <span class="k">for</span> <span class="p">(</span><span class="n">spin</span><span class="p">,</span> <span class="n">index</span><span class="p">),</span> <span class="n">values</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">eigenvalues</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="n">eigen</span><span class="p">[</span><span class="n">index</span><span class="p">][</span><span class="nb">str</span><span class="p">(</span><span class="n">spin</span><span class="p">)]</span> <span class="o">=</span> <span class="n">values</span>
-                <span class="n">neigen</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">spin</span><span class="p">,</span> <span class="n">values</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">eigenvalues</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
+                    <span class="n">eigen</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="nb">str</span><span class="p">(</span><span class="n">spin</span><span class="p">)]</span> <span class="o">=</span> <span class="n">v</span>
             <span class="n">vout</span><span class="p">[</span><span class="s2">&quot;eigenvalues&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">eigen</span>
             <span class="p">(</span><span class="n">gap</span><span class="p">,</span> <span class="n">cbm</span><span class="p">,</span> <span class="n">vbm</span><span class="p">,</span> <span class="n">is_direct</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">eigenvalue_band_properties</span>
             <span class="n">vout</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">bandgap</span><span class="o">=</span><span class="n">gap</span><span class="p">,</span> <span class="n">cbm</span><span class="o">=</span><span class="n">cbm</span><span class="p">,</span> <span class="n">vbm</span><span class="o">=</span><span class="n">vbm</span><span class="p">,</span>
@@ -1329,16 +1314,10 @@
                 <span class="n">peigen</span> <span class="o">=</span> <span class="p">[]</span>
                 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">eigen</span><span class="p">)):</span>
                     <span class="n">peigen</span><span class="o">.</span><span class="n">append</span><span class="p">({})</span>
-                <span class="k">for</span> <span class="p">(</span><span class="n">spin</span><span class="p">,</span> <span class="n">kpoint_index</span><span class="p">,</span> <span class="n">band_index</span><span class="p">,</span> <span class="n">ion_index</span><span class="p">,</span> <span class="n">orbital</span><span class="p">),</span> \
-                        <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">projected_eigenvalues</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                    <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">spin</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">peigen</span><span class="p">[</span><span class="n">kpoint_index</span><span class="p">]:</span>
-                        <span class="n">peigen</span><span class="p">[</span><span class="n">kpoint_index</span><span class="p">][</span><span class="nb">str</span><span class="p">(</span><span class="n">spin</span><span class="p">)]</span> <span class="o">=</span> <span class="p">[]</span>
-                        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">neigen</span><span class="p">):</span>
-                            <span class="n">peigen</span><span class="p">[</span><span class="n">kpoint_index</span><span class="p">][</span><span class="nb">str</span><span class="p">(</span><span class="n">spin</span><span class="p">)]</span><span class="o">.</span><span class="n">append</span><span class="p">({})</span>
-                    <span class="n">beigen</span> <span class="o">=</span> <span class="n">peigen</span><span class="p">[</span><span class="n">kpoint_index</span><span class="p">][</span><span class="nb">str</span><span class="p">(</span><span class="n">spin</span><span class="p">)][</span><span class="n">band_index</span><span class="p">]</span>
-                    <span class="k">if</span> <span class="n">orbital</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">beigen</span><span class="p">:</span>
-                        <span class="n">beigen</span><span class="p">[</span><span class="n">orbital</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">]</span> <span class="o">*</span> <span class="n">nsites</span>
-                    <span class="n">beigen</span><span class="p">[</span><span class="n">orbital</span><span class="p">][</span><span class="n">ion_index</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+                <span class="k">for</span> <span class="n">spin</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">projected_eigenvalues</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">for</span> <span class="n">kpoint_index</span><span class="p">,</span> <span class="n">vv</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">spin</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">peigen</span><span class="p">[</span><span class="n">kpoint_index</span><span class="p">]:</span>
+                            <span class="n">peigen</span><span class="p">[</span><span class="n">kpoint_index</span><span class="p">][</span><span class="nb">str</span><span class="p">(</span><span class="n">spin</span><span class="p">)]</span> <span class="o">=</span> <span class="n">vv</span>
                 <span class="n">vout</span><span class="p">[</span><span class="s1">&#39;projected_eigenvalues&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">peigen</span>
 
         <span class="n">d</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">vout</span>
@@ -3131,7 +3110,7 @@
         <li class="right" >
           <a href="../../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.3.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.3.2 documentation</a> &#187;</li>
           <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
       </ul>
     </div>

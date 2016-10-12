@@ -25,6 +25,8 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
     <link rel="top" title="pymatgen 4.4.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
@@ -79,6 +81,7 @@
 <span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">time</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="k">try</span><span class="p">:</span>
@@ -95,6 +98,7 @@
 <span class="kn">from</span> <span class="nn">pymatgen.util.coord_utils</span> <span class="k">import</span> <span class="n">in_coord_list</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="k">import</span> <span class="n">Specie</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="k">import</span> <span class="n">Structure</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.sites</span> <span class="k">import</span> <span class="n">PeriodicSite</span>
 
 
 <span class="n">module_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">__file__</span><span class="p">))</span>
@@ -271,7 +275,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">helptxt_actor</span><span class="o">.</span><span class="n">SetPosition</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">helptxt_actor</span><span class="o">.</span><span class="n">VisibilityOn</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="StructureVis.set_structure"><a class="viewcode-back" href="../../../pymatgen.vis.html#pymatgen.vis.structure_vtk.StructureVis.set_structure">[docs]</a>    <span class="k">def</span> <span class="nf">set_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">reset_camera</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="StructureVis.set_structure"><a class="viewcode-back" href="../../../pymatgen.vis.html#pymatgen.vis.structure_vtk.StructureVis.set_structure">[docs]</a>    <span class="k">def</span> <span class="nf">set_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">reset_camera</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">to_unit_cell</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Add a structure to the visualizer.</span>
 
@@ -279,14 +283,15 @@
 <span class="sd">            structure: structure to visualize</span>
 <span class="sd">            reset_camera: Set to True to reset the camera to a default</span>
 <span class="sd">                determined based on the structure.</span>
+<span class="sd">            to_unit_cell: Whether or not to fall back sites into the unit cell.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ren</span><span class="o">.</span><span class="n">RemoveAllViewProps</span><span class="p">()</span>
 
         <span class="n">has_lattice</span> <span class="o">=</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="s2">&quot;lattice&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">has_lattice</span><span class="p">:</span>
-            <span class="n">s</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_sites</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">to_unit_cell</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            <span class="n">s</span><span class="o">.</span><span class="n">make_supercell</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">supercell</span><span class="p">)</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_sites</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="n">to_unit_cell</span><span class="o">=</span><span class="n">to_unit_cell</span><span class="p">)</span>
+            <span class="n">s</span><span class="o">.</span><span class="n">make_supercell</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">supercell</span><span class="p">,</span> <span class="n">to_unit_cell</span><span class="o">=</span><span class="n">to_unit_cell</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">s</span> <span class="o">=</span> <span class="n">structure</span>
 
@@ -336,12 +341,12 @@
                         <span class="k">break</span>
                     <span class="n">max_radius</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">max_radius</span><span class="p">,</span> <span class="n">sp</span><span class="o">.</span><span class="n">average_ionic_radius</span><span class="p">)</span>
                     <span class="n">color</span> <span class="o">=</span> <span class="n">color</span> <span class="o">+</span> \
-                        <span class="n">occu</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">el_color_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">symbol</span><span class="p">,</span>
-                                                                  <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span>
+                            <span class="n">occu</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">el_color_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">sp</span><span class="o">.</span><span class="n">symbol</span><span class="p">,</span>
+                                                                      <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span>
 
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">exclude</span><span class="p">:</span>
                     <span class="n">max_radius</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">poly_radii_tol_factor</span><span class="p">)</span> <span class="o">*</span> \
-                        <span class="p">(</span><span class="n">max_radius</span> <span class="o">+</span> <span class="n">anion_radius</span><span class="p">)</span>
+                                 <span class="p">(</span><span class="n">max_radius</span> <span class="o">+</span> <span class="n">anion_radius</span><span class="p">)</span>
                     <span class="n">nn</span> <span class="o">=</span> <span class="n">structure</span><span class="o">.</span><span class="n">get_neighbors</span><span class="p">(</span><span class="n">site</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">max_radius</span><span class="p">))</span>
                     <span class="n">nn_sites</span> <span class="o">=</span> <span class="p">[]</span>
                     <span class="k">for</span> <span class="n">nnsite</span><span class="p">,</span> <span class="n">dist</span> <span class="ow">in</span> <span class="n">nn</span><span class="p">:</span>
@@ -368,7 +373,7 @@
                 <span class="c1">#Adjust the camera for best viewing</span>
                 <span class="n">lengths</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">abc</span>
                 <span class="n">pos</span> <span class="o">=</span> <span class="p">(</span><span class="n">matrix</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">matrix</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">*</span> <span class="mf">0.5</span> <span class="o">+</span> \
-                    <span class="n">matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="n">lengths</span><span class="p">)</span> <span class="o">/</span> <span class="n">lengths</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mf">3.5</span>
+                      <span class="n">matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="n">lengths</span><span class="p">)</span> <span class="o">/</span> <span class="n">lengths</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mf">3.5</span>
                 <span class="n">camera</span><span class="o">.</span><span class="n">SetPosition</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
                 <span class="n">camera</span><span class="o">.</span><span class="n">SetViewUp</span><span class="p">(</span><span class="n">matrix</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
                 <span class="n">camera</span><span class="o">.</span><span class="n">SetFocalPoint</span><span class="p">((</span><span class="n">matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">matrix</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">matrix</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">*</span> <span class="mf">0.5</span><span class="p">)</span>
@@ -417,30 +422,32 @@
         <span class="k">for</span> <span class="n">specie</span><span class="p">,</span> <span class="n">occu</span> <span class="ow">in</span> <span class="n">site</span><span class="o">.</span><span class="n">species_and_occu</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="n">radius</span> <span class="o">+=</span> <span class="n">occu</span> <span class="o">*</span> <span class="p">(</span><span class="n">specie</span><span class="o">.</span><span class="n">ionic_radius</span>
                               <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">specie</span><span class="p">,</span> <span class="n">Specie</span><span class="p">)</span>
-                              <span class="ow">and</span> <span class="n">specie</span><span class="o">.</span><span class="n">ionic_radius</span>
+                                 <span class="ow">and</span> <span class="n">specie</span><span class="o">.</span><span class="n">ionic_radius</span>
                               <span class="k">else</span> <span class="n">specie</span><span class="o">.</span><span class="n">average_ionic_radius</span><span class="p">)</span>
             <span class="n">total_occu</span> <span class="o">+=</span> <span class="n">occu</span>
+
+        <span class="n">vis_radius</span> <span class="o">=</span> <span class="mf">0.2</span> <span class="o">+</span> <span class="mf">0.002</span> <span class="o">*</span> <span class="n">radius</span>
 
         <span class="k">for</span> <span class="n">specie</span><span class="p">,</span> <span class="n">occu</span> <span class="ow">in</span> <span class="n">site</span><span class="o">.</span><span class="n">species_and_occu</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">specie</span><span class="p">:</span>
                 <span class="n">color</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
             <span class="k">elif</span> <span class="n">specie</span><span class="o">.</span><span class="n">symbol</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">el_color_mapping</span><span class="p">:</span>
                 <span class="n">color</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="o">/</span> <span class="mi">255</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">el_color_mapping</span><span class="p">[</span><span class="n">specie</span><span class="o">.</span><span class="n">symbol</span><span class="p">]]</span>
-            <span class="n">mapper</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_partial_sphere</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">coords</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span>
-                <span class="n">start_angle</span><span class="p">,</span> <span class="n">start_angle</span> <span class="o">+</span> <span class="mi">360</span> <span class="o">*</span> <span class="n">occu</span><span class="p">)</span>
+            <span class="n">mapper</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_partial_sphere</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">coords</span><span class="p">,</span> <span class="n">vis_radius</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span>
+                                             <span class="n">start_angle</span><span class="p">,</span> <span class="n">start_angle</span> <span class="o">+</span> <span class="mi">360</span> <span class="o">*</span> <span class="n">occu</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">mapper_map</span><span class="p">[</span><span class="n">mapper</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">site</span><span class="p">]</span>
             <span class="n">start_angle</span> <span class="o">+=</span> <span class="mi">360</span> <span class="o">*</span> <span class="n">occu</span>
 
         <span class="k">if</span> <span class="n">total_occu</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">mapper</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_partial_sphere</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">coords</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span>
-                <span class="n">start_angle</span><span class="p">,</span> <span class="n">start_angle</span> <span class="o">+</span> <span class="mi">360</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">total_occu</span><span class="p">))</span>
+            <span class="n">mapper</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_partial_sphere</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">coords</span><span class="p">,</span> <span class="n">vis_radius</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span>
+                                             <span class="n">start_angle</span><span class="p">,</span> <span class="n">start_angle</span> <span class="o">+</span> <span class="mi">360</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">total_occu</span><span class="p">))</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">mapper_map</span><span class="p">[</span><span class="n">mapper</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">site</span><span class="p">]</span></div>
 
 <div class="viewcode-block" id="StructureVis.add_partial_sphere"><a class="viewcode-back" href="../../../pymatgen.vis.html#pymatgen.vis.structure_vtk.StructureVis.add_partial_sphere">[docs]</a>    <span class="k">def</span> <span class="nf">add_partial_sphere</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="mi">360</span><span class="p">,</span>
-                           <span class="n">opacity</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+                           <span class="n">opacity</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
         <span class="n">sphere</span> <span class="o">=</span> <span class="n">vtk</span><span class="o">.</span><span class="n">vtkSphereSource</span><span class="p">()</span>
         <span class="n">sphere</span><span class="o">.</span><span class="n">SetCenter</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
-        <span class="n">sphere</span><span class="o">.</span><span class="n">SetRadius</span><span class="p">(</span><span class="mf">0.2</span> <span class="o">+</span> <span class="mf">0.002</span> <span class="o">*</span> <span class="n">radius</span><span class="p">)</span>
+        <span class="n">sphere</span><span class="o">.</span><span class="n">SetRadius</span><span class="p">(</span><span class="n">radius</span><span class="p">)</span>
         <span class="n">sphere</span><span class="o">.</span><span class="n">SetThetaResolution</span><span class="p">(</span><span class="mi">18</span><span class="p">)</span>
         <span class="n">sphere</span><span class="o">.</span><span class="n">SetPhiResolution</span><span class="p">(</span><span class="mi">18</span><span class="p">)</span>
         <span class="n">sphere</span><span class="o">.</span><span class="n">SetStartTheta</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
@@ -825,9 +832,9 @@
                 <span class="k">if</span> <span class="n">mapper</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapper_map</span><span class="p">:</span>
                     <span class="n">site</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapper_map</span><span class="p">[</span><span class="n">mapper</span><span class="p">]</span>
                     <span class="n">output</span> <span class="o">=</span> <span class="p">[</span><span class="n">site</span><span class="o">.</span><span class="n">species_string</span><span class="p">,</span> <span class="s2">&quot;Frac. coords: &quot;</span> <span class="o">+</span>
-                                                   <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s2">&quot;</span><span class="si">{:.4f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
-                                                             <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span>
-                                                             <span class="n">site</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">])]</span>
+                              <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s2">&quot;</span><span class="si">{:.4f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+                                        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span>
+                                        <span class="n">site</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">])]</span>
                     <span class="n">source</span><span class="o">.</span><span class="n">SetText</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output</span><span class="p">))</span>
                     <span class="n">follower</span><span class="o">.</span><span class="n">SetPosition</span><span class="p">(</span><span class="n">pick_pos</span><span class="p">)</span>
                     <span class="n">follower</span><span class="o">.</span><span class="n">VisibilityOn</span><span class="p">()</span>
@@ -951,6 +958,245 @@
             <span class="s2">&quot;-q:v&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">quality</span><span class="p">),</span> <span class="s2">&quot;-r&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">fps</span><span class="p">),</span> <span class="s2">&quot;-b:v&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">bitrate</span><span class="p">),</span>
             <span class="n">output_filename</span><span class="p">]</span>
     <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span><span class="n">args</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MultiStructuresVis"><a class="viewcode-back" href="../../../pymatgen.vis.html#pymatgen.vis.structure_vtk.MultiStructuresVis">[docs]</a><span class="k">class</span> <span class="nc">MultiStructuresVis</span><span class="p">(</span><span class="n">StructureVis</span><span class="p">):</span>
+
+    <span class="n">DEFAULT_ANIMATED_MOVIE_OPTIONS</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;time_between_frames&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
+                                      <span class="s1">&#39;looping_type&#39;</span><span class="p">:</span> <span class="s1">&#39;restart&#39;</span><span class="p">,</span>
+                                      <span class="s1">&#39;number_of_loops&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+                                      <span class="s1">&#39;time_between_loops&#39;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element_color_mapping</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">show_unit_cell</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                 <span class="n">show_bonds</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">show_polyhedron</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">poly_radii_tol_factor</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">excluded_bonding_elements</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">animated_movie_options</span><span class="o">=</span><span class="n">DEFAULT_ANIMATED_MOVIE_OPTIONS</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">MultiStructuresVis</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">element_color_mapping</span><span class="o">=</span><span class="n">element_color_mapping</span><span class="p">,</span>
+                                                 <span class="n">show_unit_cell</span><span class="o">=</span><span class="n">show_unit_cell</span><span class="p">,</span>
+                                                 <span class="n">show_bonds</span><span class="o">=</span><span class="n">show_bonds</span><span class="p">,</span> <span class="n">show_polyhedron</span><span class="o">=</span><span class="n">show_polyhedron</span><span class="p">,</span>
+                                                 <span class="n">poly_radii_tol_factor</span><span class="o">=</span><span class="n">poly_radii_tol_factor</span><span class="p">,</span>
+                                                 <span class="n">excluded_bonding_elements</span><span class="o">=</span><span class="n">excluded_bonding_elements</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">warningtxt_actor</span> <span class="o">=</span> <span class="n">vtk</span><span class="o">.</span><span class="n">vtkActor2D</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">infotxt_actor</span> <span class="o">=</span> <span class="n">vtk</span><span class="o">.</span><span class="n">vtkActor2D</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">structures</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">style</span> <span class="o">=</span> <span class="n">MultiStructuresInteractorStyle</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">iren</span><span class="o">.</span><span class="n">SetInteractorStyle</span><span class="p">(</span><span class="n">style</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">istruct</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_structure</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_animated_movie_options</span><span class="p">(</span><span class="n">animated_movie_options</span><span class="o">=</span><span class="n">animated_movie_options</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MultiStructuresVis.set_structures"><a class="viewcode-back" href="../../../pymatgen.vis.html#pymatgen.vis.structure_vtk.MultiStructuresVis.set_structures">[docs]</a>    <span class="k">def</span> <span class="nf">set_structures</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structures</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">structures</span> <span class="o">=</span> <span class="n">structures</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">istruct</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_structure</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">istruct</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tags</span> <span class="o">=</span> <span class="n">tags</span> <span class="k">if</span> <span class="n">tags</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[{}]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">all_radii</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">all_vis_radii</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">struct</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">:</span>
+            <span class="n">struct_radii</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">struct_vis_radii</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">struct</span><span class="p">:</span>
+                <span class="n">radius</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">for</span> <span class="n">specie</span><span class="p">,</span> <span class="n">occu</span> <span class="ow">in</span> <span class="n">site</span><span class="o">.</span><span class="n">species_and_occu</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">radius</span> <span class="o">+=</span> <span class="n">occu</span> <span class="o">*</span> <span class="p">(</span><span class="n">specie</span><span class="o">.</span><span class="n">ionic_radius</span>
+                                      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">specie</span><span class="p">,</span> <span class="n">Specie</span><span class="p">)</span>
+                                         <span class="ow">and</span> <span class="n">specie</span><span class="o">.</span><span class="n">ionic_radius</span>
+                                      <span class="k">else</span> <span class="n">specie</span><span class="o">.</span><span class="n">average_ionic_radius</span><span class="p">)</span>
+                    <span class="n">vis_radius</span> <span class="o">=</span> <span class="mf">0.2</span> <span class="o">+</span> <span class="mf">0.002</span> <span class="o">*</span> <span class="n">radius</span>
+                <span class="n">struct_radii</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">radius</span><span class="p">)</span>
+                <span class="n">struct_vis_radii</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vis_radius</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">all_radii</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">struct_radii</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">all_vis_radii</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">struct_vis_radii</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_structure</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_structure</span><span class="p">,</span> <span class="n">reset_camera</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">to_unit_cell</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MultiStructuresVis.set_structure"><a class="viewcode-back" href="../../../pymatgen.vis.html#pymatgen.vis.structure_vtk.MultiStructuresVis.set_structure">[docs]</a>    <span class="k">def</span> <span class="nf">set_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">reset_camera</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">to_unit_cell</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">MultiStructuresVis</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">set_structure</span><span class="p">(</span><span class="n">structure</span><span class="o">=</span><span class="n">structure</span><span class="p">,</span> <span class="n">reset_camera</span><span class="o">=</span><span class="n">reset_camera</span><span class="p">,</span>
+                                                      <span class="n">to_unit_cell</span><span class="o">=</span><span class="n">to_unit_cell</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">apply_tags</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="MultiStructuresVis.apply_tags"><a class="viewcode-back" href="../../../pymatgen.vis.html#pymatgen.vis.structure_vtk.MultiStructuresVis.apply_tags">[docs]</a>    <span class="k">def</span> <span class="nf">apply_tags</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">tags</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">tag</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tags</span><span class="p">:</span>
+            <span class="n">istruct</span> <span class="o">=</span> <span class="n">tag</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;istruct&#39;</span><span class="p">,</span> <span class="s1">&#39;all&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">istruct</span> <span class="o">!=</span> <span class="s1">&#39;all&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">istruct</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">istruct</span><span class="p">:</span>
+                    <span class="k">continue</span>
+            <span class="n">site_index</span> <span class="o">=</span> <span class="n">tag</span><span class="p">[</span><span class="s1">&#39;site_index&#39;</span><span class="p">]</span>
+            <span class="n">color</span> <span class="o">=</span> <span class="n">tag</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;color&#39;</span><span class="p">,</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">])</span>
+            <span class="n">opacity</span> <span class="o">=</span> <span class="n">tag</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;opacity&#39;</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">site_index</span> <span class="o">==</span> <span class="s1">&#39;unit_cell_all&#39;</span><span class="p">:</span>
+                <span class="n">struct_radii</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_vis_radii</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">istruct</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">isite</span><span class="p">,</span> <span class="n">site</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_structure</span><span class="p">):</span>
+                    <span class="n">vis_radius</span> <span class="o">=</span> <span class="mf">1.5</span> <span class="o">*</span> <span class="n">tag</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;radius&#39;</span><span class="p">,</span> <span class="n">struct_radii</span><span class="p">[</span><span class="n">isite</span><span class="p">])</span>
+                    <span class="n">tags</span><span class="p">[(</span><span class="n">isite</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;radius&#39;</span><span class="p">:</span> <span class="n">vis_radius</span><span class="p">,</span>
+                                                <span class="s1">&#39;color&#39;</span><span class="p">:</span> <span class="n">color</span><span class="p">,</span>
+                                                <span class="s1">&#39;opacity&#39;</span><span class="p">:</span> <span class="n">opacity</span><span class="p">}</span>
+                <span class="k">continue</span>
+            <span class="n">cell_index</span> <span class="o">=</span> <span class="n">tag</span><span class="p">[</span><span class="s1">&#39;cell_index&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="s1">&#39;radius&#39;</span> <span class="ow">in</span> <span class="n">tag</span><span class="p">:</span>
+                <span class="n">vis_radius</span> <span class="o">=</span> <span class="n">tag</span><span class="p">[</span><span class="s1">&#39;radius&#39;</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="s1">&#39;radius_factor&#39;</span> <span class="ow">in</span> <span class="n">tag</span><span class="p">:</span>
+                <span class="n">vis_radius</span> <span class="o">=</span> <span class="n">tag</span><span class="p">[</span><span class="s1">&#39;radius_factor&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_vis_radii</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">istruct</span><span class="p">][</span><span class="n">site_index</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">vis_radius</span> <span class="o">=</span> <span class="mf">1.5</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_vis_radii</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">istruct</span><span class="p">][</span><span class="n">site_index</span><span class="p">]</span>
+            <span class="n">tags</span><span class="p">[(</span><span class="n">site_index</span><span class="p">,</span> <span class="n">cell_index</span><span class="p">)]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;radius&#39;</span><span class="p">:</span> <span class="n">vis_radius</span><span class="p">,</span>
+                                              <span class="s1">&#39;color&#39;</span><span class="p">:</span> <span class="n">color</span><span class="p">,</span>
+                                              <span class="s1">&#39;opacity&#39;</span><span class="p">:</span> <span class="n">opacity</span><span class="p">}</span>
+        <span class="k">for</span> <span class="n">site_and_cell_index</span><span class="p">,</span> <span class="n">tag_style</span> <span class="ow">in</span> <span class="n">tags</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">isite</span><span class="p">,</span> <span class="n">cell_index</span> <span class="o">=</span> <span class="n">site_and_cell_index</span>
+            <span class="n">site</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_structure</span><span class="p">[</span><span class="n">isite</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">cell_index</span> <span class="o">==</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
+                <span class="n">coords</span> <span class="o">=</span> <span class="n">site</span><span class="o">.</span><span class="n">coords</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">fcoords</span> <span class="o">=</span> <span class="n">site</span><span class="o">.</span><span class="n">frac_coords</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">cell_index</span><span class="p">)</span>
+                <span class="n">site_image</span> <span class="o">=</span> <span class="n">PeriodicSite</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">species_and_occu</span><span class="p">,</span> <span class="n">fcoords</span><span class="p">,</span>
+                                          <span class="bp">self</span><span class="o">.</span><span class="n">current_structure</span><span class="o">.</span><span class="n">lattice</span><span class="p">,</span> <span class="n">to_unit_cell</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                                          <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                                          <span class="n">properties</span><span class="o">=</span><span class="n">site</span><span class="o">.</span><span class="n">properties</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">add_site</span><span class="p">(</span><span class="n">site_image</span><span class="p">)</span>
+                <span class="n">coords</span> <span class="o">=</span> <span class="n">site_image</span><span class="o">.</span><span class="n">coords</span>
+            <span class="n">vis_radius</span> <span class="o">=</span> <span class="n">tag_style</span><span class="p">[</span><span class="s1">&#39;radius&#39;</span><span class="p">]</span>
+            <span class="n">color</span> <span class="o">=</span> <span class="n">tag_style</span><span class="p">[</span><span class="s1">&#39;color&#39;</span><span class="p">]</span>
+            <span class="n">opacity</span> <span class="o">=</span> <span class="n">tag_style</span><span class="p">[</span><span class="s1">&#39;opacity&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_partial_sphere</span><span class="p">(</span><span class="n">coords</span><span class="o">=</span><span class="n">coords</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="n">vis_radius</span><span class="p">,</span>
+                                    <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="mi">360</span><span class="p">,</span>
+                                    <span class="n">opacity</span><span class="o">=</span><span class="n">opacity</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MultiStructuresVis.set_animated_movie_options"><a class="viewcode-back" href="../../../pymatgen.vis.html#pymatgen.vis.structure_vtk.MultiStructuresVis.set_animated_movie_options">[docs]</a>    <span class="k">def</span> <span class="nf">set_animated_movie_options</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">animated_movie_options</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">animated_movie_options</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">animated_movie_options</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">DEFAULT_ANIMATED_MOVIE_OPTIONS</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">animated_movie_options</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">DEFAULT_ANIMATED_MOVIE_OPTIONS</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">animated_movie_options</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">DEFAULT_ANIMATED_MOVIE_OPTIONS</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Wrong option for animated movie&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">animated_movie_options</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">animated_movie_options</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MultiStructuresVis.display_help"><a class="viewcode-back" href="../../../pymatgen.vis.html#pymatgen.vis.structure_vtk.MultiStructuresVis.display_help">[docs]</a>    <span class="k">def</span> <span class="nf">display_help</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Display the help for various keyboard shortcuts.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">helptxt</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;h : Toggle help&quot;</span><span class="p">,</span>
+                   <span class="s2">&quot;A/a, B/b or C/c : Increase/decrease cell by one a,&quot;</span>
+                   <span class="s2">&quot; b or c unit vector&quot;</span><span class="p">,</span> <span class="s2">&quot;# : Toggle showing of polyhedrons&quot;</span><span class="p">,</span>
+                   <span class="s2">&quot;-: Toggle showing of bonds&quot;</span><span class="p">,</span> <span class="s2">&quot;r : Reset camera direction&quot;</span><span class="p">,</span>
+                   <span class="s2">&quot;[/]: Decrease or increase poly_radii_tol_factor &quot;</span>
+                   <span class="s2">&quot;by 0.05. Value = &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">poly_radii_tol_factor</span><span class="p">),</span>
+                   <span class="s2">&quot;Up/Down: Rotate view along Up direction by 90 &quot;</span>
+                   <span class="s2">&quot;clockwise/anticlockwise&quot;</span><span class="p">,</span>
+                   <span class="s2">&quot;Left/right: Rotate view along camera direction by &quot;</span>
+                   <span class="s2">&quot;90 clockwise/anticlockwise&quot;</span><span class="p">,</span> <span class="s2">&quot;s: Save view to image.png&quot;</span><span class="p">,</span>
+                   <span class="s2">&quot;o: Orthogonalize structure&quot;</span><span class="p">,</span>
+                   <span class="s2">&quot;n: Move to next structure&quot;</span><span class="p">,</span>
+                   <span class="s2">&quot;p: Move to previous structure&quot;</span><span class="p">,</span>
+                   <span class="s2">&quot;m: Animated movie of the structures&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">helptxt_mapper</span><span class="o">.</span><span class="n">SetInput</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">helptxt</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">helptxt_actor</span><span class="o">.</span><span class="n">SetPosition</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">helptxt_actor</span><span class="o">.</span><span class="n">VisibilityOn</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="MultiStructuresVis.display_warning"><a class="viewcode-back" href="../../../pymatgen.vis.html#pymatgen.vis.structure_vtk.MultiStructuresVis.display_warning">[docs]</a>    <span class="k">def</span> <span class="nf">display_warning</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">warning</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">warningtxt_mapper</span> <span class="o">=</span> <span class="n">vtk</span><span class="o">.</span><span class="n">vtkTextMapper</span><span class="p">()</span>
+        <span class="n">tprops</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">warningtxt_mapper</span><span class="o">.</span><span class="n">GetTextProperty</span><span class="p">()</span>
+        <span class="n">tprops</span><span class="o">.</span><span class="n">SetFontSize</span><span class="p">(</span><span class="mi">14</span><span class="p">)</span>
+        <span class="n">tprops</span><span class="o">.</span><span class="n">SetFontFamilyToTimes</span><span class="p">()</span>
+        <span class="n">tprops</span><span class="o">.</span><span class="n">SetColor</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">tprops</span><span class="o">.</span><span class="n">BoldOn</span><span class="p">()</span>
+        <span class="n">tprops</span><span class="o">.</span><span class="n">SetJustificationToRight</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">warningtxt</span> <span class="o">=</span> <span class="s2">&quot;WARNING : </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">warning</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">warningtxt_actor</span> <span class="o">=</span> <span class="n">vtk</span><span class="o">.</span><span class="n">vtkActor2D</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">warningtxt_actor</span><span class="o">.</span><span class="n">VisibilityOn</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">warningtxt_actor</span><span class="o">.</span><span class="n">SetMapper</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">warningtxt_mapper</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ren</span><span class="o">.</span><span class="n">AddActor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">warningtxt_actor</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">warningtxt_mapper</span><span class="o">.</span><span class="n">SetInput</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">warningtxt</span><span class="p">)</span>
+        <span class="n">winsize</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ren_win</span><span class="o">.</span><span class="n">GetSize</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">warningtxt_actor</span><span class="o">.</span><span class="n">SetPosition</span><span class="p">(</span><span class="n">winsize</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">warningtxt_actor</span><span class="o">.</span><span class="n">VisibilityOn</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="MultiStructuresVis.erase_warning"><a class="viewcode-back" href="../../../pymatgen.vis.html#pymatgen.vis.structure_vtk.MultiStructuresVis.erase_warning">[docs]</a>    <span class="k">def</span> <span class="nf">erase_warning</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">warningtxt_actor</span><span class="o">.</span><span class="n">VisibilityOff</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="MultiStructuresVis.display_info"><a class="viewcode-back" href="../../../pymatgen.vis.html#pymatgen.vis.structure_vtk.MultiStructuresVis.display_info">[docs]</a>    <span class="k">def</span> <span class="nf">display_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">info</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">infotxt_mapper</span> <span class="o">=</span> <span class="n">vtk</span><span class="o">.</span><span class="n">vtkTextMapper</span><span class="p">()</span>
+        <span class="n">tprops</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">infotxt_mapper</span><span class="o">.</span><span class="n">GetTextProperty</span><span class="p">()</span>
+        <span class="n">tprops</span><span class="o">.</span><span class="n">SetFontSize</span><span class="p">(</span><span class="mi">14</span><span class="p">)</span>
+        <span class="n">tprops</span><span class="o">.</span><span class="n">SetFontFamilyToTimes</span><span class="p">()</span>
+        <span class="n">tprops</span><span class="o">.</span><span class="n">SetColor</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">tprops</span><span class="o">.</span><span class="n">BoldOn</span><span class="p">()</span>
+        <span class="n">tprops</span><span class="o">.</span><span class="n">SetVerticalJustificationToTop</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">infotxt</span> <span class="o">=</span> <span class="s2">&quot;INFO : </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">info</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">infotxt_actor</span> <span class="o">=</span> <span class="n">vtk</span><span class="o">.</span><span class="n">vtkActor2D</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">infotxt_actor</span><span class="o">.</span><span class="n">VisibilityOn</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">infotxt_actor</span><span class="o">.</span><span class="n">SetMapper</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">infotxt_mapper</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ren</span><span class="o">.</span><span class="n">AddActor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">infotxt_actor</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">infotxt_mapper</span><span class="o">.</span><span class="n">SetInput</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">infotxt</span><span class="p">)</span>
+        <span class="n">winsize</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ren_win</span><span class="o">.</span><span class="n">GetSize</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">infotxt_actor</span><span class="o">.</span><span class="n">SetPosition</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="n">winsize</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="mi">10</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">infotxt_actor</span><span class="o">.</span><span class="n">VisibilityOn</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="MultiStructuresVis.erase_info"><a class="viewcode-back" href="../../../pymatgen.vis.html#pymatgen.vis.structure_vtk.MultiStructuresVis.erase_info">[docs]</a>    <span class="k">def</span> <span class="nf">erase_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">infotxt_actor</span><span class="o">.</span><span class="n">VisibilityOff</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="MultiStructuresInteractorStyle"><a class="viewcode-back" href="../../../pymatgen.vis.html#pymatgen.vis.structure_vtk.MultiStructuresInteractorStyle">[docs]</a><span class="k">class</span> <span class="nc">MultiStructuresInteractorStyle</span><span class="p">(</span><span class="n">StructureInteractorStyle</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="p">):</span>
+        <span class="n">StructureInteractorStyle</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MultiStructuresInteractorStyle.keyPressEvent"><a class="viewcode-back" href="../../../pymatgen.vis.html#pymatgen.vis.structure_vtk.MultiStructuresInteractorStyle.keyPressEvent">[docs]</a>    <span class="k">def</span> <span class="nf">keyPressEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="n">parent</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">GetCurrentRenderer</span><span class="p">()</span><span class="o">.</span><span class="n">parent</span>
+        <span class="n">sym</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">iren</span><span class="o">.</span><span class="n">GetKeySym</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">sym</span> <span class="o">==</span> <span class="s2">&quot;n&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">parent</span><span class="o">.</span><span class="n">istruct</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">parent</span><span class="o">.</span><span class="n">structures</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">parent</span><span class="o">.</span><span class="n">display_warning</span><span class="p">(</span><span class="s1">&#39;LAST STRUCTURE&#39;</span><span class="p">)</span>
+                <span class="n">parent</span><span class="o">.</span><span class="n">ren_win</span><span class="o">.</span><span class="n">Render</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">parent</span><span class="o">.</span><span class="n">istruct</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">parent</span><span class="o">.</span><span class="n">current_structure</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">parent</span><span class="o">.</span><span class="n">istruct</span><span class="p">]</span>
+                <span class="n">parent</span><span class="o">.</span><span class="n">set_structure</span><span class="p">(</span><span class="n">parent</span><span class="o">.</span><span class="n">current_structure</span><span class="p">,</span> <span class="n">reset_camera</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">to_unit_cell</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="n">parent</span><span class="o">.</span><span class="n">erase_warning</span><span class="p">()</span>
+                <span class="n">parent</span><span class="o">.</span><span class="n">ren_win</span><span class="o">.</span><span class="n">Render</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">sym</span> <span class="o">==</span> <span class="s2">&quot;p&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">parent</span><span class="o">.</span><span class="n">istruct</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">parent</span><span class="o">.</span><span class="n">display_warning</span><span class="p">(</span><span class="s1">&#39;FIRST STRUCTURE&#39;</span><span class="p">)</span>
+                <span class="n">parent</span><span class="o">.</span><span class="n">ren_win</span><span class="o">.</span><span class="n">Render</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+
+                <span class="n">parent</span><span class="o">.</span><span class="n">istruct</span> <span class="o">-=</span> <span class="mi">1</span>
+                <span class="n">parent</span><span class="o">.</span><span class="n">current_structure</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">parent</span><span class="o">.</span><span class="n">istruct</span><span class="p">]</span>
+                <span class="n">parent</span><span class="o">.</span><span class="n">set_structure</span><span class="p">(</span><span class="n">parent</span><span class="o">.</span><span class="n">current_structure</span><span class="p">,</span> <span class="n">reset_camera</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">to_unit_cell</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="n">parent</span><span class="o">.</span><span class="n">erase_warning</span><span class="p">()</span>
+                <span class="n">parent</span><span class="o">.</span><span class="n">ren_win</span><span class="o">.</span><span class="n">Render</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">sym</span> <span class="o">==</span> <span class="s2">&quot;m&quot;</span><span class="p">:</span>
+            <span class="n">parent</span><span class="o">.</span><span class="n">istruct</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">parent</span><span class="o">.</span><span class="n">current_structure</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">parent</span><span class="o">.</span><span class="n">istruct</span><span class="p">]</span>
+            <span class="n">parent</span><span class="o">.</span><span class="n">set_structure</span><span class="p">(</span><span class="n">parent</span><span class="o">.</span><span class="n">current_structure</span><span class="p">,</span> <span class="n">reset_camera</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">to_unit_cell</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">parent</span><span class="o">.</span><span class="n">erase_warning</span><span class="p">()</span>
+            <span class="n">parent</span><span class="o">.</span><span class="n">ren_win</span><span class="o">.</span><span class="n">Render</span><span class="p">()</span>
+            <span class="n">nloops</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">animated_movie_options</span><span class="p">[</span><span class="s1">&#39;number_of_loops&#39;</span><span class="p">]</span>
+            <span class="n">tstep</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">animated_movie_options</span><span class="p">[</span><span class="s1">&#39;time_between_frames&#39;</span><span class="p">]</span>
+            <span class="n">tloops</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">animated_movie_options</span><span class="p">[</span><span class="s1">&#39;time_between_loops&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">parent</span><span class="o">.</span><span class="n">animated_movie_options</span><span class="p">[</span><span class="s1">&#39;looping_type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;restart&#39;</span><span class="p">:</span>
+                <span class="n">loop_istructs</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">parent</span><span class="o">.</span><span class="n">structures</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="n">parent</span><span class="o">.</span><span class="n">animated_movie_options</span><span class="p">[</span><span class="s1">&#39;looping_type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;palindrome&#39;</span><span class="p">:</span>
+                <span class="n">loop_istructs</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">parent</span><span class="o">.</span><span class="n">structures</span><span class="p">))</span><span class="o">+</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">parent</span><span class="o">.</span><span class="n">structures</span><span class="p">)</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;&quot;looping_type&quot; should be &quot;restart&quot; or &quot;palindrome&quot;&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">iloop</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nloops</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">istruct</span> <span class="ow">in</span> <span class="n">loop_istructs</span><span class="p">:</span>
+                    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">tstep</span><span class="p">)</span>
+                    <span class="n">parent</span><span class="o">.</span><span class="n">istruct</span> <span class="o">=</span> <span class="n">istruct</span>
+                    <span class="n">parent</span><span class="o">.</span><span class="n">current_structure</span> <span class="o">=</span> <span class="n">parent</span><span class="o">.</span><span class="n">structures</span><span class="p">[</span><span class="n">parent</span><span class="o">.</span><span class="n">istruct</span><span class="p">]</span>
+                    <span class="n">parent</span><span class="o">.</span><span class="n">set_structure</span><span class="p">(</span><span class="n">parent</span><span class="o">.</span><span class="n">current_structure</span><span class="p">,</span> <span class="n">reset_camera</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">to_unit_cell</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                    <span class="n">parent</span><span class="o">.</span><span class="n">display_info</span><span class="p">(</span><span class="s1">&#39;Animated movie : structure </span><span class="si">{:d}</span><span class="s1">/</span><span class="si">{:d}</span><span class="s1"> &#39;</span>
+                                           <span class="s1">&#39;(loop </span><span class="si">{:d}</span><span class="s1">/</span><span class="si">{:d}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">istruct</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">parent</span><span class="o">.</span><span class="n">structures</span><span class="p">),</span>
+                                                                     <span class="n">iloop</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">nloops</span><span class="p">))</span>
+                    <span class="n">parent</span><span class="o">.</span><span class="n">ren_win</span><span class="o">.</span><span class="n">Render</span><span class="p">()</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">tloops</span><span class="p">)</span>
+            <span class="n">parent</span><span class="o">.</span><span class="n">erase_info</span><span class="p">()</span>
+            <span class="n">parent</span><span class="o">.</span><span class="n">display_info</span><span class="p">(</span><span class="s1">&#39;Ended animated movie ...&#39;</span><span class="p">)</span>
+            <span class="n">parent</span><span class="o">.</span><span class="n">ren_win</span><span class="o">.</span><span class="n">Render</span><span class="p">()</span>
+
+        <span class="n">StructureInteractorStyle</span><span class="o">.</span><span class="n">keyPressEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">event</span><span class="p">)</span></div></div>
 </pre></div>
 
           </div>
@@ -988,7 +1234,7 @@
 
     <div class="footer" role="contentinfo">
         &#169; Copyright 2011, Pymatgen Development Team.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.6.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

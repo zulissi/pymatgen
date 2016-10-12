@@ -25,6 +25,8 @@
     <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../../../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" />
     <link rel="top" title="pymatgen 4.4.0 documentation" href="../../../../../index.html" />
     <link rel="up" title="Module code" href="../../../../index.html" />
  
@@ -83,7 +85,6 @@
 <span class="kn">from</span> <span class="nn">numpy</span> <span class="k">import</span> <span class="n">transpose</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="k">import</span> <span class="n">Structure</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.lattice</span> <span class="k">import</span> <span class="n">Lattice</span>
-<span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="k">import</span> <span class="n">Specie</span>
 <span class="kn">from</span> <span class="nn">pymatgen.symmetry.analyzer</span> <span class="k">import</span> <span class="n">SpacegroupAnalyzer</span>
 <span class="kn">from</span> <span class="nn">pymatgen.analysis.bond_valence</span> <span class="k">import</span> <span class="n">BVAnalyzer</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
@@ -108,8 +109,12 @@
     <span class="n">ChemicalEnvironments</span>
 <span class="kn">from</span> <span class="nn">pymatgen.analysis.chemenv.coordination_environments.structure_environments</span> <span class="k">import</span> \
     <span class="n">StructureEnvironments</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.chemenv.coordination_environments.structure_environments</span> <span class="k">import</span> \
+    <span class="n">LightStructureEnvironments</span>
 <span class="kn">from</span> <span class="nn">pymatgen.analysis.chemenv.coordination_environments.voronoi</span> <span class="k">import</span> \
     <span class="n">DetailedVoronoiContainer</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.chemenv.coordination_environments.chemenv_strategies</span> <span class="k">import</span> \
+    <span class="n">MultiWeightsChemenvStrategy</span>
 
 <span class="n">debug</span> <span class="o">=</span> <span class="kc">False</span>
 <span class="n">DIST_TOLERANCES</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.02</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">]</span>
@@ -377,6 +382,8 @@
     <span class="n">STRUCTURE_REFINEMENT_REFINED</span> <span class="o">=</span> <span class="s1">&#39;refined&#39;</span>
     <span class="n">STRUCTURE_REFINEMENT_SYMMETRIZED</span> <span class="o">=</span> <span class="s1">&#39;symmetrized&#39;</span>
 
+    <span class="n">DEFAULT_STRATEGY</span> <span class="o">=</span> <span class="n">MultiWeightsChemenvStrategy</span><span class="o">.</span><span class="n">stats_article_weights_parameters</span><span class="p">()</span>
+
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">permutations_safe_override</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                  <span class="n">plane_ordering_override</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">debug_level</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">plane_safe_permutations</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -495,6 +502,28 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">setup_structure</span><span class="p">(</span>
             <span class="n">Structure</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">coords_are_cartesian</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="LocalGeometryFinder.compute_coordination_environments"><a class="viewcode-back" href="../../../../../pymatgen.analysis.chemenv.coordination_environments.html#pymatgen.analysis.chemenv.coordination_environments.coordination_geometry_finder.LocalGeometryFinder.compute_coordination_environments">[docs]</a>    <span class="k">def</span> <span class="nf">compute_coordination_environments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">indices</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">only_cations</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">strategy</span><span class="o">=</span><span class="n">DEFAULT_STRATEGY</span><span class="p">,</span>
+                                          <span class="n">valences</span><span class="o">=</span><span class="s1">&#39;bond-valence-analysis&#39;</span><span class="p">,</span> <span class="n">initial_structure_environments</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_structure</span><span class="p">(</span><span class="n">structure</span><span class="o">=</span><span class="n">structure</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">valences</span> <span class="o">==</span> <span class="s1">&#39;bond-valence-analysis&#39;</span><span class="p">:</span>
+            <span class="n">bva</span> <span class="o">=</span> <span class="n">BVAnalyzer</span><span class="p">()</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">vals</span> <span class="o">=</span> <span class="n">bva</span><span class="o">.</span><span class="n">get_valences</span><span class="p">(</span><span class="n">structure</span><span class="o">=</span><span class="n">structure</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="n">vals</span> <span class="o">=</span> <span class="s1">&#39;undefined&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">valences</span> <span class="o">==</span> <span class="s1">&#39;undefined&#39;</span><span class="p">:</span>
+                <span class="n">vals</span> <span class="o">=</span> <span class="n">valences</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">valences</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">structure</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Valences do not match the number of sites in the structure&#39;</span><span class="p">)</span>
+                <span class="n">vals</span> <span class="o">=</span> <span class="n">valences</span>
+        <span class="c1"># TODO: add something to compute only the neighbors sets needed for the strategy.</span>
+        <span class="n">se</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_structure_environments</span><span class="p">(</span><span class="n">only_cations</span><span class="o">=</span><span class="n">only_cations</span><span class="p">,</span> <span class="n">only_indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span> <span class="n">valences</span><span class="o">=</span><span class="n">vals</span><span class="p">,</span>
+                                                 <span class="n">initial_structure_environments</span><span class="o">=</span><span class="n">initial_structure_environments</span><span class="p">)</span>
+        <span class="n">lse</span> <span class="o">=</span> <span class="n">LightStructureEnvironments</span><span class="o">.</span><span class="n">from_structure_environments</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="n">strategy</span><span class="p">,</span> <span class="n">structure_environments</span><span class="o">=</span><span class="n">se</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">lse</span><span class="o">.</span><span class="n">coordination_environments</span></div>
 
 <div class="viewcode-block" id="LocalGeometryFinder.compute_structure_environments"><a class="viewcode-back" href="../../../../../pymatgen.analysis.chemenv.coordination_environments.html#pymatgen.analysis.chemenv.coordination_environments.coordination_geometry_finder.LocalGeometryFinder.compute_structure_environments">[docs]</a>    <span class="k">def</span> <span class="nf">compute_structure_environments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                                        <span class="n">excluded_atoms</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -758,190 +787,6 @@
                               <span class="p">)</span>
         <span class="n">se</span><span class="o">.</span><span class="n">update_coordination_environments</span><span class="p">(</span><span class="n">isite</span><span class="o">=</span><span class="n">isite</span><span class="p">,</span> <span class="n">cn</span><span class="o">=</span><span class="n">cn</span><span class="p">,</span> <span class="n">nb_set</span><span class="o">=</span><span class="n">nb_set</span><span class="p">,</span> <span class="n">ce</span><span class="o">=</span><span class="n">ce</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">ce</span></div>
-
-    <span class="c1"># def compute_structure_environments_detailed_voronoi(self,</span>
-    <span class="c1">#                                                     excluded_atoms=None,</span>
-    <span class="c1">#                                                     only_atoms=None,</span>
-    <span class="c1">#                                                     only_cations=True,</span>
-    <span class="c1">#                                                     only_indices=None,</span>
-    <span class="c1">#                                                     source_structure_valence_fallback=False,</span>
-    <span class="c1">#                                                     no_valence_exclude_atoms_fallback=None,</span>
-    <span class="c1">#                                                     maximum_distance_factor=None,</span>
-    <span class="c1">#                                                     minimum_angle_factor=None,</span>
-    <span class="c1">#                                                     max_cn=None,</span>
-    <span class="c1">#                                                     valences=None):</span>
-    <span class="c1">#     &quot;&quot;&quot;</span>
-    <span class="c1">#     Computes and returns the StructureEnvironments object containing all the information about the coordination</span>
-    <span class="c1">#     environments in the structure</span>
-    <span class="c1">#     :param excluded_atoms: Atoms for which the coordination geometries does not have to be identified</span>
-    <span class="c1">#     :param only_atoms: If not set to None, atoms for which the coordination geometries have to be identified</span>
-    <span class="c1">#     :return: The StructureEnvironments object containing all the information about the coordination</span>
-    <span class="c1">#     environments in the structure</span>
-    <span class="c1">#     &quot;&quot;&quot;</span>
-    <span class="c1">#</span>
-    <span class="c1">#     # Bond valence analysis to get approximated valences</span>
-    <span class="c1">#     if valences is None:</span>
-    <span class="c1">#         logging.info(&#39;Getting valences using BVAnalyzer&#39;)</span>
-    <span class="c1">#         bva = BVAnalyzer(distance_scale_factor=self.bva_distance_scale_factor)</span>
-    <span class="c1">#         self.info = {}</span>
-    <span class="c1">#         try:</span>
-    <span class="c1">#             self.bva_valences = bva.get_valences(self.structure)</span>
-    <span class="c1">#             self.info[&#39;valences&#39;] = &#39;bva&#39;</span>
-    <span class="c1">#         except:</span>
-    <span class="c1">#             self.bva_valences = &#39;undefined&#39;</span>
-    <span class="c1">#             self.info[&#39;valences&#39;] = &#39;undefined&#39;</span>
-    <span class="c1">#         self.valences = self.bva_valences</span>
-    <span class="c1">#     else:</span>
-    <span class="c1">#         self.valences = valences</span>
-    <span class="c1">#</span>
-    <span class="c1">#     # Get a list of indices of unequivalent sites from the initial structure</span>
-    <span class="c1">#     if (</span>
-    <span class="c1">#             self.structure_refinement == self.STRUCTURE_REFINEMENT_SYMMETRIZED and</span>
-    <span class="c1">#             len(self.symmetrized_structure.equivalent_sites) &gt; 0):</span>
-    <span class="c1">#         logging.info(&#39;Symmetrizing and refining structure&#39;)</span>
-    <span class="c1">#         indices = []</span>
-    <span class="c1">#         ind_eqsites_found = []</span>
-    <span class="c1">#         self.equivalent_sites = self.symmetrized_structure.equivalent_sites</span>
-    <span class="c1">#         self.struct_sites_to_irreducible_site_list_map = [-1] * len(</span>
-    <span class="c1">#             self.structure)</span>
-    <span class="c1">#         self.sites_map = [-1] * len(self.structure)</span>
-    <span class="c1">#         eqsite_found = [-1] * len(</span>
-    <span class="c1">#             self.symmetrized_structure.equivalent_sites)</span>
-    <span class="c1">#         for isite, site in enumerate(self.structure):</span>
-    <span class="c1">#             for ieqsites, eqsites in enumerate(</span>
-    <span class="c1">#                     self.symmetrized_structure.equivalent_sites):</span>
-    <span class="c1">#                 if site in eqsites:</span>
-    <span class="c1">#                     self.struct_sites_to_irreducible_site_list_map[</span>
-    <span class="c1">#                         isite] = ieqsites</span>
-    <span class="c1">#                     if ieqsites not in ind_eqsites_found:</span>
-    <span class="c1">#                         indices.append(isite)</span>
-    <span class="c1">#                         ind_eqsites_found.append(ieqsites)</span>
-    <span class="c1">#                         myieqsite = isite</span>
-    <span class="c1">#                         eqsite_found[ieqsites] = myieqsite</span>
-    <span class="c1">#                     else:</span>
-    <span class="c1">#                         myieqsite = eqsite_found[ieqsites]</span>
-    <span class="c1">#             self.sites_map[isite] = myieqsite</span>
-    <span class="c1">#     else:</span>
-    <span class="c1">#         self.equivalent_sites = [[site] for site in self.structure]</span>
-    <span class="c1">#         self.struct_sites_to_irreducible_site_list_map = list(</span>
-    <span class="c1">#             range(len(self.structure)))</span>
-    <span class="c1">#         self.sites_map = list(range(len(self.structure)))</span>
-    <span class="c1">#         indices = list(range(len(self.structure)))</span>
-    <span class="c1">#</span>
-    <span class="c1">#     if source_structure_valence_fallback and self.valences == &#39;undefined&#39;:</span>
-    <span class="c1">#         dummyspoccu = self.structure[0].species_and_occu</span>
-    <span class="c1">#         ok = False</span>
-    <span class="c1">#         if isinstance(dummyspoccu.keys()[0], Specie):</span>
-    <span class="c1">#             self.valences = []</span>
-    <span class="c1">#             for isite, site in enumerate(self.structure):</span>
-    <span class="c1">#                 oxi_state = sum([frac * sp.oxi_state for sp, frac in</span>
-    <span class="c1">#                                  site.species_and_occu.items()])</span>
-    <span class="c1">#                 self.valences.append(oxi_state)</span>
-    <span class="c1">#             if any([val != 0 for val in self.valences]):</span>
-    <span class="c1">#                 ok = True</span>
-    <span class="c1">#             else:</span>
-    <span class="c1">#                 self.valences = &#39;undefined&#39;</span>
-    <span class="c1">#         if not ok:</span>
-    <span class="c1">#             if no_valence_exclude_atoms_fallback is not None:</span>
-    <span class="c1">#                 if excluded_atoms is None:</span>
-    <span class="c1">#                     excluded_atoms = no_valence_exclude_atoms_fallback</span>
-    <span class="c1">#                 else:</span>
-    <span class="c1">#                     for atom in no_valence_exclude_atoms_fallback:</span>
-    <span class="c1">#                         if atom not in excluded_atoms:</span>
-    <span class="c1">#                             excluded_atoms.append(atom)</span>
-    <span class="c1">#</span>
-    <span class="c1">#     # Get list of unequivalent sites with valence &gt;= 0</span>
-    <span class="c1">#     if only_cations and self.valences != &#39;undefined&#39;:</span>
-    <span class="c1">#         sites_indices = [isite for isite in indices if</span>
-    <span class="c1">#                          self.valences[isite] &gt;= 0]</span>
-    <span class="c1">#     else:</span>
-    <span class="c1">#         sites_indices = [isite for isite in indices]</span>
-    <span class="c1">#</span>
-    <span class="c1">#     # Include atoms that are in the list of &quot;only_atoms&quot; if it is provided</span>
-    <span class="c1">#     if only_atoms is not None:</span>
-    <span class="c1">#         sites_indices = [isite for isite in sites_indices</span>
-    <span class="c1">#                          if any([at in [sp.symbol for sp in self.structure[</span>
-    <span class="c1">#                 isite].species_and_occu]</span>
-    <span class="c1">#                                  for at in only_atoms])]</span>
-    <span class="c1">#</span>
-    <span class="c1">#     # Exclude atoms that are in the list of excluded atoms</span>
-    <span class="c1">#     if excluded_atoms:</span>
-    <span class="c1">#         sites_indices = [isite for isite in sites_indices</span>
-    <span class="c1">#                          if not any([at in [sp.symbol for sp in</span>
-    <span class="c1">#                                             self.structure[</span>
-    <span class="c1">#                                                 isite].species_and_occu]</span>
-    <span class="c1">#                                      for at in excluded_atoms])]</span>
-    <span class="c1">#</span>
-    <span class="c1">#     if only_indices is not None:</span>
-    <span class="c1">#         sites_indices = [isite for isite in indices if</span>
-    <span class="c1">#                          isite in only_indices]</span>
-    <span class="c1">#</span>
-    <span class="c1">#     # Get the VoronoiContainer for this list of unequivalent sites with valence &gt;= 0</span>
-    <span class="c1">#     logging.info(&#39;Getting DetailedVoronoiContainer&#39;)</span>
-    <span class="c1">#     self.detailed_voronoi = DetailedVoronoiContainer(self.structure,</span>
-    <span class="c1">#                                                      isites=sites_indices,</span>
-    <span class="c1">#                                                      valences=self.valences,</span>
-    <span class="c1">#                                                      maximum_distance_factor=maximum_distance_factor,</span>
-    <span class="c1">#                                                      minimum_angle_factor=minimum_angle_factor)</span>
-    <span class="c1">#     logging.info(&#39;DetailedVoronoiContainer has been set up&#39;)</span>
-    <span class="c1">#</span>
-    <span class="c1">#     ce_list = []</span>
-    <span class="c1">#     skipped = []</span>
-    <span class="c1">#     logging.info(&#39;Computing structure environments&#39;)</span>
-    <span class="c1">#     tse1 = time.clock()</span>
-    <span class="c1">#     for isite in range(len(self.structure)):</span>
-    <span class="c1">#         if isite not in sites_indices:</span>
-    <span class="c1">#             logging.info(&#39; ... in site #{:d} ({}) : skipped&#39;.format(isite,</span>
-    <span class="c1">#                                                                     self.structure[</span>
-    <span class="c1">#                                                                         isite].species_string))</span>
-    <span class="c1">#             skipped.append(isite)</span>
-    <span class="c1">#             ce_list.append(None)</span>
-    <span class="c1">#             continue</span>
-    <span class="c1">#         logging.info(&#39; ... in site #{:d} ({})&#39;.format(isite, self.structure[</span>
-    <span class="c1">#             isite].species_string))</span>
-    <span class="c1">#         t1 = time.clock()</span>
-    <span class="c1">#         coords = self.detailed_voronoi.unique_coordinations(isite)</span>
-    <span class="c1">#</span>
-    <span class="c1">#         ce_dict = {}</span>
-    <span class="c1">#         for cn in coords:</span>
-    <span class="c1">#             if max_cn is not None and cn &gt; max_cn:</span>
-    <span class="c1">#                 continue</span>
-    <span class="c1">#             ce_dict[cn] = []</span>
-    <span class="c1">#             for i_nlist, nlist_tuple in enumerate(coords[cn]):</span>
-    <span class="c1">#                 neighb_list = nlist_tuple[0]</span>
-    <span class="c1">#                 ce = ChemicalEnvironments()</span>
-    <span class="c1">#                 mycoords = [st.coords for st in neighb_list]</span>
-    <span class="c1">#                 self.setup_local_geometry(isite, coords=mycoords)</span>
-    <span class="c1">#                 cncgsm = self.get_coordination_symmetry_measures()</span>
-    <span class="c1">#                 for cg in cncgsm:</span>
-    <span class="c1">#                     other_csms = {</span>
-    <span class="c1">#                         &#39;csm_wocs_ctwocc&#39;: cncgsm[cg][&#39;csm_wocs_ctwocc&#39;],</span>
-    <span class="c1">#                         &#39;csm_wocs_ctwcc&#39;: cncgsm[cg][&#39;csm_wocs_ctwcc&#39;],</span>
-    <span class="c1">#                         &#39;csm_wocs_csc&#39;: cncgsm[cg][&#39;csm_wocs_csc&#39;],</span>
-    <span class="c1">#                         &#39;csm_wcs_ctwocc&#39;: cncgsm[cg][&#39;csm_wcs_ctwocc&#39;],</span>
-    <span class="c1">#                         &#39;csm_wcs_ctwcc&#39;: cncgsm[cg][&#39;csm_wcs_ctwcc&#39;],</span>
-    <span class="c1">#                         &#39;csm_wcs_csc&#39;: cncgsm[cg][&#39;csm_wcs_csc&#39;]}</span>
-    <span class="c1">#                     ce.add_coord_geom(cg, cncgsm[cg][&#39;csm&#39;],</span>
-    <span class="c1">#                                       algo=cncgsm[cg][&#39;algo&#39;],</span>
-    <span class="c1">#                                       permutation=cncgsm[cg][&#39;indices&#39;],</span>
-    <span class="c1">#                                       local2perfect_map=cncgsm[cg][</span>
-    <span class="c1">#                                           &#39;local2perfect_map&#39;],</span>
-    <span class="c1">#                                       perfect2local_map=cncgsm[cg][</span>
-    <span class="c1">#                                           &#39;perfect2local_map&#39;],</span>
-    <span class="c1">#                                       detailed_voronoi_index={&#39;cn&#39;: cn,</span>
-    <span class="c1">#                                                               &#39;index&#39;: i_nlist},</span>
-    <span class="c1">#                                       other_symmetry_measures=other_csms</span>
-    <span class="c1">#                                       )</span>
-    <span class="c1">#                 ce_dict[cn].append(ce)</span>
-    <span class="c1">#         t2 = time.clock()</span>
-    <span class="c1">#         logging.info(&#39;    ... computed in {:.2f} seconds&#39;.format(t2 - t1))</span>
-    <span class="c1">#         ce_list.append(ce_dict)</span>
-    <span class="c1">#     tse2 = time.clock()</span>
-    <span class="c1">#     logging.info(&#39;Structure environments computed in {:.2f} seconds&#39;.format(</span>
-    <span class="c1">#         tse2 - tse1))</span>
-    <span class="c1">#     return StructureEnvironments(self.detailed_voronoi, self.valences,</span>
-    <span class="c1">#                                  self.sites_map, self.equivalent_sites,</span>
-    <span class="c1">#                                  ce_list, self.structure)</span>
 
 <div class="viewcode-block" id="LocalGeometryFinder.setup_local_geometry"><a class="viewcode-back" href="../../../../../pymatgen.analysis.chemenv.coordination_environments.html#pymatgen.analysis.chemenv.coordination_environments.coordination_geometry_finder.LocalGeometryFinder.setup_local_geometry">[docs]</a>    <span class="k">def</span> <span class="nf">setup_local_geometry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">isite</span><span class="p">,</span> <span class="n">coords</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -1650,7 +1495,7 @@
 
     <div class="footer" role="contentinfo">
         &#169; Copyright 2011, Pymatgen Development Team.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.6.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

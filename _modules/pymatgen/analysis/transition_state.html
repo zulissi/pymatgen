@@ -25,6 +25,8 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
     <link rel="top" title="pymatgen 4.4.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
@@ -66,6 +68,8 @@
 <span class="kn">import</span> <span class="nn">glob</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">monty.json</span> <span class="k">import</span> <span class="n">jsanitize</span>
+<span class="kn">from</span> <span class="nn">monty.json</span> <span class="k">import</span> <span class="n">MSONable</span>
 <span class="n">scipy_old_piecewisepolynomial</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="k">try</span><span class="p">:</span>
     <span class="kn">from</span> <span class="nn">scipy.interpolate</span> <span class="k">import</span> <span class="n">PiecewisePolynomial</span>
@@ -92,12 +96,43 @@
 <span class="n">__date__</span> <span class="o">=</span> <span class="s1">&#39;6/1/15&#39;</span>
 
 
-<div class="viewcode-block" id="NEBAnalysis"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.transition_state.NEBAnalysis">[docs]</a><span class="k">class</span> <span class="nc">NEBAnalysis</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="NEBAnalysis"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.transition_state.NEBAnalysis">[docs]</a><span class="k">class</span> <span class="nc">NEBAnalysis</span><span class="p">(</span><span class="n">MSONable</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    An NEBAnalysis class.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outcars</span><span class="p">,</span> <span class="n">structures</span><span class="p">,</span> <span class="n">interpolation_order</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">energies</span><span class="p">,</span> <span class="n">forces</span><span class="p">,</span> <span class="n">structures</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initializes an NEBAnalysis from the cumulative root mean squared distances</span>
+<span class="sd">        between structures, the energies, the forces, the structures and the</span>
+<span class="sd">        interpolation_order for the analysis.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            r: Root mean square distances between structures</span>
+<span class="sd">            energies: Energies of each structure along reaction coordinate</span>
+<span class="sd">            forces: Tangent forces along the reaction coordinate.</span>
+<span class="sd">            structures ([Structure]): List of Structures along reaction</span>
+<span class="sd">                coordinate.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">energies</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">energies</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">forces</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">forces</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">structures</span> <span class="o">=</span> <span class="n">structures</span>
+
+        <span class="c1"># We do a piecewise interpolation between the points. Each spline (</span>
+        <span class="c1"># cubic by default) is constrained by the boundary conditions of the</span>
+        <span class="c1"># energies and the tangent force, i.e., the derivative of</span>
+        <span class="c1"># the energy at each pair of points.</span>
+        <span class="k">if</span> <span class="n">scipy_old_piecewisepolynomial</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">spline</span> <span class="o">=</span> <span class="n">PiecewisePolynomial</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">energies</span><span class="p">,</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">forces</span><span class="p">])</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+                <span class="n">orders</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># New scipy implementation for scipy &gt; 0.18.0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">spline</span> <span class="o">=</span> <span class="n">CubicSpline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">energies</span><span class="p">,</span> <span class="n">bc_type</span><span class="o">=</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="NEBAnalysis.from_outcars"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.transition_state.NEBAnalysis.from_outcars">[docs]</a>    <span class="k">def</span> <span class="nf">from_outcars</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">outcars</span><span class="p">,</span> <span class="n">structures</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initializes an NEBAnalysis from Outcar and Structure objects. Use</span>
 <span class="sd">        the static constructors, e.g., :class:`from_dir` instead if you</span>
@@ -140,22 +175,8 @@
         <span class="n">energies</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">energies</span><span class="p">)</span>
         <span class="n">energies</span> <span class="o">-=</span> <span class="n">energies</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">forces</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">forces</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">energies</span> <span class="o">=</span> <span class="n">energies</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">forces</span> <span class="o">=</span> <span class="n">forces</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">structures</span> <span class="o">=</span> <span class="n">structures</span>
-
-        <span class="c1"># We do a piecewise interpolation between the points. Each spline (</span>
-        <span class="c1"># cubic by default) is constrained by the boundary conditions of the</span>
-        <span class="c1"># energies and the tangent force, i.e., the derivative of</span>
-        <span class="c1"># the energy at each pair of points.</span>
-        <span class="k">if</span> <span class="n">scipy_old_piecewisepolynomial</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">spline</span> <span class="o">=</span> <span class="n">PiecewisePolynomial</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">energies</span><span class="p">,</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">forces</span><span class="p">])</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
-                <span class="n">orders</span><span class="o">=</span><span class="n">interpolation_order</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># New scipy implementation for scipy &gt; 0.18.0</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">spline</span> <span class="o">=</span> <span class="n">CubicSpline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">energies</span><span class="p">,</span> <span class="n">bc_type</span><span class="o">=</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">r</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">energies</span><span class="o">=</span><span class="n">energies</span><span class="p">,</span> <span class="n">forces</span><span class="o">=</span><span class="n">forces</span><span class="p">,</span> <span class="n">structures</span><span class="o">=</span><span class="n">structures</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="NEBAnalysis.get_extrema"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.transition_state.NEBAnalysis.get_extrema">[docs]</a>    <span class="k">def</span> <span class="nf">get_extrema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">normalize_rxn_coordinate</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -217,7 +238,7 @@
         <span class="k">return</span> <span class="n">plt</span></div>
 
     <span class="nd">@classmethod</span>
-<div class="viewcode-block" id="NEBAnalysis.from_dir"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.transition_state.NEBAnalysis.from_dir">[docs]</a>    <span class="k">def</span> <span class="nf">from_dir</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">root_dir</span><span class="p">,</span> <span class="n">relaxation_dirs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="NEBAnalysis.from_dir"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.transition_state.NEBAnalysis.from_dir">[docs]</a>    <span class="k">def</span> <span class="nf">from_dir</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">root_dir</span><span class="p">,</span> <span class="n">relaxation_dirs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initializes a NEBAnalysis object from a directory of a NEB run.</span>
 <span class="sd">        Note that OUTCARs must be present in all image directories. For the</span>
@@ -297,7 +318,21 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">outcars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Outcar</span><span class="p">(</span><span class="n">outcar</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
                 <span class="n">structures</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Poscar</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">contcar</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">structure</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">NEBAnalysis</span><span class="p">(</span><span class="n">outcars</span><span class="p">,</span> <span class="n">structures</span><span class="p">)</span></div></div>
+        <span class="k">return</span> <span class="n">NEBAnalysis</span><span class="o">.</span><span class="n">from_outcars</span><span class="p">(</span><span class="n">outcars</span><span class="p">,</span> <span class="n">structures</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NEBAnalysis.as_dict"><a class="viewcode-back" href="../../../pymatgen.analysis.html#pymatgen.analysis.transition_state.NEBAnalysis.as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Dict representation of NEBAnalysis.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            JSON serializable dict representation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;@module&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__module__</span><span class="p">,</span>
+                <span class="s2">&quot;@class&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span>
+                <span class="s1">&#39;r&#39;</span><span class="p">:</span> <span class="n">jsanitize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">),</span>
+                <span class="s1">&#39;energies&#39;</span><span class="p">:</span> <span class="n">jsanitize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">energies</span><span class="p">),</span>
+                <span class="s1">&#39;forces&#39;</span><span class="p">:</span> <span class="n">jsanitize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">forces</span><span class="p">),</span>
+                <span class="s1">&#39;structures&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">structures</span><span class="p">]}</span></div></div>
 </pre></div>
 
           </div>
@@ -335,7 +370,7 @@
 
     <div class="footer" role="contentinfo">
         &#169; Copyright 2011, Pymatgen Development Team.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.6.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking

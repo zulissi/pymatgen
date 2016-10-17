@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.util.io_utils &#8212; pymatgen 4.4.1 documentation</title>
+    <title>pymatgen.util.io_utils &#8212; pymatgen 4.4.2 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '4.4.1',
+        VERSION:     '4.4.2',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -27,7 +27,7 @@
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="top" title="pymatgen 4.4.1 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 4.4.2 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -47,7 +47,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.4.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.4.2 documentation</a> &#187;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
       </ul>
     </div>  
@@ -169,6 +169,94 @@
                         <span class="n">postdebug</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">match</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">results</span></div>
+
+
+<span class="kn">import</span> <span class="nn">errno</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">codecs</span>
+
+
+<span class="n">umask</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">umask</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">os</span><span class="o">.</span><span class="n">umask</span><span class="p">(</span><span class="n">umask</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_maketemp</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">createmode</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create a temporary file with the filename similar the given ``name``.</span>
+<span class="sd">    The permission bits are copied from the original file or ``createmode``.</span>
+<span class="sd">    Returns: the name of the temporary file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">d</span><span class="p">,</span> <span class="n">fn</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+    <span class="n">fd</span><span class="p">,</span> <span class="n">tempname</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkstemp</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;.</span><span class="si">%s</span><span class="s2">-&quot;</span> <span class="o">%</span> <span class="n">fn</span><span class="p">,</span> <span class="nb">dir</span><span class="o">=</span><span class="n">d</span><span class="p">)</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span>
+
+    <span class="c1"># Temporary files are created with mode 0600, which is usually not</span>
+    <span class="c1"># what we want. If the original file already exists, just copy its mode.</span>
+    <span class="c1"># Otherwise, manually obey umask.</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">st_mode</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">lstat</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">st_mode</span> <span class="o">&amp;</span> <span class="mo">0o777</span>
+    <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">err</span><span class="o">.</span><span class="n">errno</span> <span class="o">!=</span> <span class="n">errno</span><span class="o">.</span><span class="n">ENOENT</span><span class="p">:</span>
+            <span class="k">raise</span>
+        <span class="n">st_mode</span> <span class="o">=</span> <span class="n">createmode</span>
+        <span class="k">if</span> <span class="n">st_mode</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">st_mode</span> <span class="o">=</span> <span class="o">~</span><span class="n">umask</span>
+        <span class="n">st_mode</span> <span class="o">&amp;=</span> <span class="mo">0o666</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">chmod</span><span class="p">(</span><span class="n">tempname</span><span class="p">,</span> <span class="n">st_mode</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">tempname</span>
+
+
+<div class="viewcode-block" id="AtomicFile"><a class="viewcode-back" href="../../../pymatgen.util.html#pymatgen.util.io_utils.AtomicFile">[docs]</a><span class="k">class</span> <span class="nc">AtomicFile</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This is a straight port of Alexander Saltanov&#39;s atomicfile package.</span>
+
+<span class="sd">    Writeable file object that atomically writes a file.</span>
+<span class="sd">    All writes will go to a temporary file.</span>
+<span class="sd">    Call ``close()`` when you are done writing, and AtomicFile will rename</span>
+<span class="sd">    the temporary copy to the original name, making the changes visible.</span>
+<span class="sd">    If the object is destroyed without being closed, all your writes are</span>
+<span class="sd">    discarded.</span>
+<span class="sd">    If an ``encoding`` argument is specified, codecs.open will be called to open</span>
+<span class="sd">    the file in the wanted encoding.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;w+b&quot;</span><span class="p">,</span> <span class="n">createmode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__name</span> <span class="o">=</span> <span class="n">name</span>  <span class="c1"># permanent name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tempname</span> <span class="o">=</span> <span class="n">_maketemp</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">createmode</span><span class="o">=</span><span class="n">createmode</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">encoding</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fp</span> <span class="o">=</span> <span class="n">codecs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tempname</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">encoding</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fp</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tempname</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+
+        <span class="c1"># delegated methods</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fp</span><span class="o">.</span><span class="n">write</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fileno</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fp</span><span class="o">.</span><span class="n">fileno</span>
+
+    <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_value</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">exc_type</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+<div class="viewcode-block" id="AtomicFile.close"><a class="viewcode-back" href="../../../pymatgen.util.html#pymatgen.util.io_utils.AtomicFile.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fp</span><span class="o">.</span><span class="n">closed</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fp</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tempname</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__name</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AtomicFile.discard"><a class="viewcode-back" href="../../../pymatgen.util.html#pymatgen.util.io_utils.AtomicFile.discard">[docs]</a>    <span class="k">def</span> <span class="nf">discard</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fp</span><span class="o">.</span><span class="n">closed</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tempname</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fp</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_fp&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>  <span class="c1"># constructor actually did something</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">discard</span><span class="p">()</span></div>
 </pre></div>
 
           </div>
@@ -199,7 +287,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.4.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.4.2 documentation</a> &#187;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
       </ul>
     </div>

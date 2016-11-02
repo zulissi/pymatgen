@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.symmetry.groups &#8212; pymatgen 4.4.12 documentation</title>
+    <title>pymatgen.symmetry.groups &#8212; pymatgen 4.5.0 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '4.4.12',
+        VERSION:     '4.5.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -27,7 +27,7 @@
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="top" title="pymatgen 4.4.12 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 4.5.0 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -47,7 +47,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.4.12 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
       </ul>
     </div>  
@@ -63,6 +63,17 @@
 <span class="c1"># Distributed under the terms of the MIT License.</span>
 
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">unicode_literals</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="k">import</span> <span class="n">product</span>
+<span class="kn">from</span> <span class="nn">fractions</span> <span class="k">import</span> <span class="n">Fraction</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="k">import</span> <span class="n">ABCMeta</span><span class="p">,</span> <span class="n">abstractproperty</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">Sequence</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">monty.serialization</span> <span class="k">import</span> <span class="n">loadfn</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.core.operations</span> <span class="k">import</span> <span class="n">SymmOp</span>
+<span class="kn">from</span> <span class="nn">monty.design_patterns</span> <span class="k">import</span> <span class="n">cached_class</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">Defines SymmetryGroup parent class and PointGroup and SpaceGroup classes.</span>
@@ -77,30 +88,15 @@
 <span class="n">__email__</span> <span class="o">=</span> <span class="s2">&quot;ongsp@ucsd.edu&quot;</span>
 <span class="n">__date__</span> <span class="o">=</span> <span class="s2">&quot;4/4/14&quot;</span>
 
-<span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">from</span> <span class="nn">itertools</span> <span class="k">import</span> <span class="n">product</span>
-<span class="kn">from</span> <span class="nn">fractions</span> <span class="k">import</span> <span class="n">Fraction</span>
-<span class="kn">from</span> <span class="nn">abc</span> <span class="k">import</span> <span class="n">ABCMeta</span><span class="p">,</span> <span class="n">abstractproperty</span>
-<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">Sequence</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">import</span> <span class="nn">warnings</span>
-<span class="kn">from</span> <span class="nn">monty.serialization</span> <span class="k">import</span> <span class="n">loadfn</span>
 
-<span class="kn">from</span> <span class="nn">pymatgen.core.operations</span> <span class="k">import</span> <span class="n">SymmOp</span>
-<span class="kn">from</span> <span class="nn">monty.design_patterns</span> <span class="k">import</span> <span class="n">cached_class</span>
-
-<span class="n">SYMM_DATA</span> <span class="o">=</span> <span class="n">loadfn</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span> <span class="s2">&quot;symm_data.yaml&quot;</span><span class="p">))</span>
+<span class="n">SYMM_DATA</span> <span class="o">=</span> <span class="kc">None</span>
 
 
-<span class="n">GENERATOR_MATRICES</span> <span class="o">=</span> <span class="n">SYMM_DATA</span><span class="p">[</span><span class="s2">&quot;generator_matrices&quot;</span><span class="p">]</span>
-<span class="n">POINT_GROUP_ENC</span> <span class="o">=</span> <span class="n">SYMM_DATA</span><span class="p">[</span><span class="s2">&quot;point_group_encoding&quot;</span><span class="p">]</span>
-<span class="n">SPACE_GROUP_ENC</span> <span class="o">=</span> <span class="n">SYMM_DATA</span><span class="p">[</span><span class="s2">&quot;space_group_encoding&quot;</span><span class="p">]</span>
-<span class="n">ABBREV_SPACE_GROUP_MAPPING</span> <span class="o">=</span> <span class="n">SYMM_DATA</span><span class="p">[</span><span class="s2">&quot;abbreviated_spacegroup_symbols&quot;</span><span class="p">]</span>
-<span class="n">TRANSLATIONS</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">Fraction</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">SYMM_DATA</span><span class="p">[</span><span class="s2">&quot;translations&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
-<span class="n">FULL_SPACE_GROUP_MAPPING</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="n">v</span><span class="p">[</span><span class="s2">&quot;full_symbol&quot;</span><span class="p">]:</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">SYMM_DATA</span><span class="p">[</span><span class="s2">&quot;space_group_encoding&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
-<span class="n">MAXIMAL_SUBGROUPS</span> <span class="o">=</span> <span class="p">{</span><span class="nb">int</span><span class="p">(</span><span class="n">k</span><span class="p">):</span> <span class="n">v</span>
-                     <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">SYMM_DATA</span><span class="p">[</span><span class="s2">&quot;maximal_subgroups&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+<div class="viewcode-block" id="get_symm_data"><a class="viewcode-back" href="../../../pymatgen.symmetry.html#pymatgen.symmetry.groups.get_symm_data">[docs]</a><span class="k">def</span> <span class="nf">get_symm_data</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+    <span class="k">global</span> <span class="n">SYMM_DATA</span>
+    <span class="k">if</span> <span class="n">SYMM_DATA</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">SYMM_DATA</span> <span class="o">=</span> <span class="n">loadfn</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span> <span class="s2">&quot;symm_data.yaml&quot;</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">SYMM_DATA</span><span class="p">[</span><span class="n">name</span><span class="p">]</span></div>
 
 
 <div class="viewcode-block" id="SymmetryGroup"><a class="viewcode-back" href="../../../pymatgen.symmetry.html#pymatgen.symmetry.groups.SymmetryGroup">[docs]</a><span class="k">class</span> <span class="nc">SymmetryGroup</span><span class="p">(</span><span class="n">Sequence</span><span class="p">):</span>
@@ -179,8 +175,8 @@
 <span class="sd">            int_symbol (str): International or Hermann-Mauguin Symbol.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">symbol</span> <span class="o">=</span> <span class="n">int_symbol</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">generators</span> <span class="o">=</span> <span class="p">[</span><span class="n">GENERATOR_MATRICES</span><span class="p">[</span><span class="n">c</span><span class="p">]</span>
-                           <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">POINT_GROUP_ENC</span><span class="p">[</span><span class="n">int_symbol</span><span class="p">]]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">generators</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_symm_data</span><span class="p">(</span><span class="s2">&quot;generator_matrices&quot;</span><span class="p">)[</span><span class="n">c</span><span class="p">]</span>
+                           <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">get_symm_data</span><span class="p">(</span><span class="s2">&quot;point_group_encoding&quot;</span><span class="p">)[</span><span class="n">int_symbol</span><span class="p">]]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_symmetry_ops</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span><span class="n">SymmOp</span><span class="o">.</span><span class="n">from_rotation_and_translation</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
                                   <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_full_symmetry_ops</span><span class="p">()])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">order</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_symmetry_ops</span><span class="p">)</span>
@@ -247,7 +243,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="c1"># Contains the entire list of supported Space Group symbols.</span>
-    <span class="n">SG_SYMBOLS</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">SPACE_GROUP_ENC</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="n">SG_SYMBOLS</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">get_symm_data</span><span class="p">(</span><span class="s2">&quot;space_group_encoding&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">int_symbol</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -262,16 +258,26 @@
 <span class="sd">                that for rhomohedral cells, the hexagonal setting can be</span>
 <span class="sd">                accessed by adding a &quot;H&quot;, e.g., &quot;R-3mH&quot;.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">int_symbol</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">SPACE_GROUP_ENC</span> <span class="ow">and</span> <span class="n">int_symbol</span> <span class="ow">not</span> <span class="ow">in</span> \
-                <span class="n">ABBREV_SPACE_GROUP_MAPPING</span> <span class="ow">and</span> <span class="n">int_symbol</span> <span class="ow">not</span> <span class="ow">in</span> \
-                <span class="n">FULL_SPACE_GROUP_MAPPING</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Bad international symbol </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">int_symbol</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">int_symbol</span> <span class="ow">in</span> <span class="n">ABBREV_SPACE_GROUP_MAPPING</span><span class="p">:</span>
-            <span class="n">int_symbol</span> <span class="o">=</span> <span class="n">ABBREV_SPACE_GROUP_MAPPING</span><span class="p">[</span><span class="n">int_symbol</span><span class="p">]</span>
-        <span class="k">elif</span> <span class="n">int_symbol</span> <span class="ow">in</span> <span class="n">FULL_SPACE_GROUP_MAPPING</span><span class="p">:</span>
-            <span class="n">int_symbol</span> <span class="o">=</span> <span class="n">FULL_SPACE_GROUP_MAPPING</span><span class="p">[</span><span class="n">int_symbol</span><span class="p">]</span>
+        <span class="n">gen_matrices</span> <span class="o">=</span> <span class="n">get_symm_data</span><span class="p">(</span><span class="s2">&quot;generator_matrices&quot;</span><span class="p">)</span>
+        <span class="c1"># POINT_GROUP_ENC = SYMM_DATA[&quot;point_group_encoding&quot;]</span>
+        <span class="n">sgencoding</span> <span class="o">=</span> <span class="n">get_symm_data</span><span class="p">(</span><span class="s2">&quot;space_group_encoding&quot;</span><span class="p">)</span>
+        <span class="n">abbrev_sg_mapping</span> <span class="o">=</span> <span class="n">get_symm_data</span><span class="p">(</span><span class="s2">&quot;abbreviated_spacegroup_symbols&quot;</span><span class="p">)</span>
+        <span class="n">translations</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">Fraction</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">get_symm_data</span><span class="p">(</span>
+            <span class="s2">&quot;translations&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="n">full_sg_mapping</span> <span class="o">=</span> <span class="p">{</span>
+             <span class="n">v</span><span class="p">[</span><span class="s2">&quot;full_symbol&quot;</span><span class="p">]:</span> <span class="n">k</span>
+             <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">get_symm_data</span><span class="p">(</span><span class="s2">&quot;space_group_encoding&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
 
-        <span class="n">data</span> <span class="o">=</span> <span class="n">SPACE_GROUP_ENC</span><span class="p">[</span><span class="n">int_symbol</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">int_symbol</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sgencoding</span> <span class="ow">and</span> <span class="n">int_symbol</span> <span class="ow">not</span> <span class="ow">in</span> \
+                <span class="n">abbrev_sg_mapping</span> <span class="ow">and</span> <span class="n">int_symbol</span> <span class="ow">not</span> <span class="ow">in</span> \
+                <span class="n">full_sg_mapping</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Bad international symbol </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">int_symbol</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">int_symbol</span> <span class="ow">in</span> <span class="n">abbrev_sg_mapping</span><span class="p">:</span>
+            <span class="n">int_symbol</span> <span class="o">=</span> <span class="n">abbrev_sg_mapping</span><span class="p">[</span><span class="n">int_symbol</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">int_symbol</span> <span class="ow">in</span> <span class="n">full_sg_mapping</span><span class="p">:</span>
+            <span class="n">int_symbol</span> <span class="o">=</span> <span class="n">full_sg_mapping</span><span class="p">[</span><span class="n">int_symbol</span><span class="p">]</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">sgencoding</span><span class="p">[</span><span class="n">int_symbol</span><span class="p">]</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">symbol</span> <span class="o">=</span> <span class="n">int_symbol</span>
         <span class="c1"># TODO: Support different origin choices.</span>
@@ -285,10 +291,10 @@
                  <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]))</span>
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ngen</span><span class="p">):</span>
             <span class="n">m</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
-            <span class="n">m</span><span class="p">[:</span><span class="mi">3</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">GENERATOR_MATRICES</span><span class="p">[</span><span class="n">enc</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)]</span>
-            <span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">TRANSLATIONS</span><span class="p">[</span><span class="n">enc</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)]</span>
-            <span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">TRANSLATIONS</span><span class="p">[</span><span class="n">enc</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)]</span>
-            <span class="n">m</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">TRANSLATIONS</span><span class="p">[</span><span class="n">enc</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)]</span>
+            <span class="n">m</span><span class="p">[:</span><span class="mi">3</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">gen_matrices</span><span class="p">[</span><span class="n">enc</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)]</span>
+            <span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">translations</span><span class="p">[</span><span class="n">enc</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)]</span>
+            <span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">translations</span><span class="p">[</span><span class="n">enc</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)]</span>
+            <span class="n">m</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">translations</span><span class="p">[</span><span class="n">enc</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)]</span>
             <span class="n">symm_ops</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">generators</span> <span class="o">=</span> <span class="n">symm_ops</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">full_symbol</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;full_symbol&quot;</span><span class="p">]</span>
@@ -423,11 +429,12 @@
 
         <span class="n">groups</span> <span class="o">=</span> <span class="p">[[</span><span class="n">supergroup</span><span class="o">.</span><span class="n">int_number</span><span class="p">]]</span>
         <span class="n">all_groups</span> <span class="o">=</span> <span class="p">[</span><span class="n">supergroup</span><span class="o">.</span><span class="n">int_number</span><span class="p">]</span>
-        <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">max_subgroups</span> <span class="o">=</span> <span class="p">{</span><span class="nb">int</span><span class="p">(</span><span class="n">k</span><span class="p">):</span> <span class="n">v</span>
+                         <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">get_symm_data</span><span class="p">(</span><span class="s2">&quot;maximal_subgroups&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
         <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
             <span class="n">new_sub_groups</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
             <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
-                <span class="n">new_sub_groups</span><span class="o">.</span><span class="n">update</span><span class="p">([</span><span class="n">j</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">MAXIMAL_SUBGROUPS</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">if</span> <span class="n">j</span>
+                <span class="n">new_sub_groups</span><span class="o">.</span><span class="n">update</span><span class="p">([</span><span class="n">j</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">max_subgroups</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">if</span> <span class="n">j</span>
                                        <span class="ow">not</span> <span class="ow">in</span> <span class="n">all_groups</span><span class="p">])</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">int_number</span> <span class="ow">in</span> <span class="n">new_sub_groups</span><span class="p">:</span>
                 <span class="k">return</span> <span class="kc">True</span>
@@ -484,7 +491,7 @@
 <span class="sd">        (str) Spacegroup symbol</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">syms</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">SPACE_GROUP_ENC</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">get_symm_data</span><span class="p">(</span><span class="s2">&quot;space_group_encoding&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
         <span class="k">if</span> <span class="n">v</span><span class="p">[</span><span class="s2">&quot;int_number&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">int_number</span><span class="p">:</span>
             <span class="n">syms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">syms</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
@@ -549,7 +556,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.4.12 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
       </ul>
     </div>

@@ -1,0 +1,1059 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.io.tests.test_cif &#8212; pymatgen 4.5.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '4.5.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="top" title="pymatgen 4.5.0 documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" />
+ 
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-33990148-1']);
+  _gaq.push(['_trackPageview']);
+</script>
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pymatgen.io.tests.test_cif</h1><div class="highlight"><pre>
+<span></span><span class="c1"># coding: utf-8</span>
+<span class="c1"># Copyright (c) Pymatgen Development Team.</span>
+<span class="c1"># Distributed under the terms of the MIT License.</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">unicode_literals</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">unittest2</span> <span class="k">as</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.io.cif</span> <span class="k">import</span> <span class="n">CifParser</span><span class="p">,</span> <span class="n">CifWriter</span><span class="p">,</span> <span class="n">CifBlock</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.vasp.inputs</span> <span class="k">import</span> <span class="n">Poscar</span>
+<span class="kn">from</span> <span class="nn">pymatgen</span> <span class="k">import</span> <span class="n">Element</span><span class="p">,</span> <span class="n">Specie</span><span class="p">,</span> <span class="n">Lattice</span><span class="p">,</span> <span class="n">Structure</span><span class="p">,</span> <span class="n">Composition</span><span class="p">,</span> <span class="n">DummySpecie</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.structure_matcher</span> <span class="k">import</span> <span class="n">StructureMatcher</span>
+<span class="kn">from</span> <span class="nn">pymatgen.util.testing</span> <span class="k">import</span> <span class="n">PymatgenTest</span>
+
+<span class="n">test_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span>
+                        <span class="s1">&#39;test_files&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="CifBlockTest"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifBlockTest">[docs]</a><span class="k">class</span> <span class="nc">CifBlockTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="CifBlockTest.test_to_string"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifBlockTest.test_to_string">[docs]</a>    <span class="k">def</span> <span class="nf">test_to_string</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;Graphite.cif&#39;</span><span class="p">))</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">CifBlock</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="n">cif_str_2</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">CifBlock</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">)))</span>
+        <span class="n">cif_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;data_53781-ICSD</span>
+<span class="s2">_database_code_ICSD   53781</span>
+<span class="s2">_audit_creation_date   2003-04-01</span>
+<span class="s2">_audit_update_record   2013-02-01</span>
+<span class="s2">_chemical_name_systematic   Carbon</span>
+<span class="s2">_chemical_formula_structural   C</span>
+<span class="s2">_chemical_formula_sum   C1</span>
+<span class="s2">_chemical_name_structure_type   Graphite(2H)</span>
+<span class="s2">_chemical_name_mineral   &#39;Graphite 2H&#39;</span>
+<span class="s2">_exptl_crystal_density_diffrn   2.22</span>
+<span class="s2">_publ_section_title   &#39;Structure of graphite&#39;</span>
+<span class="s2">loop_</span>
+<span class="s2"> _citation_id</span>
+<span class="s2"> _citation_journal_full</span>
+<span class="s2"> _citation_year</span>
+<span class="s2"> _citation_journal_volume</span>
+<span class="s2"> _citation_page_first</span>
+<span class="s2"> _citation_page_last</span>
+<span class="s2"> _citation_journal_id_ASTM</span>
+<span class="s2">  primary  &#39;Physical Review (1,1893-132,1963/141,1966-188,1969)&#39;</span>
+<span class="s2">  1917  10  661  696  PHRVAO</span>
+<span class="s2">loop_</span>
+<span class="s2"> _publ_author_name</span>
+<span class="s2">  &#39;Hull, A.W.&#39;</span>
+<span class="s2">_cell_length_a   2.47</span>
+<span class="s2">_cell_length_b   2.47</span>
+<span class="s2">_cell_length_c   6.8</span>
+<span class="s2">_cell_angle_alpha   90.</span>
+<span class="s2">_cell_angle_beta   90.</span>
+<span class="s2">_cell_angle_gamma   120.</span>
+<span class="s2">_cell_volume   35.93</span>
+<span class="s2">_cell_formula_units_Z   4</span>
+<span class="s2">_symmetry_space_group_name_H-M   &#39;P 63/m m c&#39;</span>
+<span class="s2">_symmetry_Int_Tables_number   194</span>
+<span class="s2">loop_</span>
+<span class="s2"> _symmetry_equiv_pos_site_id</span>
+<span class="s2"> _symmetry_equiv_pos_as_xyz</span>
+<span class="s2">  1  &#39;x, x-y, -z+1/2&#39;</span>
+<span class="s2">  2  &#39;-x+y, y, -z+1/2&#39;</span>
+<span class="s2">  3  &#39;-y, -x, -z+1/2&#39;</span>
+<span class="s2">  4  &#39;-x+y, -x, -z+1/2&#39;</span>
+<span class="s2">  5  &#39;-y, x-y, -z+1/2&#39;</span>
+<span class="s2">  6  &#39;x, y, -z+1/2&#39;</span>
+<span class="s2">  7  &#39;-x, -x+y, z+1/2&#39;</span>
+<span class="s2">  8  &#39;x-y, -y, z+1/2&#39;</span>
+<span class="s2">  9  &#39;y, x, z+1/2&#39;</span>
+<span class="s2">  10  &#39;x-y, x, z+1/2&#39;</span>
+<span class="s2">  11  &#39;y, -x+y, z+1/2&#39;</span>
+<span class="s2">  12  &#39;-x, -y, z+1/2&#39;</span>
+<span class="s2">  13  &#39;-x, -x+y, -z&#39;</span>
+<span class="s2">  14  &#39;x-y, -y, -z&#39;</span>
+<span class="s2">  15  &#39;y, x, -z&#39;</span>
+<span class="s2">  16  &#39;x-y, x, -z&#39;</span>
+<span class="s2">  17  &#39;y, -x+y, -z&#39;</span>
+<span class="s2">  18  &#39;-x, -y, -z&#39;</span>
+<span class="s2">  19  &#39;x, x-y, z&#39;</span>
+<span class="s2">  20  &#39;-x+y, y, z&#39;</span>
+<span class="s2">  21  &#39;-y, -x, z&#39;</span>
+<span class="s2">  22  &#39;-x+y, -x, z&#39;</span>
+<span class="s2">  23  &#39;-y, x-y, z&#39;</span>
+<span class="s2">  24  &#39;x, y, z&#39;</span>
+<span class="s2">loop_</span>
+<span class="s2"> _atom_type_symbol</span>
+<span class="s2"> _atom_type_oxidation_number</span>
+<span class="s2">  C0+  0</span>
+<span class="s2">loop_</span>
+<span class="s2"> _atom_site_label</span>
+<span class="s2"> _atom_site_type_symbol</span>
+<span class="s2"> _atom_site_symmetry_multiplicity</span>
+<span class="s2"> _atom_site_Wyckoff_symbol</span>
+<span class="s2"> _atom_site_fract_x</span>
+<span class="s2"> _atom_site_fract_y</span>
+<span class="s2"> _atom_site_fract_z</span>
+<span class="s2"> _atom_site_B_iso_or_equiv</span>
+<span class="s2"> _atom_site_occupancy</span>
+<span class="s2"> _atom_site_attached_hydrogens</span>
+<span class="s2">  C1  C0+  2  b  0  0  0.25  .  1.  0</span>
+<span class="s2">  C2  C0+  2  c  0.3333  0.6667  0.25  .  1.  0&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">l1</span><span class="p">,</span> <span class="n">l2</span><span class="p">,</span> <span class="n">l3</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">),</span> <span class="n">cif_str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">),</span>
+                          <span class="n">cif_str_2</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">l1</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">l2</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">l2</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">l3</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="CifBlockTest.test_double_quotes_and_underscore_data"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifBlockTest.test_double_quotes_and_underscore_data">[docs]</a>    <span class="k">def</span> <span class="nf">test_double_quotes_and_underscore_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">cif_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;data_test</span>
+<span class="s2">_symmetry_space_group_name_H-M   &quot;P -3 m 1&quot;</span>
+<span class="s2">_thing   &#39;_annoying_data&#39;&quot;&quot;&quot;</span>
+        <span class="n">cb</span> <span class="o">=</span> <span class="n">CifBlock</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">cif_str</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">cb</span><span class="p">[</span><span class="s2">&quot;_symmetry_space_group_name_H-M&quot;</span><span class="p">],</span> <span class="s2">&quot;P -3 m 1&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">cb</span><span class="p">[</span><span class="s2">&quot;_thing&quot;</span><span class="p">],</span> <span class="s2">&quot;_annoying_data&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">cb</span><span class="p">),</span> <span class="n">cif_str</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s2">&quot;&#39;&quot;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CifBlockTest.test_double_quoted_data"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifBlockTest.test_double_quoted_data">[docs]</a>    <span class="k">def</span> <span class="nf">test_double_quoted_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">cif_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;data_test</span>
+<span class="s2">_thing   &#39; &#39;_annoying_data&#39;&#39;</span>
+<span class="s2">_other   &quot; &quot;_more_annoying_data&quot;&quot;</span>
+<span class="s2">_more   &#39; &quot;even more&quot; &#39; &quot;&quot;&quot;</span>
+        <span class="n">cb</span> <span class="o">=</span> <span class="n">CifBlock</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">cif_str</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">cb</span><span class="p">[</span><span class="s2">&quot;_thing&quot;</span><span class="p">],</span> <span class="s2">&quot; &#39;_annoying_data&#39;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">cb</span><span class="p">[</span><span class="s2">&quot;_other&quot;</span><span class="p">],</span> <span class="s1">&#39; &quot;_more_annoying_data&quot;&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">cb</span><span class="p">[</span><span class="s2">&quot;_more&quot;</span><span class="p">],</span> <span class="s1">&#39; &quot;even more&quot; &#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CifBlockTest.test_nested_fake_multiline_quotes"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifBlockTest.test_nested_fake_multiline_quotes">[docs]</a>    <span class="k">def</span> <span class="nf">test_nested_fake_multiline_quotes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">cif_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;data_test</span>
+<span class="s2">_thing</span>
+<span class="s2">;</span>
+<span class="s2">long quotes</span>
+<span class="s2"> ;</span>
+<span class="s2"> still in the quote</span>
+<span class="s2"> ;</span>
+<span class="s2">actually going to end now</span>
+<span class="s2">;&quot;&quot;&quot;</span>
+        <span class="n">cb</span> <span class="o">=</span> <span class="n">CifBlock</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">cif_str</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">cb</span><span class="p">[</span><span class="s2">&quot;_thing&quot;</span><span class="p">],</span> <span class="s2">&quot; long quotes  ;  still in the quote&quot;</span>
+                                       <span class="s2">&quot;  ; actually going to end now&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CifBlockTest.test_long_loop"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifBlockTest.test_long_loop">[docs]</a>    <span class="k">def</span> <span class="nf">test_long_loop</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;_stuff1&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;A&#39;</span> <span class="o">*</span> <span class="mi">30</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span>
+                <span class="s1">&#39;_stuff2&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;B&#39;</span> <span class="o">*</span> <span class="mi">30</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span>
+                <span class="s1">&#39;_stuff3&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;C&#39;</span> <span class="o">*</span> <span class="mi">30</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">}</span>
+        <span class="n">loops</span> <span class="o">=</span> <span class="p">[[</span><span class="s1">&#39;_stuff1&#39;</span><span class="p">,</span> <span class="s1">&#39;_stuff2&#39;</span><span class="p">,</span> <span class="s1">&#39;_stuff3&#39;</span><span class="p">]]</span>
+        <span class="n">cif_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;data_test</span>
+<span class="s2">loop_</span>
+<span class="s2"> _stuff1</span>
+<span class="s2"> _stuff2</span>
+<span class="s2"> _stuff3</span>
+<span class="s2">  AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA  BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB</span>
+<span class="s2">  CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC</span>
+<span class="s2">  AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA  BBBBBBBBBBBBBBBBBBBBBBBBBBBBBB</span>
+<span class="s2">  CCCCCCCCCCCCCCCCCCCCCCCCCCCCCC&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">CifBlock</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">loops</span><span class="p">,</span> <span class="s1">&#39;test&#39;</span><span class="p">)),</span> <span class="n">cif_str</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="CifIOTest"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifIOTest">[docs]</a><span class="k">class</span> <span class="nc">CifIOTest</span><span class="p">(</span><span class="n">PymatgenTest</span><span class="p">):</span>
+
+<div class="viewcode-block" id="CifIOTest.test_CifParser"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifIOTest.test_CifParser">[docs]</a>    <span class="k">def</span> <span class="nf">test_CifParser</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;LiFePO4.cif&#39;</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="kc">True</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Li4 Fe4 P4 O16&quot;</span><span class="p">,</span>
+                             <span class="s2">&quot;Incorrectly parsed cif.&quot;</span><span class="p">)</span>
+
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;V2O3.cif&#39;</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="kc">True</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;V4 O6&quot;</span><span class="p">)</span>
+
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;Li2O.cif&#39;</span><span class="p">))</span>
+        <span class="n">prim</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="kc">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">prim</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Li2 O1&quot;</span><span class="p">)</span>
+        <span class="n">conv</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="kc">False</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">conv</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Li8 O4&quot;</span><span class="p">)</span>
+
+        <span class="c1">#test for disordered structures</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;Li10GeP2S12.cif&#39;</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="kc">True</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Li20.2 Ge2.06 P3.94 S24&quot;</span><span class="p">,</span>
+                             <span class="s2">&quot;Incorrectly parsed cif.&quot;</span><span class="p">)</span>
+        <span class="n">cif_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;#\#CIF1.1</span>
+<span class="s2">##########################################################################</span>
+<span class="s2">#               Crystallographic Information Format file</span>
+<span class="s2">#               Produced by PyCifRW module</span>
+<span class="s2">#</span>
+<span class="s2">#  This is a CIF file.  CIF has been adopted by the International</span>
+<span class="s2">#  Union of Crystallography as the standard for data archiving and</span>
+<span class="s2">#  transmission.</span>
+<span class="s2">#</span>
+<span class="s2">#  For information on this file format, follow the CIF links at</span>
+<span class="s2">#  http://www.iucr.org</span>
+<span class="s2">##########################################################################</span>
+
+<span class="s2">data_FePO4</span>
+<span class="s2">_symmetry_space_group_name_H-M          &#39;P 1&#39;</span>
+<span class="s2">_cell_length_a                          10.4117668699</span>
+<span class="s2">_cell_length_b                          6.06717187997</span>
+<span class="s2">_cell_length_c                          4.75948953998</span>
+<span class="s2">loop_ # sometimes this is in a loop (incorrectly)</span>
+<span class="s2">_cell_angle_alpha</span>
+<span class="s2">91.0</span>
+<span class="s2">_cell_angle_beta                        92.0</span>
+<span class="s2">_cell_angle_gamma                       93.0</span>
+<span class="s2">_chemical_name_systematic               &#39;Generated by pymatgen&#39;</span>
+<span class="s2">_symmetry_Int_Tables_number             1</span>
+<span class="s2">_chemical_formula_structural            FePO4</span>
+<span class="s2">_chemical_formula_sum                   &#39;Fe4 P4 O16&#39;</span>
+<span class="s2">_cell_volume                            300.65685512</span>
+<span class="s2">_cell_formula_units_Z                   4</span>
+<span class="s2">loop_</span>
+<span class="s2">  _symmetry_equiv_pos_site_id</span>
+<span class="s2">  _symmetry_equiv_pos_as_xyz</span>
+<span class="s2">   1  &#39;x, y, z&#39;</span>
+
+<span class="s2">loop_</span>
+<span class="s2">  _atom_site_type_symbol</span>
+<span class="s2">  _atom_site_label</span>
+<span class="s2">  _atom_site_symmetry_multiplicity</span>
+<span class="s2">  _atom_site_fract_x</span>
+<span class="s2">  _atom_site_fract_y</span>
+<span class="s2">  _atom_site_fract_z</span>
+<span class="s2">  _atom_site_attached_hydrogens</span>
+<span class="s2">  _atom_site_B_iso_or_equiv</span>
+<span class="s2">  _atom_site_occupancy</span>
+<span class="s2">    Fe  Fe1  1  0.218728  0.750000  0.474867  0  .  1</span>
+<span class="s2">    Fe  JJ2  1  0.281272  0.250000  0.974867  0  .  1</span>
+<span class="s2">    # there&#39;s a typo here, parser should read the symbol from the</span>
+<span class="s2">    # _atom_site_type_symbol</span>
+<span class="s2">    Fe  Fe3  1  0.718728  0.750000  0.025133  0  .  1</span>
+<span class="s2">    Fe  Fe4  1  0.781272  0.250000  0.525133  0  .  1</span>
+<span class="s2">    P  P5  1  0.094613  0.250000  0.418243  0  .  1</span>
+<span class="s2">    P  P6  1  0.405387  0.750000  0.918243  0  .  1</span>
+<span class="s2">    P  P7  1  0.594613  0.250000  0.081757  0  .  1</span>
+<span class="s2">    P  P8  1  0.905387  0.750000  0.581757  0  .  1</span>
+<span class="s2">    O  O9  1  0.043372  0.750000  0.707138  0  .  1</span>
+<span class="s2">    O  O10  1  0.096642  0.250000  0.741320  0  .  1</span>
+<span class="s2">    O  O11  1  0.165710  0.046072  0.285384  0  .  1</span>
+<span class="s2">    O  O12  1  0.165710  0.453928  0.285384  0  .  1</span>
+<span class="s2">    O  O13  1  0.334290  0.546072  0.785384  0  .  1</span>
+<span class="s2">    O  O14  1  0.334290  0.953928  0.785384  0  .  1</span>
+<span class="s2">    O  O15  1  0.403358  0.750000  0.241320  0  .  1</span>
+<span class="s2">    O  O16  1  0.456628  0.250000  0.207138  0  .  1</span>
+<span class="s2">    O  O17  1  0.543372  0.750000  0.792862  0  .  1</span>
+<span class="s2">    O  O18  1  0.596642  0.250000  0.758680  0  .  1</span>
+<span class="s2">    O  O19  1  0.665710  0.046072  0.214616  0  .  1</span>
+<span class="s2">    O  O20  1  0.665710  0.453928  0.214616  0  .  1</span>
+<span class="s2">    O  O21  1  0.834290  0.546072  0.714616  0  .  1</span>
+<span class="s2">    O  O22  1  0.834290  0.953928  0.714616  0  .  1</span>
+<span class="s2">    O  O23  1  0.903358  0.750000  0.258680  0  .  1</span>
+<span class="s2">    O  O24  1  0.956628  0.250000  0.292862  0  .  1</span>
+
+<span class="s2">&quot;&quot;&quot;</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">cif_str</span><span class="p">)</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="n">primitive</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Fe4 P4 O16&quot;</span><span class="p">,</span>
+                         <span class="s2">&quot;Incorrectly parsed cif.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">a</span><span class="p">,</span> <span class="mf">10.4117668699</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">b</span><span class="p">,</span> <span class="mf">6.06717187997</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">c</span><span class="p">,</span> <span class="mf">4.75948953998</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">alpha</span><span class="p">,</span> <span class="mi">91</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">beta</span><span class="p">,</span> <span class="mi">92</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">gamma</span><span class="p">,</span> <span class="mi">93</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+            <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;srycoo.cif&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span>
+                         <span class="s2">&quot;Sr5.6 Y2.4 Co8 O21&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Test with a decimal Xyz. This should parse as two atoms in</span>
+        <span class="c1"># conventional cell if it is correct, one if not.</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s2">&quot;Fe.cif&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="n">primitive</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="mi">0</span><span class="p">]),</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># Below are 10 tests for CIFs from the Springer Materials/Pauling file DBs.</span>
+
+        <span class="c1"># Partial occupancy on sites, incorrect label, previously unparsable</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;PF_sd_1928405.cif&#39;</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="kc">True</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Er1 Mn3.888 Fe2.112 Sn6&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Partial occupancy on sites, previously parsed as an ordered structure</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;PF_sd_1011081.cif&#39;</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="kc">True</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Zr0.2 Nb0.8&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Partial occupancy on sites, incorrect label, previously unparsable</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;PF_sd_1615854.cif&#39;</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="kc">True</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Na2 Al2 Si6 O16&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Partial occupancy on sites, incorrect label, previously unparsable</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;PF_sd_1622133.cif&#39;</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="kc">True</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Ca0.184 Mg13.016 Fe2.8 Si16 O48&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Partial occupancy on sites, previously parsed as an ordered structure</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;PF_sd_1908491.cif&#39;</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="kc">True</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Mn0.48 Zn0.52 Ga2 Se4&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Partial occupancy on sites, incorrect label, previously unparsable</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;PF_sd_1811457.cif&#39;</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="kc">True</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Ba2 Mg0.6 Zr0.2 Ta1.2 O6&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Incomplete powder diffraction data, previously unparsable</span>
+        <span class="c1"># This CIF file contains the molecular species &quot;NH3&quot; which is</span>
+        <span class="c1"># parsed as &quot;N&quot; because the label is &quot;N{x}&quot; (x = 1,2,..) and the</span>
+        <span class="c1"># corresponding symbol is &quot;NH3&quot;. Since, the label and symbol are switched</span>
+        <span class="c1"># in CIFs from Springer Materials/Pauling file DBs, CifParser parses the</span>
+        <span class="c1"># element as &quot;N&quot;.</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;PF_sd_1002871.cif&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="kc">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Cu1 Br2 N6&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="kc">True</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Cu1 Br4 N6&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Incomplete powder diffraction data, previously unparsable</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;PF_sd_1704003.cif&#39;</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Rb4 Mn2 F12&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Unparsable species &#39;OH/OH2&#39;, previously parsed as &quot;O&quot;</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;PF_sd_1500382.cif&#39;</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Mg6 B2 O6 F1.764&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Unparsable species &#39;OH/OH2&#39;, previously parsed as &quot;O&quot;</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;PF_sd_1601634.cif&#39;</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Zn1.29 Fe0.69 As2 Pb1.02 O8&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CifIOTest.test_CifWriter"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifIOTest.test_CifWriter">[docs]</a>    <span class="k">def</span> <span class="nf">test_CifWriter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">filepath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;POSCAR&#39;</span><span class="p">)</span>
+        <span class="n">poscar</span> <span class="o">=</span> <span class="n">Poscar</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+        <span class="n">writer</span> <span class="o">=</span> <span class="n">CifWriter</span><span class="p">(</span><span class="n">poscar</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mf">0.001</span><span class="p">)</span>
+        <span class="n">ans</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;# generated using pymatgen</span>
+<span class="s2">data_FePO4</span>
+<span class="s2">_symmetry_space_group_name_H-M   Pnma</span>
+<span class="s2">_cell_length_a   10.41176687</span>
+<span class="s2">_cell_length_b   6.06717188</span>
+<span class="s2">_cell_length_c   4.75948954</span>
+<span class="s2">_cell_angle_alpha   90.00000000</span>
+<span class="s2">_cell_angle_beta   90.00000000</span>
+<span class="s2">_cell_angle_gamma   90.00000000</span>
+<span class="s2">_symmetry_Int_Tables_number   62</span>
+<span class="s2">_chemical_formula_structural   FePO4</span>
+<span class="s2">_chemical_formula_sum   &#39;Fe4 P4 O16&#39;</span>
+<span class="s2">_cell_volume   300.65685512</span>
+<span class="s2">_cell_formula_units_Z   4</span>
+<span class="s2">loop_</span>
+<span class="s2"> _symmetry_equiv_pos_site_id</span>
+<span class="s2"> _symmetry_equiv_pos_as_xyz</span>
+<span class="s2">  1  &#39;x, y, z&#39;</span>
+<span class="s2">  2  &#39;-x, -y, -z&#39;</span>
+<span class="s2">  3  &#39;-x+1/2, -y, z+1/2&#39;</span>
+<span class="s2">  4  &#39;x+1/2, y, -z+1/2&#39;</span>
+<span class="s2">  5  &#39;x+1/2, -y+1/2, -z+1/2&#39;</span>
+<span class="s2">  6  &#39;-x+1/2, y+1/2, z+1/2&#39;</span>
+<span class="s2">  7  &#39;-x, y+1/2, -z&#39;</span>
+<span class="s2">  8  &#39;x, -y+1/2, z&#39;</span>
+<span class="s2">loop_</span>
+<span class="s2"> _atom_site_type_symbol</span>
+<span class="s2"> _atom_site_label</span>
+<span class="s2"> _atom_site_symmetry_multiplicity</span>
+<span class="s2"> _atom_site_fract_x</span>
+<span class="s2"> _atom_site_fract_y</span>
+<span class="s2"> _atom_site_fract_z</span>
+<span class="s2"> _atom_site_occupancy</span>
+<span class="s2">  Fe  Fe1  4  0.218728  0.250000  0.525133  1</span>
+<span class="s2">  P  P2  4  0.094613  0.750000  0.581757  1</span>
+<span class="s2">  O  O3  8  0.165710  0.546072  0.714616  1</span>
+<span class="s2">  O  O4  4  0.043372  0.250000  0.292862  1</span>
+<span class="s2">  O  O5  4  0.096642  0.750000  0.258680  1&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">l1</span><span class="p">,</span> <span class="n">l2</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">writer</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">),</span> <span class="n">ans</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">l1</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">l2</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="CifIOTest.test_symmetrized"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifIOTest.test_symmetrized">[docs]</a>    <span class="k">def</span> <span class="nf">test_symmetrized</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">filepath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;POSCAR&#39;</span><span class="p">)</span>
+        <span class="n">poscar</span> <span class="o">=</span> <span class="n">Poscar</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+        <span class="n">writer</span> <span class="o">=</span> <span class="n">CifWriter</span><span class="p">(</span><span class="n">poscar</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+        <span class="n">ans</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;# generated using pymatgen</span>
+<span class="s2">data_FePO4</span>
+<span class="s2">_symmetry_space_group_name_H-M   Pnma</span>
+<span class="s2">_cell_length_a   10.41176687</span>
+<span class="s2">_cell_length_b   6.06717188</span>
+<span class="s2">_cell_length_c   4.75948954</span>
+<span class="s2">_cell_angle_alpha   90.00000000</span>
+<span class="s2">_cell_angle_beta   90.00000000</span>
+<span class="s2">_cell_angle_gamma   90.00000000</span>
+<span class="s2">_symmetry_Int_Tables_number   62</span>
+<span class="s2">_chemical_formula_structural   FePO4</span>
+<span class="s2">_chemical_formula_sum   &#39;Fe4 P4 O16&#39;</span>
+<span class="s2">_cell_volume   300.65685512</span>
+<span class="s2">_cell_formula_units_Z   4</span>
+<span class="s2">loop_</span>
+<span class="s2"> _symmetry_equiv_pos_site_id</span>
+<span class="s2"> _symmetry_equiv_pos_as_xyz</span>
+<span class="s2">  1  &#39;x, y, z&#39;</span>
+<span class="s2">  2  &#39;-x, -y, -z&#39;</span>
+<span class="s2">  3  &#39;-x+1/2, -y, z+1/2&#39;</span>
+<span class="s2">  4  &#39;x+1/2, y, -z+1/2&#39;</span>
+<span class="s2">  5  &#39;x+1/2, -y+1/2, -z+1/2&#39;</span>
+<span class="s2">  6  &#39;-x+1/2, y+1/2, z+1/2&#39;</span>
+<span class="s2">  7  &#39;-x, y+1/2, -z&#39;</span>
+<span class="s2">  8  &#39;x, -y+1/2, z&#39;</span>
+<span class="s2">loop_</span>
+<span class="s2"> _atom_site_type_symbol</span>
+<span class="s2"> _atom_site_label</span>
+<span class="s2"> _atom_site_symmetry_multiplicity</span>
+<span class="s2"> _atom_site_fract_x</span>
+<span class="s2"> _atom_site_fract_y</span>
+<span class="s2"> _atom_site_fract_z</span>
+<span class="s2"> _atom_site_occupancy</span>
+<span class="s2">  Fe  Fe1  4  0.218728  0.250000  0.525133  1</span>
+<span class="s2">  P  P2  4  0.094613  0.750000  0.581757  1</span>
+<span class="s2">  O  O3  8  0.165710  0.546072  0.714616  1</span>
+<span class="s2">  O  O4  4  0.043372  0.250000  0.292862  1</span>
+<span class="s2">  O  O5  4  0.096642  0.750000  0.258680  1&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">l1</span><span class="p">,</span> <span class="n">l2</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">writer</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">),</span> <span class="n">ans</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">l1</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">l2</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+
+        <span class="n">ans</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;# generated using pymatgen</span>
+<span class="s2">data_LiFePO4</span>
+<span class="s2">_symmetry_space_group_name_H-M   Pnma</span>
+<span class="s2">_cell_length_a   10.41037000</span>
+<span class="s2">_cell_length_b   6.06577000</span>
+<span class="s2">_cell_length_c   4.74480000</span>
+<span class="s2">_cell_angle_alpha   90.00000000</span>
+<span class="s2">_cell_angle_beta   90.00000000</span>
+<span class="s2">_cell_angle_gamma   90.00000000</span>
+<span class="s2">_symmetry_Int_Tables_number   62</span>
+<span class="s2">_chemical_formula_structural   LiFePO4</span>
+<span class="s2">_chemical_formula_sum   &#39;Li4 Fe4 P4 O16&#39;</span>
+<span class="s2">_cell_volume   299.619458734</span>
+<span class="s2">_cell_formula_units_Z   4</span>
+<span class="s2">loop_</span>
+<span class="s2"> _symmetry_equiv_pos_site_id</span>
+<span class="s2"> _symmetry_equiv_pos_as_xyz</span>
+<span class="s2">  1  &#39;x, y, z&#39;</span>
+<span class="s2">  2  &#39;-x, -y, -z&#39;</span>
+<span class="s2">  3  &#39;-x+1/2, -y, z+1/2&#39;</span>
+<span class="s2">  4  &#39;x+1/2, y, -z+1/2&#39;</span>
+<span class="s2">  5  &#39;x+1/2, -y+1/2, -z+1/2&#39;</span>
+<span class="s2">  6  &#39;-x+1/2, y+1/2, z+1/2&#39;</span>
+<span class="s2">  7  &#39;-x, y+1/2, -z&#39;</span>
+<span class="s2">  8  &#39;x, -y+1/2, z&#39;</span>
+<span class="s2">loop_</span>
+<span class="s2"> _atom_site_type_symbol</span>
+<span class="s2"> _atom_site_label</span>
+<span class="s2"> _atom_site_symmetry_multiplicity</span>
+<span class="s2"> _atom_site_fract_x</span>
+<span class="s2"> _atom_site_fract_y</span>
+<span class="s2"> _atom_site_fract_z</span>
+<span class="s2"> _atom_site_occupancy</span>
+<span class="s2">  Li  Li1  4  0.000000  0.000000  0.000000  1.0</span>
+<span class="s2">  Fe  Fe2  4  0.218845  0.750000  0.474910  1.0</span>
+<span class="s2">  P  P3  4  0.094445  0.250000  0.417920  1.0</span>
+<span class="s2">  O  O4  8  0.165815  0.044060  0.286540  1.0</span>
+<span class="s2">  O  O5  4  0.043155  0.750000  0.708460  1.0</span>
+<span class="s2">  O  O6  4  0.096215  0.250000  0.741480  1.0</span>
+<span class="s2">&quot;&quot;&quot;</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;LiFePO4.cif&#39;</span><span class="p">))</span>
+        <span class="n">writer</span> <span class="o">=</span> <span class="n">CifWriter</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+        <span class="n">s2</span> <span class="o">=</span> <span class="n">CifParser</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">writer</span><span class="p">))</span><span class="o">.</span><span class="n">get_structures</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">StructureMatcher</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">s2</span><span class="p">))</span>
+
+        <span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="s2">&quot;Li2O&quot;</span><span class="p">)</span>
+        <span class="n">writer</span> <span class="o">=</span> <span class="n">CifWriter</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">symprec</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+        <span class="n">ans</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;# generated using pymatgen</span>
+<span class="s2">data_Li2O</span>
+<span class="s2">_symmetry_space_group_name_H-M   Fm-3m</span>
+<span class="s2">_cell_length_a   4.61000000</span>
+<span class="s2">_cell_length_b   4.61000000</span>
+<span class="s2">_cell_length_c   4.61000000</span>
+<span class="s2">_cell_angle_alpha   90.00000000</span>
+<span class="s2">_cell_angle_beta   90.00000000</span>
+<span class="s2">_cell_angle_gamma   90.00000000</span>
+<span class="s2">_symmetry_Int_Tables_number   225</span>
+<span class="s2">_chemical_formula_structural   Li2O</span>
+<span class="s2">_chemical_formula_sum   &#39;Li8 O4&#39;</span>
+<span class="s2">_cell_volume   97.972181</span>
+<span class="s2">_cell_formula_units_Z   4</span>
+<span class="s2">loop_</span>
+<span class="s2"> _symmetry_equiv_pos_site_id</span>
+<span class="s2"> _symmetry_equiv_pos_as_xyz</span>
+<span class="s2">  1  &#39;x, y, z&#39;</span>
+<span class="s2">  2  &#39;-x, -y, -z&#39;</span>
+<span class="s2">  3  &#39;z, y, -x&#39;</span>
+<span class="s2">  4  &#39;-z, -y, x&#39;</span>
+<span class="s2">  5  &#39;-x, y, -z&#39;</span>
+<span class="s2">  6  &#39;x, -y, z&#39;</span>
+<span class="s2">  7  &#39;-z, y, x&#39;</span>
+<span class="s2">  8  &#39;z, -y, -x&#39;</span>
+<span class="s2">  9  &#39;x, -y, -z&#39;</span>
+<span class="s2">  10  &#39;-x, y, z&#39;</span>
+<span class="s2">  11  &#39;z, -y, x&#39;</span>
+<span class="s2">  12  &#39;-z, y, -x&#39;</span>
+<span class="s2">  13  &#39;-x, -y, z&#39;</span>
+<span class="s2">  14  &#39;x, y, -z&#39;</span>
+<span class="s2">  15  &#39;-z, -y, -x&#39;</span>
+<span class="s2">  16  &#39;z, y, x&#39;</span>
+<span class="s2">  17  &#39;y, -z, -x&#39;</span>
+<span class="s2">  18  &#39;-y, z, x&#39;</span>
+<span class="s2">  19  &#39;y, x, -z&#39;</span>
+<span class="s2">  20  &#39;-y, -x, z&#39;</span>
+<span class="s2">  21  &#39;y, z, x&#39;</span>
+<span class="s2">  22  &#39;-y, -z, -x&#39;</span>
+<span class="s2">  23  &#39;y, -x, z&#39;</span>
+<span class="s2">  24  &#39;-y, x, -z&#39;</span>
+<span class="s2">  25  &#39;-y, z, -x&#39;</span>
+<span class="s2">  26  &#39;y, -z, x&#39;</span>
+<span class="s2">  27  &#39;-y, -x, -z&#39;</span>
+<span class="s2">  28  &#39;y, x, z&#39;</span>
+<span class="s2">  29  &#39;-y, -z, x&#39;</span>
+<span class="s2">  30  &#39;y, z, -x&#39;</span>
+<span class="s2">  31  &#39;-y, x, z&#39;</span>
+<span class="s2">  32  &#39;y, -x, -z&#39;</span>
+<span class="s2">  33  &#39;-z, x, -y&#39;</span>
+<span class="s2">  34  &#39;z, -x, y&#39;</span>
+<span class="s2">  35  &#39;x, z, -y&#39;</span>
+<span class="s2">  36  &#39;-x, -z, y&#39;</span>
+<span class="s2">  37  &#39;z, -x, -y&#39;</span>
+<span class="s2">  38  &#39;-z, x, y&#39;</span>
+<span class="s2">  39  &#39;-x, -z, -y&#39;</span>
+<span class="s2">  40  &#39;x, z, y&#39;</span>
+<span class="s2">  41  &#39;z, x, y&#39;</span>
+<span class="s2">  42  &#39;-z, -x, -y&#39;</span>
+<span class="s2">  43  &#39;-x, z, y&#39;</span>
+<span class="s2">  44  &#39;x, -z, -y&#39;</span>
+<span class="s2">  45  &#39;-z, -x, y&#39;</span>
+<span class="s2">  46  &#39;z, x, -y&#39;</span>
+<span class="s2">  47  &#39;x, -z, y&#39;</span>
+<span class="s2">  48  &#39;-x, z, -y&#39;</span>
+<span class="s2">  49  &#39;x+1/2, y+1/2, z&#39;</span>
+<span class="s2">  50  &#39;-x+1/2, -y+1/2, -z&#39;</span>
+<span class="s2">  51  &#39;z+1/2, y+1/2, -x&#39;</span>
+<span class="s2">  52  &#39;-z+1/2, -y+1/2, x&#39;</span>
+<span class="s2">  53  &#39;-x+1/2, y+1/2, -z&#39;</span>
+<span class="s2">  54  &#39;x+1/2, -y+1/2, z&#39;</span>
+<span class="s2">  55  &#39;-z+1/2, y+1/2, x&#39;</span>
+<span class="s2">  56  &#39;z+1/2, -y+1/2, -x&#39;</span>
+<span class="s2">  57  &#39;x+1/2, -y+1/2, -z&#39;</span>
+<span class="s2">  58  &#39;-x+1/2, y+1/2, z&#39;</span>
+<span class="s2">  59  &#39;z+1/2, -y+1/2, x&#39;</span>
+<span class="s2">  60  &#39;-z+1/2, y+1/2, -x&#39;</span>
+<span class="s2">  61  &#39;-x+1/2, -y+1/2, z&#39;</span>
+<span class="s2">  62  &#39;x+1/2, y+1/2, -z&#39;</span>
+<span class="s2">  63  &#39;-z+1/2, -y+1/2, -x&#39;</span>
+<span class="s2">  64  &#39;z+1/2, y+1/2, x&#39;</span>
+<span class="s2">  65  &#39;y+1/2, -z+1/2, -x&#39;</span>
+<span class="s2">  66  &#39;-y+1/2, z+1/2, x&#39;</span>
+<span class="s2">  67  &#39;y+1/2, x+1/2, -z&#39;</span>
+<span class="s2">  68  &#39;-y+1/2, -x+1/2, z&#39;</span>
+<span class="s2">  69  &#39;y+1/2, z+1/2, x&#39;</span>
+<span class="s2">  70  &#39;-y+1/2, -z+1/2, -x&#39;</span>
+<span class="s2">  71  &#39;y+1/2, -x+1/2, z&#39;</span>
+<span class="s2">  72  &#39;-y+1/2, x+1/2, -z&#39;</span>
+<span class="s2">  73  &#39;-y+1/2, z+1/2, -x&#39;</span>
+<span class="s2">  74  &#39;y+1/2, -z+1/2, x&#39;</span>
+<span class="s2">  75  &#39;-y+1/2, -x+1/2, -z&#39;</span>
+<span class="s2">  76  &#39;y+1/2, x+1/2, z&#39;</span>
+<span class="s2">  77  &#39;-y+1/2, -z+1/2, x&#39;</span>
+<span class="s2">  78  &#39;y+1/2, z+1/2, -x&#39;</span>
+<span class="s2">  79  &#39;-y+1/2, x+1/2, z&#39;</span>
+<span class="s2">  80  &#39;y+1/2, -x+1/2, -z&#39;</span>
+<span class="s2">  81  &#39;-z+1/2, x+1/2, -y&#39;</span>
+<span class="s2">  82  &#39;z+1/2, -x+1/2, y&#39;</span>
+<span class="s2">  83  &#39;x+1/2, z+1/2, -y&#39;</span>
+<span class="s2">  84  &#39;-x+1/2, -z+1/2, y&#39;</span>
+<span class="s2">  85  &#39;z+1/2, -x+1/2, -y&#39;</span>
+<span class="s2">  86  &#39;-z+1/2, x+1/2, y&#39;</span>
+<span class="s2">  87  &#39;-x+1/2, -z+1/2, -y&#39;</span>
+<span class="s2">  88  &#39;x+1/2, z+1/2, y&#39;</span>
+<span class="s2">  89  &#39;z+1/2, x+1/2, y&#39;</span>
+<span class="s2">  90  &#39;-z+1/2, -x+1/2, -y&#39;</span>
+<span class="s2">  91  &#39;-x+1/2, z+1/2, y&#39;</span>
+<span class="s2">  92  &#39;x+1/2, -z+1/2, -y&#39;</span>
+<span class="s2">  93  &#39;-z+1/2, -x+1/2, y&#39;</span>
+<span class="s2">  94  &#39;z+1/2, x+1/2, -y&#39;</span>
+<span class="s2">  95  &#39;x+1/2, -z+1/2, y&#39;</span>
+<span class="s2">  96  &#39;-x+1/2, z+1/2, -y&#39;</span>
+<span class="s2">  97  &#39;x+1/2, y, z+1/2&#39;</span>
+<span class="s2">  98  &#39;-x+1/2, -y, -z+1/2&#39;</span>
+<span class="s2">  99  &#39;z+1/2, y, -x+1/2&#39;</span>
+<span class="s2">  100  &#39;-z+1/2, -y, x+1/2&#39;</span>
+<span class="s2">  101  &#39;-x+1/2, y, -z+1/2&#39;</span>
+<span class="s2">  102  &#39;x+1/2, -y, z+1/2&#39;</span>
+<span class="s2">  103  &#39;-z+1/2, y, x+1/2&#39;</span>
+<span class="s2">  104  &#39;z+1/2, -y, -x+1/2&#39;</span>
+<span class="s2">  105  &#39;x+1/2, -y, -z+1/2&#39;</span>
+<span class="s2">  106  &#39;-x+1/2, y, z+1/2&#39;</span>
+<span class="s2">  107  &#39;z+1/2, -y, x+1/2&#39;</span>
+<span class="s2">  108  &#39;-z+1/2, y, -x+1/2&#39;</span>
+<span class="s2">  109  &#39;-x+1/2, -y, z+1/2&#39;</span>
+<span class="s2">  110  &#39;x+1/2, y, -z+1/2&#39;</span>
+<span class="s2">  111  &#39;-z+1/2, -y, -x+1/2&#39;</span>
+<span class="s2">  112  &#39;z+1/2, y, x+1/2&#39;</span>
+<span class="s2">  113  &#39;y+1/2, -z, -x+1/2&#39;</span>
+<span class="s2">  114  &#39;-y+1/2, z, x+1/2&#39;</span>
+<span class="s2">  115  &#39;y+1/2, x, -z+1/2&#39;</span>
+<span class="s2">  116  &#39;-y+1/2, -x, z+1/2&#39;</span>
+<span class="s2">  117  &#39;y+1/2, z, x+1/2&#39;</span>
+<span class="s2">  118  &#39;-y+1/2, -z, -x+1/2&#39;</span>
+<span class="s2">  119  &#39;y+1/2, -x, z+1/2&#39;</span>
+<span class="s2">  120  &#39;-y+1/2, x, -z+1/2&#39;</span>
+<span class="s2">  121  &#39;-y+1/2, z, -x+1/2&#39;</span>
+<span class="s2">  122  &#39;y+1/2, -z, x+1/2&#39;</span>
+<span class="s2">  123  &#39;-y+1/2, -x, -z+1/2&#39;</span>
+<span class="s2">  124  &#39;y+1/2, x, z+1/2&#39;</span>
+<span class="s2">  125  &#39;-y+1/2, -z, x+1/2&#39;</span>
+<span class="s2">  126  &#39;y+1/2, z, -x+1/2&#39;</span>
+<span class="s2">  127  &#39;-y+1/2, x, z+1/2&#39;</span>
+<span class="s2">  128  &#39;y+1/2, -x, -z+1/2&#39;</span>
+<span class="s2">  129  &#39;-z+1/2, x, -y+1/2&#39;</span>
+<span class="s2">  130  &#39;z+1/2, -x, y+1/2&#39;</span>
+<span class="s2">  131  &#39;x+1/2, z, -y+1/2&#39;</span>
+<span class="s2">  132  &#39;-x+1/2, -z, y+1/2&#39;</span>
+<span class="s2">  133  &#39;z+1/2, -x, -y+1/2&#39;</span>
+<span class="s2">  134  &#39;-z+1/2, x, y+1/2&#39;</span>
+<span class="s2">  135  &#39;-x+1/2, -z, -y+1/2&#39;</span>
+<span class="s2">  136  &#39;x+1/2, z, y+1/2&#39;</span>
+<span class="s2">  137  &#39;z+1/2, x, y+1/2&#39;</span>
+<span class="s2">  138  &#39;-z+1/2, -x, -y+1/2&#39;</span>
+<span class="s2">  139  &#39;-x+1/2, z, y+1/2&#39;</span>
+<span class="s2">  140  &#39;x+1/2, -z, -y+1/2&#39;</span>
+<span class="s2">  141  &#39;-z+1/2, -x, y+1/2&#39;</span>
+<span class="s2">  142  &#39;z+1/2, x, -y+1/2&#39;</span>
+<span class="s2">  143  &#39;x+1/2, -z, y+1/2&#39;</span>
+<span class="s2">  144  &#39;-x+1/2, z, -y+1/2&#39;</span>
+<span class="s2">  145  &#39;x, y+1/2, z+1/2&#39;</span>
+<span class="s2">  146  &#39;-x, -y+1/2, -z+1/2&#39;</span>
+<span class="s2">  147  &#39;z, y+1/2, -x+1/2&#39;</span>
+<span class="s2">  148  &#39;-z, -y+1/2, x+1/2&#39;</span>
+<span class="s2">  149  &#39;-x, y+1/2, -z+1/2&#39;</span>
+<span class="s2">  150  &#39;x, -y+1/2, z+1/2&#39;</span>
+<span class="s2">  151  &#39;-z, y+1/2, x+1/2&#39;</span>
+<span class="s2">  152  &#39;z, -y+1/2, -x+1/2&#39;</span>
+<span class="s2">  153  &#39;x, -y+1/2, -z+1/2&#39;</span>
+<span class="s2">  154  &#39;-x, y+1/2, z+1/2&#39;</span>
+<span class="s2">  155  &#39;z, -y+1/2, x+1/2&#39;</span>
+<span class="s2">  156  &#39;-z, y+1/2, -x+1/2&#39;</span>
+<span class="s2">  157  &#39;-x, -y+1/2, z+1/2&#39;</span>
+<span class="s2">  158  &#39;x, y+1/2, -z+1/2&#39;</span>
+<span class="s2">  159  &#39;-z, -y+1/2, -x+1/2&#39;</span>
+<span class="s2">  160  &#39;z, y+1/2, x+1/2&#39;</span>
+<span class="s2">  161  &#39;y, -z+1/2, -x+1/2&#39;</span>
+<span class="s2">  162  &#39;-y, z+1/2, x+1/2&#39;</span>
+<span class="s2">  163  &#39;y, x+1/2, -z+1/2&#39;</span>
+<span class="s2">  164  &#39;-y, -x+1/2, z+1/2&#39;</span>
+<span class="s2">  165  &#39;y, z+1/2, x+1/2&#39;</span>
+<span class="s2">  166  &#39;-y, -z+1/2, -x+1/2&#39;</span>
+<span class="s2">  167  &#39;y, -x+1/2, z+1/2&#39;</span>
+<span class="s2">  168  &#39;-y, x+1/2, -z+1/2&#39;</span>
+<span class="s2">  169  &#39;-y, z+1/2, -x+1/2&#39;</span>
+<span class="s2">  170  &#39;y, -z+1/2, x+1/2&#39;</span>
+<span class="s2">  171  &#39;-y, -x+1/2, -z+1/2&#39;</span>
+<span class="s2">  172  &#39;y, x+1/2, z+1/2&#39;</span>
+<span class="s2">  173  &#39;-y, -z+1/2, x+1/2&#39;</span>
+<span class="s2">  174  &#39;y, z+1/2, -x+1/2&#39;</span>
+<span class="s2">  175  &#39;-y, x+1/2, z+1/2&#39;</span>
+<span class="s2">  176  &#39;y, -x+1/2, -z+1/2&#39;</span>
+<span class="s2">  177  &#39;-z, x+1/2, -y+1/2&#39;</span>
+<span class="s2">  178  &#39;z, -x+1/2, y+1/2&#39;</span>
+<span class="s2">  179  &#39;x, z+1/2, -y+1/2&#39;</span>
+<span class="s2">  180  &#39;-x, -z+1/2, y+1/2&#39;</span>
+<span class="s2">  181  &#39;z, -x+1/2, -y+1/2&#39;</span>
+<span class="s2">  182  &#39;-z, x+1/2, y+1/2&#39;</span>
+<span class="s2">  183  &#39;-x, -z+1/2, -y+1/2&#39;</span>
+<span class="s2">  184  &#39;x, z+1/2, y+1/2&#39;</span>
+<span class="s2">  185  &#39;z, x+1/2, y+1/2&#39;</span>
+<span class="s2">  186  &#39;-z, -x+1/2, -y+1/2&#39;</span>
+<span class="s2">  187  &#39;-x, z+1/2, y+1/2&#39;</span>
+<span class="s2">  188  &#39;x, -z+1/2, -y+1/2&#39;</span>
+<span class="s2">  189  &#39;-z, -x+1/2, y+1/2&#39;</span>
+<span class="s2">  190  &#39;z, x+1/2, -y+1/2&#39;</span>
+<span class="s2">  191  &#39;x, -z+1/2, y+1/2&#39;</span>
+<span class="s2">  192  &#39;-x, z+1/2, -y+1/2&#39;</span>
+<span class="s2">loop_</span>
+<span class="s2"> _atom_type_symbol</span>
+<span class="s2"> _atom_type_oxidation_number</span>
+<span class="s2">  Li+  1.0</span>
+<span class="s2">  O2-  -2.0</span>
+<span class="s2">loop_</span>
+<span class="s2"> _atom_site_type_symbol</span>
+<span class="s2"> _atom_site_label</span>
+<span class="s2"> _atom_site_symmetry_multiplicity</span>
+<span class="s2"> _atom_site_fract_x</span>
+<span class="s2"> _atom_site_fract_y</span>
+<span class="s2"> _atom_site_fract_z</span>
+<span class="s2"> _atom_site_occupancy</span>
+<span class="s2">  Li+  Li1  8  0.250000  0.250000  0.250000  1.0</span>
+<span class="s2">  O2-  O2  4  0.000000  0.000000  0.000000  1.0&quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">l1</span><span class="p">,</span> <span class="n">l2</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">writer</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">),</span> <span class="n">ans</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">l1</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">l2</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="CifIOTest.test_disordered"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifIOTest.test_disordered">[docs]</a>    <span class="k">def</span> <span class="nf">test_disordered</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">si</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;Si&quot;</span><span class="p">)</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;N&quot;</span><span class="p">)</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">]))</span>
+        <span class="n">lattice</span> <span class="o">=</span> <span class="n">Lattice</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">3.8401979337</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">],</span>
+                                    <span class="p">[</span><span class="mf">1.9200989668</span><span class="p">,</span> <span class="mf">3.3257101909</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">],</span>
+                                    <span class="p">[</span><span class="mf">0.00</span><span class="p">,</span> <span class="o">-</span><span class="mf">2.2171384943</span><span class="p">,</span> <span class="mf">3.1355090603</span><span class="p">]]))</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="p">[</span><span class="n">si</span><span class="p">,</span> <span class="p">{</span><span class="n">si</span><span class="p">:</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span><span class="mf">0.5</span><span class="p">}],</span> <span class="n">coords</span><span class="p">)</span>
+        <span class="n">writer</span> <span class="o">=</span> <span class="n">CifWriter</span><span class="p">(</span><span class="n">struct</span><span class="p">)</span>
+        <span class="n">ans</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;# generated using pymatgen</span>
+<span class="s2">data_Si1.5N0.5</span>
+<span class="s2">_symmetry_space_group_name_H-M   &#39;P 1&#39;</span>
+<span class="s2">_cell_length_a   3.84019793</span>
+<span class="s2">_cell_length_b   3.84019899</span>
+<span class="s2">_cell_length_c   3.84019793</span>
+<span class="s2">_cell_angle_alpha   119.99999086</span>
+<span class="s2">_cell_angle_beta   90.00000000</span>
+<span class="s2">_cell_angle_gamma   60.00000914</span>
+<span class="s2">_symmetry_Int_Tables_number   1</span>
+<span class="s2">_chemical_formula_structural   Si1.5N0.5</span>
+<span class="s2">_chemical_formula_sum   &#39;Si1.5 N0.5&#39;</span>
+<span class="s2">_cell_volume   40.0447946443</span>
+<span class="s2">_cell_formula_units_Z   1</span>
+<span class="s2">loop_</span>
+<span class="s2">_symmetry_equiv_pos_site_id</span>
+<span class="s2">_symmetry_equiv_pos_as_xyz</span>
+<span class="s2">1  &#39;x, y, z&#39;</span>
+<span class="s2">loop_</span>
+<span class="s2">_atom_site_type_symbol</span>
+<span class="s2">_atom_site_label</span>
+<span class="s2">_atom_site_symmetry_multiplicity</span>
+<span class="s2">_atom_site_fract_x</span>
+<span class="s2">_atom_site_fract_y</span>
+<span class="s2">_atom_site_fract_z</span>
+<span class="s2">_atom_site_occupancy</span>
+<span class="s2">Si  Si1  1  0.000000  0.000000  0.000000  1</span>
+<span class="s2">Si  Si2  1  0.750000  0.500000  0.750000  0.5</span>
+<span class="s2">N  N3  1  0.750000  0.500000  0.750000  0.5</span>
+
+<span class="s2">    &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">l1</span><span class="p">,</span> <span class="n">l2</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">writer</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">),</span> <span class="n">ans</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">l1</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">l2</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="CifIOTest.test_specie_cifwriter"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifIOTest.test_specie_cifwriter">[docs]</a>    <span class="k">def</span> <span class="nf">test_specie_cifwriter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">si4</span> <span class="o">=</span> <span class="n">Specie</span><span class="p">(</span><span class="s2">&quot;Si&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+        <span class="n">si3</span> <span class="o">=</span> <span class="n">Specie</span><span class="p">(</span><span class="s2">&quot;Si&quot;</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">DummySpecie</span><span class="p">(</span><span class="s2">&quot;X&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mi">3</span><span class="p">)</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">]))</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">]))</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span>
+        <span class="n">lattice</span> <span class="o">=</span> <span class="n">Lattice</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">3.8401979337</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">],</span>
+                                    <span class="p">[</span><span class="mf">1.9200989668</span><span class="p">,</span> <span class="mf">3.3257101909</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">],</span>
+                                    <span class="p">[</span><span class="mf">0.00</span><span class="p">,</span> <span class="o">-</span><span class="mf">2.2171384943</span><span class="p">,</span> <span class="mf">3.1355090603</span><span class="p">]]))</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="p">[</span><span class="n">n</span><span class="p">,</span> <span class="p">{</span><span class="n">si3</span><span class="p">:</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span><span class="mf">0.5</span><span class="p">},</span> <span class="n">si4</span><span class="p">],</span> <span class="n">coords</span><span class="p">)</span>
+        <span class="n">writer</span> <span class="o">=</span> <span class="n">CifWriter</span><span class="p">(</span><span class="n">struct</span><span class="p">)</span>
+        <span class="n">ans</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;# generated using pymatgen</span>
+<span class="s2">data_X1.5Si1.5</span>
+<span class="s2">_symmetry_space_group_name_H-M   &#39;P 1&#39;</span>
+<span class="s2">_cell_length_a   3.84019793</span>
+<span class="s2">_cell_length_b   3.84019899</span>
+<span class="s2">_cell_length_c   3.84019793</span>
+<span class="s2">_cell_angle_alpha   119.99999086</span>
+<span class="s2">_cell_angle_beta   90.00000000</span>
+<span class="s2">_cell_angle_gamma   60.00000914</span>
+<span class="s2">_symmetry_Int_Tables_number   1</span>
+<span class="s2">_chemical_formula_structural   X1.5Si1.5</span>
+<span class="s2">_chemical_formula_sum   &#39;X1.5 Si1.5&#39;</span>
+<span class="s2">_cell_volume   40.0447946443</span>
+<span class="s2">_cell_formula_units_Z   1</span>
+<span class="s2">loop_</span>
+<span class="s2">  _symmetry_equiv_pos_site_id</span>
+<span class="s2">  _symmetry_equiv_pos_as_xyz</span>
+<span class="s2">  1  &#39;x, y, z&#39;</span>
+<span class="s2">loop_</span>
+<span class="s2">  _atom_type_symbol</span>
+<span class="s2">  _atom_type_oxidation_number</span>
+<span class="s2">   X3-  -3.0</span>
+<span class="s2">   Si3+  3.0</span>
+<span class="s2">   Si4+  4.0</span>
+<span class="s2">loop_</span>
+<span class="s2">  _atom_site_type_symbol</span>
+<span class="s2">  _atom_site_label</span>
+<span class="s2">  _atom_site_symmetry_multiplicity</span>
+<span class="s2">  _atom_site_fract_x</span>
+<span class="s2">  _atom_site_fract_y</span>
+<span class="s2">  _atom_site_fract_z</span>
+<span class="s2">  _atom_site_occupancy</span>
+<span class="s2">  X3-  X1  1  0.500000  0.500000  0.500000  1</span>
+<span class="s2">  X3-  X2  1  0.750000  0.500000  0.750000  0.5</span>
+<span class="s2">  Si3+  Si3  1  0.750000  0.500000  0.750000  0.5</span>
+<span class="s2">  Si4+  Si4  1  0.000000  0.000000  0.000000  1</span>
+
+<span class="s2">&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">l1</span><span class="p">,</span> <span class="n">l2</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">writer</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">),</span> <span class="n">ans</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">l1</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">l2</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="CifIOTest.test_primes"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifIOTest.test_primes">[docs]</a>    <span class="k">def</span> <span class="nf">test_primes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;C26H16BeN2O2S2.cif&#39;</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="kc">False</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">composition</span><span class="p">,</span> <span class="mi">8</span> <span class="o">*</span> <span class="n">Composition</span><span class="p">(</span><span class="s1">&#39;C26H16BeN2O2S2&#39;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CifIOTest.test_missing_atom_site_type_with_oxistates"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifIOTest.test_missing_atom_site_type_with_oxistates">[docs]</a>    <span class="k">def</span> <span class="nf">test_missing_atom_site_type_with_oxistates</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;P24Ru4H252C296S24N16.cif&#39;</span><span class="p">))</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">Composition</span><span class="p">({</span><span class="s1">&#39;S0+&#39;</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span> <span class="s1">&#39;Ru0+&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;H0+&#39;</span><span class="p">:</span> <span class="mi">252</span><span class="p">,</span> <span class="s1">&#39;C0+&#39;</span><span class="p">:</span> <span class="mi">296</span><span class="p">,</span>
+                         <span class="s1">&#39;N0+&#39;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span> <span class="s1">&#39;P0+&#39;</span><span class="p">:</span> <span class="mi">24</span><span class="p">})</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="kc">False</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">composition</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CifIOTest.test_no_coords_or_species"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifIOTest.test_no_coords_or_species">[docs]</a>    <span class="k">def</span> <span class="nf">test_no_coords_or_species</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">string</span><span class="o">=</span>  <span class="s2">&quot;&quot;&quot;#generated using pymatgen</span>
+<span class="s2">data_Si1.5N1.5</span>
+<span class="s2">_symmetry_space_group_name_H-M   &#39;P 1&#39;</span>
+<span class="s2">_cell_length_a   3.84019793</span>
+<span class="s2">_cell_length_b   3.84019899</span>
+<span class="s2">_cell_length_c   3.84019793</span>
+<span class="s2">_cell_angle_alpha   119.99999086</span>
+<span class="s2">_cell_angle_beta   90.00000000</span>
+<span class="s2">_cell_angle_gamma   60.00000914</span>
+<span class="s2">_symmetry_Int_Tables_number   1</span>
+<span class="s2">_chemical_formula_structural   Si1.5N1.5</span>
+<span class="s2">_chemical_formula_sum   &#39;Si1.5 N1.5&#39;</span>
+<span class="s2">_cell_volume   40.0447946443</span>
+<span class="s2">_cell_formula_units_Z   0</span>
+<span class="s2">loop_</span>
+<span class="s2">  _symmetry_equiv_pos_site_id</span>
+<span class="s2">  _symmetry_equiv_pos_as_xyz</span>
+<span class="s2">  1  &#39;x, y, z&#39;</span>
+<span class="s2">loop_</span>
+<span class="s2">  _atom_type_symbol</span>
+<span class="s2">  _atom_type_oxidation_number</span>
+<span class="s2">   Si3+  3.0</span>
+<span class="s2">   Si4+  4.0</span>
+<span class="s2">   N3-  -3.0</span>
+<span class="s2">loop_</span>
+<span class="s2">  _atom_site_type_symbol</span>
+<span class="s2">  _atom_site_label</span>
+<span class="s2">  _atom_site_symmetry_multiplicity</span>
+<span class="s2">  _atom_site_fract_x</span>
+<span class="s2">  _atom_site_fract_y</span>
+<span class="s2">  _atom_site_fract_z</span>
+<span class="s2">  _atom_site_occupancy</span>
+<span class="s2">  ? ? ? ? ? ? ?</span>
+<span class="s2">&quot;&quot;&quot;</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">CifParser</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">string</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">parser</span><span class="o">.</span><span class="n">get_structures</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CifIOTest.test_get_lattice_from_lattice_type"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifIOTest.test_get_lattice_from_lattice_type">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_lattice_from_lattice_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">cif_structure</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;#generated using pymatgen</span>
+<span class="s2">data_FePO4</span>
+<span class="s2">_symmetry_space_group_name_H-M   Pnma</span>
+<span class="s2">_cell_length_a   10.41176687</span>
+<span class="s2">_cell_length_b   6.06717188</span>
+<span class="s2">_cell_length_c   4.75948954</span>
+<span class="s2">_chemical_formula_structural   FePO4</span>
+<span class="s2">_chemical_formula_sum   &#39;Fe4 P4 O16&#39;</span>
+<span class="s2">_cell_volume   300.65685512</span>
+<span class="s2">_cell_formula_units_Z   4</span>
+<span class="s2">_symmetry_cell_setting Orthorhombic</span>
+<span class="s2">loop_</span>
+<span class="s2">  _symmetry_equiv_pos_site_id</span>
+<span class="s2">  _symmetry_equiv_pos_as_xyz</span>
+<span class="s2">   1  &#39;x, y, z&#39;</span>
+<span class="s2">loop_</span>
+<span class="s2">  _atom_site_type_symbol</span>
+<span class="s2">  _atom_site_label</span>
+<span class="s2">  _atom_site_symmetry_multiplicity</span>
+<span class="s2">  _atom_site_fract_x</span>
+<span class="s2">  _atom_site_fract_y</span>
+<span class="s2">  _atom_site_fract_z</span>
+<span class="s2">  _atom_site_occupancy</span>
+<span class="s2">  Fe  Fe1  1  0.218728  0.750000  0.474867  1</span>
+<span class="s2">  Fe  Fe2  1  0.281272  0.250000  0.974867  1</span>
+<span class="s2">  Fe  Fe3  1  0.718728  0.750000  0.025133  1</span>
+<span class="s2">  Fe  Fe4  1  0.781272  0.250000  0.525133  1</span>
+<span class="s2">  P  P5  1  0.094613  0.250000  0.418243  1</span>
+<span class="s2">  P  P6  1  0.405387  0.750000  0.918243  1</span>
+<span class="s2">  P  P7  1  0.594613  0.250000  0.081757  1</span>
+<span class="s2">  P  P8  1  0.905387  0.750000  0.581757  1</span>
+<span class="s2">  O  O9  1  0.043372  0.750000  0.707138  1</span>
+<span class="s2">  O  O10  1  0.096642  0.250000  0.741320  1</span>
+<span class="s2">  O  O11  1  0.165710  0.046072  0.285384  1</span>
+<span class="s2">  O  O12  1  0.165710  0.453928  0.285384  1</span>
+<span class="s2">  O  O13  1  0.334290  0.546072  0.785384  1</span>
+<span class="s2">  O  O14  1  0.334290  0.953928  0.785384  1</span>
+<span class="s2">  O  O15  1  0.403358  0.750000  0.241320  1</span>
+<span class="s2">  O  O16  1  0.456628  0.250000  0.207138  1</span>
+<span class="s2">  O  O17  1  0.543372  0.750000  0.792862  1</span>
+<span class="s2">  O  O18  1  0.596642  0.250000  0.758680  1</span>
+<span class="s2">  O  O19  1  0.665710  0.046072  0.214616  1</span>
+<span class="s2">  O  O20  1  0.665710  0.453928  0.214616  1</span>
+<span class="s2">  O  O21  1  0.834290  0.546072  0.714616  1</span>
+<span class="s2">  O  O22  1  0.834290  0.953928  0.714616  1</span>
+<span class="s2">  O  O23  1  0.903358  0.750000  0.258680  1</span>
+<span class="s2">  O  O24  1  0.956628  0.250000  0.292862  1</span>
+
+<span class="s2">&quot;&quot;&quot;</span>
+        <span class="n">cp</span> <span class="o">=</span> <span class="n">CifParser</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">cif_structure</span><span class="p">)</span>
+        <span class="n">s_test</span> <span class="o">=</span> <span class="n">cp</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="kc">False</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">filepath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;POSCAR&#39;</span><span class="p">)</span>
+        <span class="n">poscar</span> <span class="o">=</span> <span class="n">Poscar</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+        <span class="n">s_ref</span> <span class="o">=</span> <span class="n">poscar</span><span class="o">.</span><span class="n">structure</span>
+
+        <span class="n">sm</span> <span class="o">=</span> <span class="n">StructureMatcher</span><span class="p">(</span><span class="n">stol</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="n">ltol</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">angle_tol</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">sm</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">s_ref</span><span class="p">,</span> <span class="n">s_test</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CifIOTest.test_empty"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifIOTest.test_empty">[docs]</a>    <span class="k">def</span> <span class="nf">test_empty</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># single line</span>
+        <span class="n">cb</span> <span class="o">=</span> <span class="n">CifBlock</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="s2">&quot;data_mwe</span><span class="se">\n</span><span class="s2">loop_</span><span class="se">\n</span><span class="s2">_tag</span><span class="se">\n</span><span class="s2"> &#39;&#39;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">cb</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;_tag&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+
+        <span class="c1"># multi line</span>
+        <span class="n">cb</span> <span class="o">=</span> <span class="n">CifBlock</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="s2">&quot;data_mwe</span><span class="se">\n</span><span class="s2">loop_</span><span class="se">\n</span><span class="s2">_tag</span><span class="se">\n</span><span class="s2">;</span><span class="se">\n</span><span class="s2">;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">cb</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;_tag&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+
+        <span class="n">cb2</span> <span class="o">=</span> <span class="n">CifBlock</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">cb</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">cb</span><span class="p">,</span> <span class="n">cb2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CifIOTest.test_bad_cif"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifIOTest.test_bad_cif">[docs]</a>    <span class="k">def</span> <span class="nf">test_bad_cif</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s2">&quot;bad_occu.cif&quot;</span><span class="p">)</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">p</span><span class="o">.</span><span class="n">get_structures</span><span class="p">)</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">occupancy_tolerance</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_structures</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">species_and_occu</span><span class="p">[</span><span class="s2">&quot;Al3+&quot;</span><span class="p">],</span> <span class="mf">0.5</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CifIOTest.test_one_line_symm"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifIOTest.test_one_line_symm">[docs]</a>    <span class="k">def</span> <span class="nf">test_one_line_symm</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s2">&quot;OneLineSymmP1.cif&quot;</span><span class="p">)</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_structures</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Ga4 Pb2 O8&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CifIOTest.test_no_symmops"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_cif.html#pymatgen.io.tests.test_cif.CifIOTest.test_no_symmops">[docs]</a>    <span class="k">def</span> <span class="nf">test_no_symmops</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s2">&quot;nosymm.cif&quot;</span><span class="p">)</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get_structures</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;H96 C60 O8&quot;</span><span class="p">)</span></div></div>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2011, Pymatgen Development Team.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
+    </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+<script type="text/javascript">
+  (function() {
+    var ga = document.createElement('script');
+    ga.src = ('https:' == document.location.protocol ?
+              'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    ga.setAttribute('async', 'true');
+    document.documentElement.firstChild.appendChild(ga);
+  })();
+</script>
+</div>
+
+  </body>
+</html>

@@ -1,0 +1,292 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.analysis.tests.test_diffusion_analyzer &#8212; pymatgen 4.5.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '4.5.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="top" title="pymatgen 4.5.0 documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" />
+ 
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-33990148-1']);
+  _gaq.push(['_trackPageview']);
+</script>
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pymatgen.analysis.tests.test_diffusion_analyzer</h1><div class="highlight"><pre>
+<span></span><span class="c1"># coding: utf-8</span>
+<span class="c1"># Copyright (c) Pymatgen Development Team.</span>
+<span class="c1"># Distributed under the terms of the MIT License.</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">unicode_literals</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">TODO: Change the module doc.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;shyuepingong&quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;0.1&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s2">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s2">&quot;shyuep@gmail.com&quot;</span>
+<span class="n">__status__</span> <span class="o">=</span> <span class="s2">&quot;Beta&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span> <span class="s2">&quot;5/2/13&quot;</span>
+
+<span class="kn">import</span> <span class="nn">unittest2</span> <span class="k">as</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">csv</span>
+<span class="kn">import</span> <span class="nn">scipy.constants</span> <span class="k">as</span> <span class="nn">const</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.diffusion_analyzer</span> <span class="k">import</span> <span class="n">DiffusionAnalyzer</span><span class="p">,</span>\
+    <span class="n">get_conversion_factor</span><span class="p">,</span> <span class="n">fit_arrhenius</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="k">import</span> <span class="n">Structure</span>
+<span class="kn">from</span> <span class="nn">pymatgen.util.testing</span> <span class="k">import</span> <span class="n">PymatgenTest</span>
+<span class="kn">from</span> <span class="nn">monty.tempfile</span> <span class="k">import</span> <span class="n">ScratchDir</span>
+
+<span class="n">test_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span>
+                        <span class="s1">&#39;test_files&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="FuncTest"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_diffusion_analyzer.html#pymatgen.analysis.tests.test_diffusion_analyzer.FuncTest">[docs]</a><span class="k">class</span> <span class="nc">FuncTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="FuncTest.test_get_conversion_factor"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_diffusion_analyzer.html#pymatgen.analysis.tests.test_diffusion_analyzer.FuncTest.test_get_conversion_factor">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_conversion_factor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">filepath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;LiFePO4.cif&#39;</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+        <span class="c1"># large tolerance because scipy constants changed between 0.16.1 and 0.17</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="mf">41370704.343540139</span><span class="p">,</span>
+                               <span class="n">get_conversion_factor</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="s2">&quot;Li&quot;</span><span class="p">,</span> <span class="mi">600</span><span class="p">),</span>
+                               <span class="n">delta</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FuncTest.test_fit_arrhenius"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_diffusion_analyzer.html#pymatgen.analysis.tests.test_diffusion_analyzer.FuncTest.test_fit_arrhenius">[docs]</a>    <span class="k">def</span> <span class="nf">test_fit_arrhenius</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">Ea</span> <span class="o">=</span> <span class="mf">0.5</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="n">const</span><span class="o">.</span><span class="n">k</span> <span class="o">/</span> <span class="n">const</span><span class="o">.</span><span class="n">e</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="mi">12</span>
+        <span class="n">temps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">300</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">500</span><span class="p">])</span>
+        <span class="n">diffusivities</span> <span class="o">=</span> <span class="n">c</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">Ea</span><span class="o">/</span><span class="p">(</span><span class="n">k</span> <span class="o">*</span> <span class="n">temps</span><span class="p">))</span>
+        <span class="n">diffusivities</span> <span class="o">*=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.00601834013</span><span class="p">,</span>
+                                   <span class="mf">1.00803236262</span><span class="p">,</span>
+                                   <span class="mf">0.98609720824</span><span class="p">])</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">fit_arrhenius</span><span class="p">(</span><span class="n">temps</span><span class="p">,</span> <span class="n">diffusivities</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">Ea</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="mf">0.000895566</span><span class="p">)</span>
+
+        <span class="c1"># when not enough values for error estimate</span>
+        <span class="n">r2</span> <span class="o">=</span> <span class="n">fit_arrhenius</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> <span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">r2</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">r2</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">r2</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="kc">None</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="DiffusionAnalyzerTest"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_diffusion_analyzer.html#pymatgen.analysis.tests.test_diffusion_analyzer.DiffusionAnalyzerTest">[docs]</a><span class="k">class</span> <span class="nc">DiffusionAnalyzerTest</span><span class="p">(</span><span class="n">PymatgenTest</span><span class="p">):</span>
+
+<div class="viewcode-block" id="DiffusionAnalyzerTest.test_init"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_diffusion_analyzer.html#pymatgen.analysis.tests.test_diffusion_analyzer.DiffusionAnalyzerTest.test_init">[docs]</a>    <span class="k">def</span> <span class="nf">test_init</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Diffusion vasprun.xmls are rather large. We are only going to use a</span>
+        <span class="c1"># very small preprocessed run for testing. Note that the results are</span>
+        <span class="c1"># unreliable for short runs.</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s2">&quot;DiffusionAnalyzer.json&quot;</span><span class="p">))</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">dd</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+            <span class="n">d</span> <span class="o">=</span> <span class="n">DiffusionAnalyzer</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">dd</span><span class="p">)</span>
+            <span class="c1"># large tolerance because scipy constants changed between 0.16.1 and 0.17</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">conductivity</span><span class="p">,</span> <span class="mf">74.165372613735684</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">diffusivity</span><span class="p">,</span>  <span class="mf">1.16083658794e-06</span><span class="p">,</span> <span class="mi">7</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">conductivity_std_dev</span><span class="p">,</span> <span class="mf">0.0097244677795984488</span><span class="p">,</span> <span class="mi">7</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">diffusivity_std_dev</span><span class="p">,</span> <span class="mf">9.1013023085561779e-09</span><span class="p">,</span> <span class="mi">7</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertArrayAlmostEqual</span><span class="p">(</span>
+                <span class="n">d</span><span class="o">.</span><span class="n">conductivity_components</span><span class="p">,</span>
+                <span class="p">[</span><span class="mf">45.9109703</span><span class="p">,</span>   <span class="mf">26.2856302</span><span class="p">,</span>  <span class="mf">150.5405727</span><span class="p">],</span> <span class="mi">3</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertArrayAlmostEqual</span><span class="p">(</span>
+                <span class="n">d</span><span class="o">.</span><span class="n">diffusivity_components</span><span class="p">,</span>
+                <span class="p">[</span><span class="mf">7.49601236e-07</span><span class="p">,</span> <span class="mf">4.90254273e-07</span><span class="p">,</span> <span class="mf">2.24649255e-06</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertArrayAlmostEqual</span><span class="p">(</span>
+                <span class="n">d</span><span class="o">.</span><span class="n">conductivity_components_std_dev</span><span class="p">,</span>
+                <span class="p">[</span><span class="mf">0.0063579</span><span class="p">,</span>  <span class="mf">0.0180862</span><span class="p">,</span>  <span class="mf">0.0217917</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertArrayAlmostEqual</span><span class="p">(</span>
+                <span class="n">d</span><span class="o">.</span><span class="n">diffusivity_components_std_dev</span><span class="p">,</span>
+                <span class="p">[</span><span class="mf">8.9465670e-09</span><span class="p">,</span>   <span class="mf">2.4931224e-08</span><span class="p">,</span>   <span class="mf">2.2636384e-08</span><span class="p">]</span>
+            <span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertArrayAlmostEqual</span><span class="p">(</span>
+                <span class="n">d</span><span class="o">.</span><span class="n">max_ion_displacements</span><span class="p">,</span>
+                <span class="p">[</span><span class="mf">1.4620659693989553</span><span class="p">,</span> <span class="mf">1.2787303484445025</span><span class="p">,</span> <span class="mf">3.419618540097756</span><span class="p">,</span>
+                 <span class="mf">2.340104469126246</span><span class="p">,</span> <span class="mf">2.6080973517594233</span><span class="p">,</span> <span class="mf">1.3928579365672844</span><span class="p">,</span>
+                 <span class="mf">1.3561505956708932</span><span class="p">,</span> <span class="mf">1.6699242923686253</span><span class="p">,</span> <span class="mf">1.0352389639563648</span><span class="p">,</span>
+                 <span class="mf">1.1662520093955808</span><span class="p">,</span> <span class="mf">1.2322019205885841</span><span class="p">,</span> <span class="mf">0.8094210554832534</span><span class="p">,</span>
+                 <span class="mf">1.9917808504954169</span><span class="p">,</span> <span class="mf">1.2684148391206396</span><span class="p">,</span> <span class="mf">2.392633794162402</span><span class="p">,</span>
+                 <span class="mf">2.566313049232671</span><span class="p">,</span> <span class="mf">1.3175030435622759</span><span class="p">,</span> <span class="mf">1.4628945430952793</span><span class="p">,</span>
+                 <span class="mf">1.0984921286753002</span><span class="p">,</span> <span class="mf">1.2864482076554093</span><span class="p">,</span> <span class="mf">0.655567027815413</span><span class="p">,</span>
+                 <span class="mf">0.5986961164605746</span><span class="p">,</span> <span class="mf">0.5639091444309045</span><span class="p">,</span> <span class="mf">0.6166004192954059</span><span class="p">,</span>
+                 <span class="mf">0.5997911580422605</span><span class="p">,</span> <span class="mf">0.4374606277579815</span><span class="p">,</span> <span class="mf">1.1865683960470783</span><span class="p">,</span>
+                 <span class="mf">0.9017064371676591</span><span class="p">,</span> <span class="mf">0.6644840367853767</span><span class="p">,</span> <span class="mf">1.0346375380664645</span><span class="p">,</span>
+                 <span class="mf">0.6177630142863979</span><span class="p">,</span> <span class="mf">0.7952002051914302</span><span class="p">,</span> <span class="mf">0.7342686123054011</span><span class="p">,</span>
+                 <span class="mf">0.7858047956905577</span><span class="p">,</span> <span class="mf">0.5570732369065661</span><span class="p">,</span> <span class="mf">1.0942937746885417</span><span class="p">,</span>
+                 <span class="mf">0.6509372395308788</span><span class="p">,</span> <span class="mf">1.0876687380413455</span><span class="p">,</span> <span class="mf">0.7058162184725</span><span class="p">,</span>
+                 <span class="mf">0.8298306317598585</span><span class="p">,</span> <span class="mf">0.7813913747621343</span><span class="p">,</span> <span class="mf">0.7337655232056153</span><span class="p">,</span>
+                 <span class="mf">0.9057161616236746</span><span class="p">,</span> <span class="mf">0.5979093093186919</span><span class="p">,</span> <span class="mf">0.6830333586985015</span><span class="p">,</span>
+                 <span class="mf">0.7926500894084628</span><span class="p">,</span> <span class="mf">0.6765180009988608</span><span class="p">,</span> <span class="mf">0.8555866032968998</span><span class="p">,</span>
+                 <span class="mf">0.713087091642237</span><span class="p">,</span> <span class="mf">0.7621007695790749</span><span class="p">])</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">sq_disp_ions</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="mi">206</span><span class="p">))</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">max_framework_displacement</span><span class="p">,</span> <span class="mf">1.18656839605</span><span class="p">)</span>
+
+            <span class="n">ss</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">get_drift_corrected_structures</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">20</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ss</span><span class="p">),</span> <span class="mi">50</span><span class="p">)</span>
+            <span class="n">n</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">49</span><span class="p">)</span>
+            <span class="n">n_orig</span> <span class="o">=</span> <span class="n">n</span> <span class="o">*</span> <span class="mi">20</span> <span class="o">+</span> <span class="mi">10</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertArrayAlmostEqual</span><span class="p">(</span>
+                <span class="n">ss</span><span class="p">[</span><span class="n">n</span><span class="p">]</span><span class="o">.</span><span class="n">cart_coords</span> <span class="o">-</span> <span class="n">d</span><span class="o">.</span><span class="n">structure</span><span class="o">.</span><span class="n">cart_coords</span> <span class="o">+</span> <span class="n">d</span><span class="o">.</span><span class="n">drift</span><span class="p">[:,</span> <span class="n">n_orig</span><span class="p">,</span> <span class="p">:],</span>
+                <span class="n">d</span><span class="o">.</span><span class="n">disp</span><span class="p">[:,</span> <span class="n">n_orig</span><span class="p">,</span> <span class="p">:])</span>
+
+            <span class="n">d</span> <span class="o">=</span> <span class="n">DiffusionAnalyzer</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">as_dict</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertIsInstance</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">DiffusionAnalyzer</span><span class="p">)</span>
+
+            <span class="c1">#Ensure summary dict is json serializable.</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">get_summary_dict</span><span class="p">(</span><span class="n">include_msd_t</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+
+            <span class="n">d</span> <span class="o">=</span> <span class="n">DiffusionAnalyzer</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">disp</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">specie</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span>
+                                  <span class="n">d</span><span class="o">.</span><span class="n">time_step</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">step_skip</span><span class="p">,</span> <span class="n">smoothed</span><span class="o">=</span><span class="s2">&quot;max&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">conductivity</span><span class="p">,</span> <span class="mf">74.165372613735684</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">diffusivity</span><span class="p">,</span> <span class="mf">1.14606446822e-06</span><span class="p">,</span> <span class="mi">7</span><span class="p">)</span>
+
+            <span class="n">d</span> <span class="o">=</span> <span class="n">DiffusionAnalyzer</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">disp</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">specie</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span>
+                                  <span class="n">d</span><span class="o">.</span><span class="n">time_step</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">step_skip</span><span class="p">,</span> <span class="n">smoothed</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">conductivity</span><span class="p">,</span> <span class="mf">27.20479170406027</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">diffusivity</span><span class="p">,</span> <span class="mf">4.25976905436e-07</span><span class="p">,</span> <span class="mi">7</span><span class="p">)</span>
+
+            <span class="n">d</span> <span class="o">=</span> <span class="n">DiffusionAnalyzer</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">disp</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">specie</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span>
+                                  <span class="n">d</span><span class="o">.</span><span class="n">time_step</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">step_skip</span><span class="p">,</span>
+                                  <span class="n">smoothed</span><span class="o">=</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span> <span class="n">avg_nsteps</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">conductivity</span><span class="p">,</span> <span class="mf">47.404056230438741</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">diffusivity</span><span class="p">,</span> <span class="mf">7.4226016496716148e-07</span><span class="p">,</span> <span class="mi">7</span><span class="p">)</span>
+
+            <span class="c1"># Can&#39;t average over 2000 steps because this is a 1000-step run.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">DiffusionAnalyzer</span><span class="p">,</span>
+                              <span class="n">d</span><span class="o">.</span><span class="n">structure</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">disp</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">specie</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span>
+                              <span class="n">d</span><span class="o">.</span><span class="n">time_step</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">step_skip</span><span class="p">,</span> <span class="n">smoothed</span><span class="o">=</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span>
+                              <span class="n">avg_nsteps</span><span class="o">=</span><span class="mi">2000</span><span class="p">)</span>
+
+            <span class="n">d</span> <span class="o">=</span> <span class="n">DiffusionAnalyzer</span><span class="o">.</span><span class="n">from_structures</span><span class="p">(</span>
+                <span class="nb">list</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">get_drift_corrected_structures</span><span class="p">()),</span>
+                <span class="n">d</span><span class="o">.</span><span class="n">specie</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">time_step</span><span class="p">,</span>
+                <span class="n">d</span><span class="o">.</span><span class="n">step_skip</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">smoothed</span><span class="p">,</span> <span class="n">avg_nsteps</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">conductivity</span><span class="p">,</span> <span class="mf">47.404056230438741</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">diffusivity</span><span class="p">,</span> <span class="mf">7.4226016496716148e-07</span><span class="p">,</span> <span class="mi">7</span><span class="p">)</span>
+            <span class="k">with</span> <span class="n">ScratchDir</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">):</span>
+                <span class="n">d</span><span class="o">.</span><span class="n">export_msdt</span><span class="p">(</span><span class="s2">&quot;test.csv&quot;</span><span class="p">)</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;test.csv&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                    <span class="n">data</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+                        <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+                <span class="n">data</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertArrayAlmostEqual</span><span class="p">(</span><span class="n">data</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">d</span><span class="o">.</span><span class="n">msd</span><span class="p">)</span></div></div>
+
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2011, Pymatgen Development Team.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
+    </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+<script type="text/javascript">
+  (function() {
+    var ga = document.createElement('script');
+    ga.src = ('https:' == document.location.protocol ?
+              'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    ga.setAttribute('async', 'true');
+    document.documentElement.firstChild.appendChild(ga);
+  })();
+</script>
+</div>
+
+  </body>
+</html>

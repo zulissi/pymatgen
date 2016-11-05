@@ -1,0 +1,518 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.analysis.tests.test_structure_analyzer &#8212; pymatgen 4.5.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '4.5.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="top" title="pymatgen 4.5.0 documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" />
+ 
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-33990148-1']);
+  _gaq.push(['_trackPageview']);
+</script>
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pymatgen.analysis.tests.test_structure_analyzer</h1><div class="highlight"><pre>
+<span></span><span class="c1"># coding: utf-8</span>
+<span class="c1"># Copyright (c) Pymatgen Development Team.</span>
+<span class="c1"># Distributed under the terms of the MIT License.</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">unittest2</span> <span class="k">as</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.structure_analyzer</span> <span class="k">import</span> <span class="n">VoronoiCoordFinder</span><span class="p">,</span> \
+    <span class="n">solid_angle</span><span class="p">,</span> <span class="n">contains_peroxide</span><span class="p">,</span> <span class="n">RelaxationAnalyzer</span><span class="p">,</span> <span class="n">VoronoiConnectivity</span><span class="p">,</span> \
+    <span class="n">oxide_type</span><span class="p">,</span> <span class="n">sulfide_type</span><span class="p">,</span> <span class="n">OrderParameters</span><span class="p">,</span> <span class="n">average_coordination_number</span><span class="p">,</span> \
+    <span class="n">VoronoiAnalyzer</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.vasp.inputs</span> <span class="k">import</span> <span class="n">Poscar</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.vasp.outputs</span> <span class="k">import</span> <span class="n">Xdatcar</span>
+<span class="kn">from</span> <span class="nn">pymatgen</span> <span class="k">import</span> <span class="n">Element</span><span class="p">,</span> <span class="n">Structure</span><span class="p">,</span> <span class="n">Lattice</span>
+<span class="kn">from</span> <span class="nn">pymatgen.util.testing</span> <span class="k">import</span> <span class="n">PymatgenTest</span>
+
+<span class="n">test_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span>
+                        <span class="s1">&#39;test_files&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="VoronoiCoordFinderTest"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.VoronoiCoordFinderTest">[docs]</a><span class="k">class</span> <span class="nc">VoronoiCoordFinderTest</span><span class="p">(</span><span class="n">PymatgenTest</span><span class="p">):</span>
+<div class="viewcode-block" id="VoronoiCoordFinderTest.setUp"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.VoronoiCoordFinderTest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="s1">&#39;LiFePO4&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">finder</span> <span class="o">=</span> <span class="n">VoronoiCoordFinder</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="p">[</span><span class="n">Element</span><span class="p">(</span><span class="s2">&quot;O&quot;</span><span class="p">)])</span></div>
+
+<div class="viewcode-block" id="VoronoiCoordFinderTest.test_get_voronoi_polyhedra"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.VoronoiCoordFinderTest.test_get_voronoi_polyhedra">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_voronoi_polyhedra</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">finder</span><span class="o">.</span><span class="n">get_voronoi_polyhedra</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()),</span> <span class="mi">8</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="VoronoiCoordFinderTest.test_get_coordination_number"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.VoronoiCoordFinderTest.test_get_coordination_number">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_coordination_number</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">finder</span><span class="o">.</span><span class="n">get_coordination_number</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span>
+                               <span class="mf">5.809265748999465</span><span class="p">,</span> <span class="mi">7</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="VoronoiCoordFinderTest.test_get_coordinated_sites"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.VoronoiCoordFinderTest.test_get_coordinated_sites">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_coordinated_sites</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">finder</span><span class="o">.</span><span class="n">get_coordinated_sites</span><span class="p">(</span><span class="mi">0</span><span class="p">)),</span> <span class="mi">8</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="VoronoiAnalyzerTest"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.VoronoiAnalyzerTest">[docs]</a><span class="k">class</span> <span class="nc">VoronoiAnalyzerTest</span><span class="p">(</span><span class="n">PymatgenTest</span><span class="p">):</span>
+
+<div class="viewcode-block" id="VoronoiAnalyzerTest.setUp"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.VoronoiAnalyzerTest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ss</span> <span class="o">=</span> <span class="n">Xdatcar</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;XDATCAR.MD&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">structures</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ss</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">va</span> <span class="o">=</span> <span class="n">VoronoiAnalyzer</span><span class="p">(</span><span class="n">cutoff</span><span class="o">=</span><span class="mf">4.0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="VoronoiAnalyzerTest.test_analyze"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.VoronoiAnalyzerTest.test_analyze">[docs]</a>    <span class="k">def</span> <span class="nf">test_analyze</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Check for the Voronoi index of site i in Structure</span>
+        <span class="n">single_structure</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">va</span><span class="o">.</span><span class="n">analyze</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">s</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="n">single_structure</span><span class="o">.</span><span class="n">view</span><span class="p">(),</span>
+                      <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">4</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">view</span><span class="p">(),</span>
+                      <span class="s2">&quot;Cannot find the right polyhedron.&quot;</span><span class="p">)</span>
+        <span class="c1"># Check for the presence of a Voronoi index and its frequency in</span>
+        <span class="c1"># a ensemble (list) of Structures</span>
+        <span class="n">ensemble</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">va</span><span class="o">.</span><span class="n">analyze_structures</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ss</span><span class="p">,</span> <span class="n">step_freq</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                                              <span class="n">most_frequent_polyhedra</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">((</span><span class="s1">&#39;[1 3 4 7 1 0 0 0]&#39;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+                      <span class="n">ensemble</span><span class="p">,</span> <span class="s2">&quot;Cannot find the right polyhedron in ensemble.&quot;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="RelaxationAnalyzerTest"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.RelaxationAnalyzerTest">[docs]</a><span class="k">class</span> <span class="nc">RelaxationAnalyzerTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="RelaxationAnalyzerTest.setUp"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.RelaxationAnalyzerTest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">Poscar</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;POSCAR.Li2O&#39;</span><span class="p">),</span>
+                             <span class="n">check_for_POTCAR</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">s1</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">structure</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">Poscar</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;CONTCAR.Li2O&#39;</span><span class="p">),</span>
+                             <span class="n">check_for_POTCAR</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">s2</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">structure</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">analyzer</span> <span class="o">=</span> <span class="n">RelaxationAnalyzer</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RelaxationAnalyzerTest.test_vol_and_para_changes"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.RelaxationAnalyzerTest.test_vol_and_para_changes">[docs]</a>    <span class="k">def</span> <span class="nf">test_vol_and_para_changes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">analyzer</span><span class="o">.</span><span class="n">get_percentage_lattice_parameter_changes</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="o">-</span><span class="mf">0.0092040921155279731</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+            <span class="n">latt_change</span> <span class="o">=</span> <span class="n">v</span>
+        <span class="n">vol_change</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">analyzer</span><span class="o">.</span><span class="n">get_percentage_volume_change</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="o">-</span><span class="mf">0.0273589101391</span><span class="p">,</span>
+                               <span class="n">vol_change</span><span class="p">)</span>
+        <span class="c1"># This is a simple cubic cell, so the latt and vol change are simply</span>
+        <span class="c1"># Related. So let&#39;s test that.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">((</span><span class="mi">1</span> <span class="o">+</span> <span class="n">latt_change</span><span class="p">)</span> <span class="o">**</span> <span class="mi">3</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">vol_change</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RelaxationAnalyzerTest.test_get_percentage_bond_dist_changes"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.RelaxationAnalyzerTest.test_get_percentage_bond_dist_changes">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_percentage_bond_dist_changes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">analyzer</span><span class="o">.</span><span class="n">get_percentage_bond_dist_changes</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">k2</span><span class="p">,</span> <span class="n">v2</span> <span class="ow">in</span> <span class="n">v</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="o">-</span><span class="mf">0.009204092115527862</span><span class="p">,</span> <span class="n">v2</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="VoronoiConnectivityTest"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.VoronoiConnectivityTest">[docs]</a><span class="k">class</span> <span class="nc">VoronoiConnectivityTest</span><span class="p">(</span><span class="n">PymatgenTest</span><span class="p">):</span>
+<div class="viewcode-block" id="VoronoiConnectivityTest.test_connectivity_array"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.VoronoiConnectivityTest.test_connectivity_array">[docs]</a>    <span class="k">def</span> <span class="nf">test_connectivity_array</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">vc</span> <span class="o">=</span> <span class="n">VoronoiConnectivity</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="s2">&quot;LiFePO4&quot;</span><span class="p">))</span>
+        <span class="n">ca</span> <span class="o">=</span> <span class="n">vc</span><span class="o">.</span><span class="n">connectivity_array</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">set_printoptions</span><span class="p">(</span><span class="n">threshold</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">NAN</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">NAN</span><span class="p">,</span> <span class="n">suppress</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">NAN</span><span class="p">)</span>
+
+        <span class="n">expected</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mf">1.96338392</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.04594495</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">ca</span><span class="p">[</span><span class="mi">15</span><span class="p">,</span> <span class="p">:</span><span class="mi">4</span><span class="p">,</span> <span class="n">ca</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span><span class="p">],</span> <span class="n">expected</span><span class="p">))</span>
+
+        <span class="n">expected</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">ca</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">3</span><span class="p">:,</span> <span class="mi">51</span><span class="p">],</span> <span class="n">expected</span><span class="p">))</span>
+
+        <span class="n">site</span> <span class="o">=</span> <span class="n">vc</span><span class="o">.</span><span class="n">get_sitej</span><span class="p">(</span><span class="mi">27</span><span class="p">,</span> <span class="mi">51</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">specie</span><span class="p">,</span> <span class="n">Element</span><span class="p">(</span><span class="s1">&#39;O&#39;</span><span class="p">))</span>
+        <span class="n">expected</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mf">0.29158</span><span class="p">,</span> <span class="mf">0.74889</span><span class="p">,</span> <span class="mf">0.95684</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">,</span> <span class="n">expected</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="MiscFunctionTest"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.MiscFunctionTest">[docs]</a><span class="k">class</span> <span class="nc">MiscFunctionTest</span><span class="p">(</span><span class="n">PymatgenTest</span><span class="p">):</span>
+<div class="viewcode-block" id="MiscFunctionTest.test_average_coordination_number"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.MiscFunctionTest.test_average_coordination_number">[docs]</a>    <span class="k">def</span> <span class="nf">test_average_coordination_number</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">xdatcar</span> <span class="o">=</span> <span class="n">Xdatcar</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;XDATCAR.MD&#39;</span><span class="p">))</span>
+        <span class="n">coordination_numbers</span> <span class="o">=</span> <span class="n">average_coordination_number</span><span class="p">(</span><span class="n">xdatcar</span><span class="o">.</span><span class="n">structures</span><span class="p">,</span>
+                                                           <span class="n">freq</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">coordination_numbers</span><span class="p">[</span><span class="s1">&#39;Fe&#39;</span><span class="p">],</span> <span class="mf">4.771903318390836</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span>
+                               <span class="s2">&quot;Coordination number not calculated properly.&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MiscFunctionTest.test_solid_angle"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.MiscFunctionTest.test_solid_angle">[docs]</a>    <span class="k">def</span> <span class="nf">test_solid_angle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">center</span> <span class="o">=</span> <span class="p">[</span><span class="mf">2.294508207929496</span><span class="p">,</span> <span class="mf">4.4078057081404</span><span class="p">,</span> <span class="mf">2.299997773791287</span><span class="p">]</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">1.627286218099362</span><span class="p">,</span> <span class="mf">3.081185538926995</span><span class="p">,</span> <span class="mf">3.278749383217061</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">1.776793751092763</span><span class="p">,</span> <span class="mf">2.93741167455471</span><span class="p">,</span> <span class="mf">3.058701096568852</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">3.318412187495734</span><span class="p">,</span> <span class="mf">2.997331084033472</span><span class="p">,</span> <span class="mf">2.022167590167672</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">3.874524708023352</span><span class="p">,</span> <span class="mf">4.425301459451914</span><span class="p">,</span> <span class="mf">2.771990305592935</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">2.055778446743566</span><span class="p">,</span> <span class="mf">4.437449313863041</span><span class="p">,</span> <span class="mf">4.061046832034642</span><span class="p">]]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">solid_angle</span><span class="p">(</span><span class="n">center</span><span class="p">,</span> <span class="n">coords</span><span class="p">),</span> <span class="mf">1.83570965938</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span>
+                               <span class="s2">&quot;Wrong result returned by solid_angle&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MiscFunctionTest.test_contains_peroxide"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.MiscFunctionTest.test_contains_peroxide">[docs]</a>    <span class="k">def</span> <span class="nf">test_contains_peroxide</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;LiFePO4&#39;</span><span class="p">,</span> <span class="s1">&#39;NaFePO4&#39;</span><span class="p">,</span> <span class="s1">&#39;Li3V2(PO4)3&#39;</span><span class="p">,</span> <span class="s1">&#39;Li2O&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">contains_peroxide</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="n">f</span><span class="p">)))</span>
+
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;Li2O2&#39;</span><span class="p">,</span> <span class="s2">&quot;K2O2&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">contains_peroxide</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="n">f</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="MiscFunctionTest.test_oxide_type"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.MiscFunctionTest.test_oxide_type">[docs]</a>    <span class="k">def</span> <span class="nf">test_oxide_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">el_li</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;Li&quot;</span><span class="p">)</span>
+        <span class="n">el_o</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;O&quot;</span><span class="p">)</span>
+        <span class="n">latt</span> <span class="o">=</span> <span class="n">Lattice</span><span class="p">([[</span><span class="mf">3.985034</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span>
+                        <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">4.881506</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span>
+                        <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">2.959824</span><span class="p">]])</span>
+        <span class="n">elts</span> <span class="o">=</span> <span class="p">[</span><span class="n">el_li</span><span class="p">,</span> <span class="n">el_li</span><span class="p">,</span> <span class="n">el_o</span><span class="p">,</span> <span class="n">el_o</span><span class="p">,</span> <span class="n">el_o</span><span class="p">,</span> <span class="n">el_o</span><span class="p">]</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.500000</span><span class="p">,</span> <span class="mf">0.500000</span><span class="p">,</span> <span class="mf">0.500000</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.632568</span><span class="p">,</span> <span class="mf">0.085090</span><span class="p">,</span> <span class="mf">0.500000</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.367432</span><span class="p">,</span> <span class="mf">0.914910</span><span class="p">,</span> <span class="mf">0.500000</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.132568</span><span class="p">,</span> <span class="mf">0.414910</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.867432</span><span class="p">,</span> <span class="mf">0.585090</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">])</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">latt</span><span class="p">,</span> <span class="n">elts</span><span class="p">,</span> <span class="n">coords</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">oxide_type</span><span class="p">(</span><span class="n">struct</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">),</span> <span class="s2">&quot;superoxide&quot;</span><span class="p">)</span>
+
+        <span class="n">el_li</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;Li&quot;</span><span class="p">)</span>
+        <span class="n">el_o</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;O&quot;</span><span class="p">)</span>
+        <span class="n">elts</span> <span class="o">=</span> <span class="p">[</span><span class="n">el_li</span><span class="p">,</span> <span class="n">el_o</span><span class="p">,</span> <span class="n">el_o</span><span class="p">,</span> <span class="n">el_o</span><span class="p">]</span>
+        <span class="n">latt</span> <span class="o">=</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">from_parameters</span><span class="p">(</span><span class="mf">3.999911</span><span class="p">,</span> <span class="mf">3.999911</span><span class="p">,</span> <span class="mf">3.999911</span><span class="p">,</span> <span class="mf">133.847504</span><span class="p">,</span>
+                                       <span class="mf">102.228244</span><span class="p">,</span> <span class="mf">95.477342</span><span class="p">)</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.513004</span><span class="p">,</span> <span class="mf">0.513004</span><span class="p">,</span> <span class="mf">1.000000</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.017616</span><span class="p">,</span> <span class="mf">0.017616</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.649993</span><span class="p">,</span> <span class="mf">0.874790</span><span class="p">,</span> <span class="mf">0.775203</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.099587</span><span class="p">,</span> <span class="mf">0.874790</span><span class="p">,</span> <span class="mf">0.224797</span><span class="p">]]</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">latt</span><span class="p">,</span> <span class="n">elts</span><span class="p">,</span> <span class="n">coords</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">oxide_type</span><span class="p">(</span><span class="n">struct</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">),</span> <span class="s2">&quot;ozonide&quot;</span><span class="p">)</span>
+
+        <span class="n">latt</span> <span class="o">=</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">from_parameters</span><span class="p">(</span><span class="mf">3.159597</span><span class="p">,</span> <span class="mf">3.159572</span><span class="p">,</span> <span class="mf">7.685205</span><span class="p">,</span> <span class="mf">89.999884</span><span class="p">,</span>
+                                       <span class="mf">89.999674</span><span class="p">,</span> <span class="mf">60.000510</span><span class="p">)</span>
+        <span class="n">el_li</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;Li&quot;</span><span class="p">)</span>
+        <span class="n">el_o</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;O&quot;</span><span class="p">)</span>
+        <span class="n">elts</span> <span class="o">=</span> <span class="p">[</span><span class="n">el_li</span><span class="p">,</span> <span class="n">el_li</span><span class="p">,</span> <span class="n">el_li</span><span class="p">,</span> <span class="n">el_li</span><span class="p">,</span> <span class="n">el_o</span><span class="p">,</span> <span class="n">el_o</span><span class="p">,</span> <span class="n">el_o</span><span class="p">,</span> <span class="n">el_o</span><span class="p">]</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.666656</span><span class="p">,</span> <span class="mf">0.666705</span><span class="p">,</span> <span class="mf">0.750001</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.333342</span><span class="p">,</span> <span class="mf">0.333378</span><span class="p">,</span> <span class="mf">0.250001</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.000001</span><span class="p">,</span> <span class="mf">0.000041</span><span class="p">,</span> <span class="mf">0.500001</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.000001</span><span class="p">,</span> <span class="mf">0.000021</span><span class="p">,</span> <span class="mf">0.000001</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.333347</span><span class="p">,</span> <span class="mf">0.333332</span><span class="p">,</span> <span class="mf">0.649191</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.333322</span><span class="p">,</span> <span class="mf">0.333353</span><span class="p">,</span> <span class="mf">0.850803</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.666666</span><span class="p">,</span> <span class="mf">0.666686</span><span class="p">,</span> <span class="mf">0.350813</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.666665</span><span class="p">,</span> <span class="mf">0.666684</span><span class="p">,</span> <span class="mf">0.149189</span><span class="p">]]</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">latt</span><span class="p">,</span> <span class="n">elts</span><span class="p">,</span> <span class="n">coords</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">oxide_type</span><span class="p">(</span><span class="n">struct</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">),</span> <span class="s2">&quot;peroxide&quot;</span><span class="p">)</span>
+
+        <span class="n">el_li</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;Li&quot;</span><span class="p">)</span>
+        <span class="n">el_o</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;O&quot;</span><span class="p">)</span>
+        <span class="n">el_h</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;H&quot;</span><span class="p">)</span>
+        <span class="n">latt</span> <span class="o">=</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">from_parameters</span><span class="p">(</span><span class="mf">3.565276</span><span class="p">,</span> <span class="mf">3.565276</span><span class="p">,</span> <span class="mf">4.384277</span><span class="p">,</span> <span class="mf">90.000000</span><span class="p">,</span>
+                                       <span class="mf">90.000000</span><span class="p">,</span> <span class="mf">90.000000</span><span class="p">)</span>
+        <span class="n">elts</span> <span class="o">=</span> <span class="p">[</span><span class="n">el_h</span><span class="p">,</span> <span class="n">el_h</span><span class="p">,</span> <span class="n">el_li</span><span class="p">,</span> <span class="n">el_li</span><span class="p">,</span> <span class="n">el_o</span><span class="p">,</span> <span class="n">el_o</span><span class="p">]</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.500000</span><span class="p">,</span> <span class="mf">0.413969</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.500000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.586031</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.500000</span><span class="p">,</span> <span class="mf">0.500000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.500000</span><span class="p">,</span> <span class="mf">0.192672</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.500000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.807328</span><span class="p">]]</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">latt</span><span class="p">,</span> <span class="n">elts</span><span class="p">,</span> <span class="n">coords</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">oxide_type</span><span class="p">(</span><span class="n">struct</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">),</span> <span class="s2">&quot;hydroxide&quot;</span><span class="p">)</span>
+
+        <span class="n">el_li</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;Li&quot;</span><span class="p">)</span>
+        <span class="n">el_n</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;N&quot;</span><span class="p">)</span>
+        <span class="n">el_h</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;H&quot;</span><span class="p">)</span>
+        <span class="n">latt</span> <span class="o">=</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">from_parameters</span><span class="p">(</span><span class="mf">3.565276</span><span class="p">,</span> <span class="mf">3.565276</span><span class="p">,</span> <span class="mf">4.384277</span><span class="p">,</span> <span class="mf">90.000000</span><span class="p">,</span>
+                                       <span class="mf">90.000000</span><span class="p">,</span> <span class="mf">90.000000</span><span class="p">)</span>
+        <span class="n">elts</span> <span class="o">=</span> <span class="p">[</span><span class="n">el_h</span><span class="p">,</span> <span class="n">el_h</span><span class="p">,</span> <span class="n">el_li</span><span class="p">,</span> <span class="n">el_li</span><span class="p">,</span> <span class="n">el_n</span><span class="p">,</span> <span class="n">el_n</span><span class="p">]</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.500000</span><span class="p">,</span> <span class="mf">0.413969</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.500000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.586031</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.500000</span><span class="p">,</span> <span class="mf">0.500000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.500000</span><span class="p">,</span> <span class="mf">0.192672</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.500000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.807328</span><span class="p">]]</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">latt</span><span class="p">,</span> <span class="n">elts</span><span class="p">,</span> <span class="n">coords</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">oxide_type</span><span class="p">(</span><span class="n">struct</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">),</span> <span class="s2">&quot;None&quot;</span><span class="p">)</span>
+
+        <span class="n">el_o</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;O&quot;</span><span class="p">)</span>
+        <span class="n">latt</span> <span class="o">=</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">from_parameters</span><span class="p">(</span><span class="mf">4.389828</span><span class="p">,</span> <span class="mf">5.369789</span><span class="p">,</span> <span class="mf">5.369789</span><span class="p">,</span> <span class="mf">70.786622</span><span class="p">,</span>
+                                       <span class="mf">69.244828</span><span class="p">,</span> <span class="mf">69.244828</span><span class="p">)</span>
+        <span class="n">elts</span> <span class="o">=</span> <span class="p">[</span><span class="n">el_o</span><span class="p">,</span> <span class="n">el_o</span><span class="p">,</span> <span class="n">el_o</span><span class="p">,</span> <span class="n">el_o</span><span class="p">,</span> <span class="n">el_o</span><span class="p">,</span> <span class="n">el_o</span><span class="p">,</span> <span class="n">el_o</span><span class="p">,</span> <span class="n">el_o</span><span class="p">]</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.844609</span><span class="p">,</span> <span class="mf">0.273459</span><span class="p">,</span> <span class="mf">0.786089</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.155391</span><span class="p">,</span> <span class="mf">0.213911</span><span class="p">,</span> <span class="mf">0.726541</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.155391</span><span class="p">,</span> <span class="mf">0.726541</span><span class="p">,</span> <span class="mf">0.213911</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.844609</span><span class="p">,</span> <span class="mf">0.786089</span><span class="p">,</span> <span class="mf">0.273459</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.821680</span><span class="p">,</span> <span class="mf">0.207748</span><span class="p">,</span> <span class="mf">0.207748</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.178320</span><span class="p">,</span> <span class="mf">0.792252</span><span class="p">,</span> <span class="mf">0.792252</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.132641</span><span class="p">,</span> <span class="mf">0.148222</span><span class="p">,</span> <span class="mf">0.148222</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.867359</span><span class="p">,</span> <span class="mf">0.851778</span><span class="p">,</span> <span class="mf">0.851778</span><span class="p">]]</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">latt</span><span class="p">,</span> <span class="n">elts</span><span class="p">,</span> <span class="n">coords</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">oxide_type</span><span class="p">(</span><span class="n">struct</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">),</span> <span class="s2">&quot;None&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MiscFunctionTest.test_sulfide_type"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.MiscFunctionTest.test_sulfide_type">[docs]</a>    <span class="k">def</span> <span class="nf">test_sulfide_type</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># NaS2 -&gt; polysulfide</span>
+        <span class="n">latt</span> <span class="o">=</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">tetragonal</span><span class="p">(</span><span class="mf">9.59650</span><span class="p">,</span> <span class="mf">11.78850</span><span class="p">)</span>
+        <span class="n">species</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Na&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;S&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.00000</span><span class="p">,</span> <span class="mf">0.00000</span><span class="p">,</span> <span class="mf">0.17000</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.27600</span><span class="p">,</span> <span class="mf">0.25000</span><span class="p">,</span> <span class="mf">0.12500</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.03400</span><span class="p">,</span> <span class="mf">0.25000</span><span class="p">,</span> <span class="mf">0.29600</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.14700</span><span class="p">,</span> <span class="mf">0.11600</span><span class="p">,</span> <span class="mf">0.40000</span><span class="p">]]</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_spacegroup</span><span class="p">(</span><span class="mi">122</span><span class="p">,</span> <span class="n">latt</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">coords</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">sulfide_type</span><span class="p">(</span><span class="n">struct</span><span class="p">),</span> <span class="s2">&quot;polysulfide&quot;</span><span class="p">)</span>
+
+        <span class="c1"># NaCl type NaS -&gt; sulfide</span>
+        <span class="n">latt</span> <span class="o">=</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">cubic</span><span class="p">(</span><span class="mf">5.75</span><span class="p">)</span>
+        <span class="n">species</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Na&quot;</span><span class="p">,</span> <span class="s2">&quot;S&quot;</span><span class="p">]</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.00000</span><span class="p">,</span> <span class="mf">0.00000</span><span class="p">,</span> <span class="mf">0.00000</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.50000</span><span class="p">,</span> <span class="mf">0.50000</span><span class="p">,</span> <span class="mf">0.50000</span><span class="p">]]</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_spacegroup</span><span class="p">(</span><span class="mi">225</span><span class="p">,</span> <span class="n">latt</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">coords</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">sulfide_type</span><span class="p">(</span><span class="n">struct</span><span class="p">),</span> <span class="s2">&quot;sulfide&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Na2S2O3 -&gt; None (sulfate)</span>
+        <span class="n">latt</span> <span class="o">=</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">monoclinic</span><span class="p">(</span><span class="mf">6.40100</span><span class="p">,</span> <span class="mf">8.10000</span><span class="p">,</span> <span class="mf">8.47400</span><span class="p">,</span> <span class="mf">96.8800</span><span class="p">)</span>
+        <span class="n">species</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Na&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;S&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;O&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">3</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.29706</span><span class="p">,</span> <span class="mf">0.62396</span><span class="p">,</span> <span class="mf">0.08575</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.37673</span><span class="p">,</span> <span class="mf">0.30411</span><span class="p">,</span> <span class="mf">0.45416</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.52324</span><span class="p">,</span> <span class="mf">0.10651</span><span class="p">,</span> <span class="mf">0.21126</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.29660</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.04671</span><span class="p">,</span> <span class="mf">0.26607</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.17577</span><span class="p">,</span> <span class="mf">0.03720</span><span class="p">,</span> <span class="mf">0.38049</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.38604</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.20144</span><span class="p">,</span> <span class="mf">0.33624</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.16248</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.08546</span><span class="p">,</span> <span class="mf">0.11608</span><span class="p">]]</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_spacegroup</span><span class="p">(</span><span class="mi">14</span><span class="p">,</span> <span class="n">latt</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">coords</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">sulfide_type</span><span class="p">(</span><span class="n">struct</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="c1"># Na3PS3O -&gt; sulfide</span>
+        <span class="n">latt</span> <span class="o">=</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">orthorhombic</span><span class="p">(</span><span class="mf">9.51050</span><span class="p">,</span> <span class="mf">11.54630</span><span class="p">,</span> <span class="mf">5.93230</span><span class="p">)</span>
+        <span class="n">species</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Na&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;S&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;P&quot;</span><span class="p">,</span> <span class="s2">&quot;O&quot;</span><span class="p">]</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.19920</span><span class="p">,</span> <span class="mf">0.11580</span><span class="p">,</span> <span class="mf">0.24950</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.00000</span><span class="p">,</span> <span class="mf">0.36840</span><span class="p">,</span> <span class="mf">0.29380</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.32210</span><span class="p">,</span> <span class="mf">0.36730</span><span class="p">,</span> <span class="mf">0.22530</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.50000</span><span class="p">,</span> <span class="mf">0.11910</span><span class="p">,</span> <span class="mf">0.27210</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.50000</span><span class="p">,</span> <span class="mf">0.29400</span><span class="p">,</span> <span class="mf">0.35500</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mf">0.50000</span><span class="p">,</span> <span class="mf">0.30300</span><span class="p">,</span> <span class="mf">0.61140</span><span class="p">]]</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_spacegroup</span><span class="p">(</span><span class="mi">36</span><span class="p">,</span> <span class="n">latt</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">coords</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">sulfide_type</span><span class="p">(</span><span class="n">struct</span><span class="p">),</span> <span class="s2">&quot;sulfide&quot;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="OrderParametersTest"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.OrderParametersTest">[docs]</a><span class="k">class</span> <span class="nc">OrderParametersTest</span><span class="p">(</span><span class="n">PymatgenTest</span><span class="p">):</span>
+<div class="viewcode-block" id="OrderParametersTest.setUp"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.OrderParametersTest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cubic</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span>
+            <span class="n">Lattice</span><span class="o">.</span><span class="n">from_lengths_and_angles</span><span class="p">(</span>
+                <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">90.0</span><span class="p">,</span> <span class="mf">90.0</span><span class="p">,</span> <span class="mf">90.0</span><span class="p">]),</span>
+            <span class="p">[</span><span class="s2">&quot;H&quot;</span><span class="p">],</span> <span class="p">[[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]],</span> <span class="n">validate_proximity</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">to_unit_cell</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">site_properties</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bcc</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span>
+            <span class="n">Lattice</span><span class="o">.</span><span class="n">from_lengths_and_angles</span><span class="p">(</span>
+                <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">90.0</span><span class="p">,</span> <span class="mf">90.0</span><span class="p">,</span> <span class="mf">90.0</span><span class="p">]),</span>
+            <span class="p">[</span><span class="s2">&quot;H&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">],</span> <span class="p">[[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">]],</span>
+            <span class="n">validate_proximity</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">to_unit_cell</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">site_properties</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fcc</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span>
+            <span class="n">Lattice</span><span class="o">.</span><span class="n">from_lengths_and_angles</span><span class="p">(</span>
+                <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">90.0</span><span class="p">,</span> <span class="mf">90.0</span><span class="p">,</span> <span class="mf">90.0</span><span class="p">]),</span>
+            <span class="p">[</span><span class="s2">&quot;H&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">],</span> <span class="p">[[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span>
+                                   <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]],</span>
+            <span class="n">validate_proximity</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">to_unit_cell</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">site_properties</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hcp</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span>
+            <span class="n">Lattice</span><span class="o">.</span><span class="n">from_lengths_and_angles</span><span class="p">(</span>
+                <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.633</span><span class="p">],</span> <span class="p">[</span><span class="mf">90.0</span><span class="p">,</span> <span class="mf">90.0</span><span class="p">,</span> <span class="mf">120.0</span><span class="p">]),</span>
+            <span class="p">[</span><span class="s2">&quot;H&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">],</span>
+            <span class="p">[[</span><span class="mf">0.3333</span><span class="p">,</span> <span class="mf">0.6667</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.6667</span><span class="p">,</span> <span class="mf">0.3333</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">]],</span>
+            <span class="n">validate_proximity</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">to_unit_cell</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">site_properties</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">diamond</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span>
+            <span class="n">Lattice</span><span class="o">.</span><span class="n">from_lengths_and_angles</span><span class="p">(</span>
+                <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">90.0</span><span class="p">,</span> <span class="mf">90.0</span><span class="p">,</span> <span class="mf">90.0</span><span class="p">]),</span>
+            <span class="p">[</span><span class="s2">&quot;H&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">],</span>
+            <span class="p">[[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">],</span>
+             <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">],</span>
+             <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">],</span>
+             <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">]],</span>
+            <span class="n">validate_proximity</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">to_unit_cell</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">site_properties</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="OrderParametersTest.test_init"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.OrderParametersTest.test_init">[docs]</a>    <span class="k">def</span> <span class="nf">test_init</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">OrderParameters</span><span class="p">([</span><span class="s2">&quot;cn&quot;</span><span class="p">],</span> <span class="p">[[]],</span> <span class="mf">0.99</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="OrderParametersTest.test_get_order_parameters"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.OrderParametersTest.test_get_order_parameters">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_order_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Set up everything.</span>
+        <span class="n">op_types</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;cn&quot;</span><span class="p">,</span> <span class="s2">&quot;tet&quot;</span><span class="p">,</span> <span class="s2">&quot;oct&quot;</span><span class="p">,</span> <span class="s2">&quot;bcc&quot;</span><span class="p">,</span> <span class="s2">&quot;q2&quot;</span><span class="p">,</span> <span class="s2">&quot;q4&quot;</span><span class="p">,</span> <span class="s2">&quot;q6&quot;</span><span class="p">]</span>
+        <span class="n">op_paras</span> <span class="o">=</span> <span class="p">[[],</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[]]</span>
+        <span class="n">ops_044</span> <span class="o">=</span> <span class="n">OrderParameters</span><span class="p">(</span><span class="n">op_types</span><span class="p">,</span> <span class="n">op_paras</span><span class="p">,</span> <span class="mf">0.44</span><span class="p">)</span>
+        <span class="n">ops_071</span> <span class="o">=</span> <span class="n">OrderParameters</span><span class="p">(</span><span class="n">op_types</span><span class="p">,</span> <span class="n">op_paras</span><span class="p">,</span> <span class="mf">0.71</span><span class="p">)</span>
+        <span class="n">ops_087</span> <span class="o">=</span> <span class="n">OrderParameters</span><span class="p">(</span><span class="n">op_types</span><span class="p">,</span> <span class="n">op_paras</span><span class="p">,</span> <span class="mf">0.87</span><span class="p">)</span>
+        <span class="n">ops_099</span> <span class="o">=</span> <span class="n">OrderParameters</span><span class="p">(</span><span class="n">op_types</span><span class="p">,</span> <span class="n">op_paras</span><span class="p">,</span> <span class="mf">0.99</span><span class="p">)</span>
+        <span class="n">ops_101</span> <span class="o">=</span> <span class="n">OrderParameters</span><span class="p">(</span><span class="n">op_types</span><span class="p">,</span> <span class="n">op_paras</span><span class="p">,</span> <span class="mf">1.01</span><span class="p">)</span>
+        <span class="n">ops_voro</span> <span class="o">=</span> <span class="n">OrderParameters</span><span class="p">(</span><span class="n">op_types</span><span class="p">,</span> <span class="n">op_paras</span><span class="p">)</span>
+
+        <span class="c1"># Cubic structure.</span>
+        <span class="n">op_vals</span> <span class="o">=</span> <span class="n">ops_099</span><span class="o">.</span><span class="n">get_order_parameters</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cubic</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">4</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">5</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">6</span><span class="p">])</span>
+        <span class="n">op_vals</span> <span class="o">=</span> <span class="n">ops_101</span><span class="o">.</span><span class="n">get_order_parameters</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cubic</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mf">6.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="o">-</span><span class="mi">72</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="mi">1000</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="mi">125</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="mi">763</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="mi">353</span><span class="p">)</span>
+
+        <span class="c1"># Bcc structure.</span>
+        <span class="n">op_vals</span> <span class="o">=</span> <span class="n">ops_087</span><span class="o">.</span><span class="n">get_order_parameters</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bcc</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mf">8.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span>
+                               <span class="mi">1968</span><span class="p">)</span>  <span class="c1"># 1.9688949183589557</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span>
+                               <span class="mi">125</span><span class="p">)</span>  <span class="c1"># 0.12540815310925768</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span>
+                               <span class="mi">975</span><span class="p">)</span>  <span class="c1"># 0.9753713330608598</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span>
+                               <span class="mi">509</span><span class="p">)</span>  <span class="c1"># 0.5091750772173156</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span>
+                               <span class="mi">628</span><span class="p">)</span>  <span class="c1"># 0.6285393610547088</span>
+
+        <span class="c1"># Fcc structure.</span>
+        <span class="n">op_vals</span> <span class="o">=</span> <span class="n">ops_071</span><span class="o">.</span><span class="n">get_order_parameters</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fcc</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mf">12.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span>
+                               <span class="o">-</span><span class="mi">998</span><span class="p">)</span>  <span class="c1"># -0.9989621462333275</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span>
+                               <span class="o">-</span><span class="mi">1012</span><span class="p">)</span>  <span class="c1"># -1.0125484381377454</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span>
+                               <span class="mi">0</span><span class="p">)</span>  <span class="c1"># -0.0007417813723164877</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span>
+                               <span class="mi">190</span><span class="p">)</span>  <span class="c1"># 0.1909406539564932</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="mi">574</span><span class="p">)</span>  <span class="c1"># 0.57452425971407</span>
+
+        <span class="c1"># Hcp structure.</span>
+        <span class="n">op_vals</span> <span class="o">=</span> <span class="n">ops_101</span><span class="o">.</span><span class="n">get_order_parameters</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hcp</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mf">12.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="o">-</span><span class="mi">455</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="o">-</span><span class="mi">735</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="o">-</span><span class="mi">155</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="mi">97</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="mi">484</span><span class="p">)</span>
+
+        <span class="c1"># Diamond structure.</span>
+        <span class="n">op_vals</span> <span class="o">=</span> <span class="n">ops_044</span><span class="o">.</span><span class="n">get_order_parameters</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">diamond</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mf">4.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="mi">1000</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="o">-</span><span class="mi">8</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="mi">80</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="mi">509</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span> <span class="mi">628</span><span class="p">)</span>
+
+        <span class="c1"># Test providing explicit neighbor lists.</span>
+        <span class="n">op_vals</span> <span class="o">=</span> <span class="n">ops_101</span><span class="o">.</span><span class="n">get_order_parameters</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bcc</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">indeces_neighs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNone</span><span class="p">(</span><span class="n">op_vals</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+            <span class="n">ops_101</span><span class="o">.</span><span class="n">get_order_parameters</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bcc</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">indeces_neighs</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="OrderParametersTest.tearDown"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_structure_analyzer.html#pymatgen.analysis.tests.test_structure_analyzer.OrderParametersTest.tearDown">[docs]</a>    <span class="k">def</span> <span class="nf">tearDown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">cubic</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">fcc</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">bcc</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">hcp</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">diamond</span></div></div>
+
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2011, Pymatgen Development Team.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
+    </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+<script type="text/javascript">
+  (function() {
+    var ga = document.createElement('script');
+    ga.src = ('https:' == document.location.protocol ?
+              'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    ga.setAttribute('async', 'true');
+    document.documentElement.firstChild.appendChild(ga);
+  })();
+</script>
+</div>
+
+  </body>
+</html>

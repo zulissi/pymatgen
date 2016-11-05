@@ -1,0 +1,483 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.core.tests.test_surface &#8212; pymatgen 4.5.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '4.5.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="top" title="pymatgen 4.5.0 documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" />
+ 
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-33990148-1']);
+  _gaq.push(['_trackPageview']);
+</script>
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pymatgen.core.tests.test_surface</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/python</span>
+
+
+<span class="kn">import</span> <span class="nn">unittest2</span> <span class="k">as</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">random</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="k">import</span> <span class="n">Structure</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.lattice</span> <span class="k">import</span> <span class="n">Lattice</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.surface</span> <span class="k">import</span> <span class="n">Slab</span><span class="p">,</span> <span class="n">SlabGenerator</span><span class="p">,</span> <span class="n">generate_all_slabs</span><span class="p">,</span> \
+    <span class="n">get_symmetrically_distinct_miller_indices</span>
+<span class="kn">from</span> <span class="nn">pymatgen.symmetry.groups</span> <span class="k">import</span> <span class="n">SpaceGroup</span>
+<span class="kn">from</span> <span class="nn">pymatgen.symmetry.analyzer</span> <span class="k">import</span> <span class="n">SpacegroupAnalyzer</span>
+<span class="kn">from</span> <span class="nn">pymatgen.util.testing</span> <span class="k">import</span> <span class="n">PymatgenTest</span>
+
+
+<div class="viewcode-block" id="get_path"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.get_path">[docs]</a><span class="k">def</span> <span class="nf">get_path</span><span class="p">(</span><span class="n">path_str</span><span class="p">):</span>
+    <span class="n">cwd</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">))</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cwd</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;test_files&quot;</span><span class="p">,</span> <span class="s2">&quot;surface_tests&quot;</span><span class="p">,</span>
+                        <span class="n">path_str</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">path</span></div>
+
+
+<div class="viewcode-block" id="SlabTest"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.SlabTest">[docs]</a><span class="k">class</span> <span class="nc">SlabTest</span><span class="p">(</span><span class="n">PymatgenTest</span><span class="p">):</span>
+
+<div class="viewcode-block" id="SlabTest.setUp"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.SlabTest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">zno1</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">get_path</span><span class="p">(</span><span class="s2">&quot;ZnO-wz.cif&quot;</span><span class="p">),</span> <span class="n">primitive</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">zno55</span> <span class="o">=</span> <span class="n">SlabGenerator</span><span class="p">(</span><span class="n">zno1</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="n">lll_reduce</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                              <span class="n">center_slab</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">get_slab</span><span class="p">()</span>
+
+        <span class="n">Ti</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">Lattice</span><span class="o">.</span><span class="n">hexagonal</span><span class="p">(</span><span class="mf">4.6</span><span class="p">,</span> <span class="mf">2.82</span><span class="p">),</span> <span class="p">[</span><span class="s2">&quot;Ti&quot;</span><span class="p">,</span> <span class="s2">&quot;Ti&quot;</span><span class="p">,</span> <span class="s2">&quot;Ti&quot;</span><span class="p">],</span>
+                       <span class="p">[[</span><span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">],</span>
+                       <span class="p">[</span><span class="mf">0.333333</span><span class="p">,</span> <span class="mf">0.666667</span><span class="p">,</span> <span class="mf">0.500000</span><span class="p">],</span>
+                       <span class="p">[</span><span class="mf">0.666667</span><span class="p">,</span> <span class="mf">0.333333</span><span class="p">,</span> <span class="mf">0.500000</span><span class="p">]])</span>
+
+        <span class="n">Ag_fcc</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">Lattice</span><span class="o">.</span><span class="n">cubic</span><span class="p">(</span><span class="mf">4.06</span><span class="p">),</span> <span class="p">[</span><span class="s2">&quot;Ag&quot;</span><span class="p">,</span> <span class="s2">&quot;Ag&quot;</span><span class="p">,</span> <span class="s2">&quot;Ag&quot;</span><span class="p">,</span> <span class="s2">&quot;Ag&quot;</span><span class="p">],</span>
+                           <span class="p">[[</span><span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">],</span>
+                           <span class="p">[</span><span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.500000</span><span class="p">,</span> <span class="mf">0.500000</span><span class="p">],</span>
+                           <span class="p">[</span><span class="mf">0.500000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.500000</span><span class="p">],</span>
+                           <span class="p">[</span><span class="mf">0.500000</span><span class="p">,</span> <span class="mf">0.500000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">]])</span>
+
+        <span class="n">laue_groups</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;-1&quot;</span><span class="p">,</span> <span class="s2">&quot;2/m&quot;</span><span class="p">,</span> <span class="s2">&quot;mmm&quot;</span><span class="p">,</span> <span class="s2">&quot;4/m&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;4/mmm&quot;</span><span class="p">,</span> <span class="s2">&quot;-3&quot;</span><span class="p">,</span> <span class="s2">&quot;-3m&quot;</span><span class="p">,</span> <span class="s2">&quot;6/m&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;6/mmm&quot;</span><span class="p">,</span> <span class="s2">&quot;m-3&quot;</span><span class="p">,</span> <span class="s2">&quot;m-3m&quot;</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">ti</span> <span class="o">=</span> <span class="n">Ti</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">agfcc</span> <span class="o">=</span> <span class="n">Ag_fcc</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">zno1</span> <span class="o">=</span> <span class="n">zno1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">zno55</span> <span class="o">=</span> <span class="n">zno55</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">h</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">Lattice</span><span class="o">.</span><span class="n">cubic</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="p">[</span><span class="s2">&quot;H&quot;</span><span class="p">],</span>
+                            <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">libcc</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">Lattice</span><span class="o">.</span><span class="n">cubic</span><span class="p">(</span><span class="mf">3.51004</span><span class="p">),</span> <span class="p">[</span><span class="s2">&quot;Li&quot;</span><span class="p">,</span> <span class="s2">&quot;Li&quot;</span><span class="p">],</span>
+                               <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">]])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">laue_groups</span> <span class="o">=</span> <span class="n">laue_groups</span></div>
+
+<div class="viewcode-block" id="SlabTest.test_init"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.SlabTest.test_init">[docs]</a>    <span class="k">def</span> <span class="nf">test_init</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">zno_slab</span> <span class="o">=</span> <span class="n">Slab</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">lattice</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">species</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">miller_index</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="p">,</span>
+                        <span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">scale_factor</span><span class="p">)</span>
+        <span class="n">m</span> <span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">matrix</span>
+        <span class="n">area</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">zno_slab</span><span class="o">.</span><span class="n">surface_area</span><span class="p">,</span> <span class="n">area</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">zno_slab</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">lengths_and_angles</span><span class="p">,</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">lengths_and_angles</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">zno_slab</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="o">.</span><span class="n">composition</span><span class="p">,</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">zno1</span><span class="o">.</span><span class="n">composition</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">zno_slab</span><span class="p">),</span> <span class="mi">8</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlabTest.test_add_adsorbate_atom"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.SlabTest.test_add_adsorbate_atom">[docs]</a>    <span class="k">def</span> <span class="nf">test_add_adsorbate_atom</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">zno_slab</span> <span class="o">=</span> <span class="n">Slab</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">lattice</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">species</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">miller_index</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="p">,</span>
+                        <span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">scale_factor</span><span class="p">)</span>
+        <span class="n">zno_slab</span><span class="o">.</span><span class="n">add_adsorbate_atom</span><span class="p">([</span><span class="mi">1</span><span class="p">],</span> <span class="s1">&#39;H&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">zno_slab</span><span class="p">),</span> <span class="mi">9</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">zno_slab</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span><span class="o">.</span><span class="n">specie</span><span class="p">),</span> <span class="s1">&#39;H&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">zno_slab</span><span class="o">.</span><span class="n">get_distance</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span> <span class="mf">1.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">zno_slab</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span><span class="o">.</span><span class="n">c</span> <span class="o">&gt;</span> <span class="n">zno_slab</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">c</span><span class="p">)</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">matrix</span>
+        <span class="n">area</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">zno_slab</span><span class="o">.</span><span class="n">surface_area</span><span class="p">,</span> <span class="n">area</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">zno_slab</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">lengths_and_angles</span><span class="p">,</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">lengths_and_angles</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlabTest.test_get_sorted_structure"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.SlabTest.test_get_sorted_structure">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_sorted_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">species</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">specie</span><span class="p">)</span> <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span>
+                   <span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">get_sorted_structure</span><span class="p">()]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">species</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;Zn2+&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">4</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;O2-&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">4</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlabTest.test_methods"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.SlabTest.test_methods">[docs]</a>    <span class="k">def</span> <span class="nf">test_methods</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1">#Test various structure methods</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">get_primitive_structure</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="SlabTest.test_as_from_dict"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.SlabTest.test_as_from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">test_as_from_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">Slab</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">miller_index</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SlabTest.test_dipole_and_is_polar"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.SlabTest.test_dipole_and_is_polar">[docs]</a>    <span class="k">def</span> <span class="nf">test_dipole_and_is_polar</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertArrayAlmostEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">dipole</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">zno55</span><span class="o">.</span><span class="n">is_polar</span><span class="p">())</span>
+        <span class="n">cscl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="s2">&quot;CsCl&quot;</span><span class="p">)</span>
+        <span class="n">cscl</span><span class="o">.</span><span class="n">add_oxidation_state_by_element</span><span class="p">({</span><span class="s2">&quot;Cs&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;Cl&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">})</span>
+        <span class="n">slab</span> <span class="o">=</span> <span class="n">SlabGenerator</span><span class="p">(</span><span class="n">cscl</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span>
+                             <span class="n">lll_reduce</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">center_slab</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">get_slab</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertArrayAlmostEqual</span><span class="p">(</span><span class="n">slab</span><span class="o">.</span><span class="n">dipole</span><span class="p">,</span> <span class="p">[</span><span class="o">-</span><span class="mf">4.209</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">slab</span><span class="o">.</span><span class="n">is_polar</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="SlabTest.test_symmetrization"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.SlabTest.test_symmetrization">[docs]</a>    <span class="k">def</span> <span class="nf">test_symmetrization</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="c1"># Restricted to elemental materials due to the risk of</span>
+        <span class="c1"># broken stoichiometry. For compound materials, use is_polar()</span>
+
+        <span class="c1"># Get all slabs for P6/mmm Ti and Fm-3m Ag up to index of 2</span>
+
+        <span class="n">all_Ti_slabs</span> <span class="o">=</span> <span class="n">generate_all_slabs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ti</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">bonds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                          <span class="n">tol</span><span class="o">=</span><span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="n">max_broken_bonds</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                                          <span class="n">lll_reduce</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">center_slab</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                                          <span class="n">primitive</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">max_normal_search</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                                          <span class="n">symmetrize</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">all_Ag_fcc_slabs</span> <span class="o">=</span> <span class="n">generate_all_slabs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">agfcc</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">bonds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                              <span class="n">tol</span><span class="o">=</span><span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="n">max_broken_bonds</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                                              <span class="n">lll_reduce</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">center_slab</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                                              <span class="n">primitive</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">max_normal_search</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                                              <span class="n">symmetrize</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">all_slabs</span> <span class="o">=</span> <span class="p">[</span><span class="n">all_Ti_slabs</span><span class="p">,</span> <span class="n">all_Ag_fcc_slabs</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">slabs</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">all_slabs</span><span class="p">):</span>
+
+            <span class="n">assymetric_count</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">symmetric_count</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">slab</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">slabs</span><span class="p">):</span>
+                <span class="n">sg</span> <span class="o">=</span> <span class="n">SpacegroupAnalyzer</span><span class="p">(</span><span class="n">slab</span><span class="p">)</span>
+                <span class="n">pg</span> <span class="o">=</span> <span class="n">sg</span><span class="o">.</span><span class="n">get_point_group_symbol</span><span class="p">()</span>
+
+                <span class="c1"># Check if a slab is symmetric</span>
+                <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">pg</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">laue_groups</span><span class="p">:</span>
+                    <span class="n">assymetric_count</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">symmetric_count</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="c1"># Check if slabs are all symmetric</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">assymetric_count</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">symmetric_count</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">slabs</span><span class="p">))</span></div></div>
+
+<div class="viewcode-block" id="SlabGeneratorTest"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.SlabGeneratorTest">[docs]</a><span class="k">class</span> <span class="nc">SlabGeneratorTest</span><span class="p">(</span><span class="n">PymatgenTest</span><span class="p">):</span>
+
+<div class="viewcode-block" id="SlabGeneratorTest.test_get_slab"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.SlabGeneratorTest.test_get_slab">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_slab</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="s2">&quot;LiFePO4&quot;</span><span class="p">)</span>
+        <span class="n">gen</span> <span class="o">=</span> <span class="n">SlabGenerator</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">gen</span><span class="o">.</span><span class="n">get_slab</span><span class="p">(</span><span class="mf">0.25</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">abc</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="mf">20.820740000000001</span><span class="p">)</span>
+
+        <span class="n">fcc</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_spacegroup</span><span class="p">(</span><span class="s2">&quot;Fm-3m&quot;</span><span class="p">,</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">cubic</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="p">[</span><span class="s2">&quot;Fe&quot;</span><span class="p">],</span>
+                                        <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span>
+        <span class="n">gen</span> <span class="o">=</span> <span class="n">SlabGenerator</span><span class="p">(</span><span class="n">fcc</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">slab</span> <span class="o">=</span> <span class="n">gen</span><span class="o">.</span><span class="n">get_slab</span><span class="p">()</span>
+        <span class="n">gen</span> <span class="o">=</span> <span class="n">SlabGenerator</span><span class="p">(</span><span class="n">fcc</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">primitive</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">slab_non_prim</span> <span class="o">=</span> <span class="n">gen</span><span class="o">.</span><span class="n">get_slab</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">slab</span><span class="p">),</span> <span class="mi">6</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">slab_non_prim</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">slab</span><span class="p">)</span> <span class="o">*</span> <span class="mi">4</span><span class="p">)</span>
+
+        <span class="c1">#Some randomized testing of cell vectors</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">231</span><span class="p">):</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">230</span><span class="p">)</span>
+            <span class="n">sg</span> <span class="o">=</span> <span class="n">SpaceGroup</span><span class="o">.</span><span class="n">from_int_number</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">sg</span><span class="o">.</span><span class="n">crystal_system</span> <span class="o">==</span> <span class="s2">&quot;hexagonal&quot;</span> <span class="ow">or</span> <span class="p">(</span><span class="n">sg</span><span class="o">.</span><span class="n">crystal_system</span> <span class="o">==</span> \
+                    <span class="s2">&quot;trigonal&quot;</span> <span class="ow">and</span> <span class="n">sg</span><span class="o">.</span><span class="n">symbol</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;H&quot;</span><span class="p">)):</span>
+                <span class="n">latt</span> <span class="o">=</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">hexagonal</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1">#Cubic lattice is compatible with all other space groups.</span>
+                <span class="n">latt</span> <span class="o">=</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">cubic</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_spacegroup</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">latt</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;H&quot;</span><span class="p">],</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span>
+            <span class="n">miller</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="k">while</span> <span class="n">miller</span> <span class="o">==</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
+                <span class="n">miller</span> <span class="o">=</span> <span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span>
+                          <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+            <span class="n">gen</span> <span class="o">=</span> <span class="n">SlabGenerator</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">miller</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">gen</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">matrix</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">gen</span><span class="o">.</span><span class="n">_normal</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">gen</span><span class="o">.</span><span class="n">_normal</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlabGeneratorTest.test_normal_search"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.SlabGeneratorTest.test_normal_search">[docs]</a>    <span class="k">def</span> <span class="nf">test_normal_search</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">fcc</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_spacegroup</span><span class="p">(</span><span class="s2">&quot;Fm-3m&quot;</span><span class="p">,</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">cubic</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="p">[</span><span class="s2">&quot;Fe&quot;</span><span class="p">],</span>
+                                        <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span>
+        <span class="k">for</span> <span class="n">miller</span> <span class="ow">in</span> <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]:</span>
+            <span class="n">gen</span> <span class="o">=</span> <span class="n">SlabGenerator</span><span class="p">(</span><span class="n">fcc</span><span class="p">,</span> <span class="n">miller</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+            <span class="n">gen_normal</span> <span class="o">=</span> <span class="n">SlabGenerator</span><span class="p">(</span><span class="n">fcc</span><span class="p">,</span> <span class="n">miller</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span>
+                                       <span class="n">max_normal_search</span><span class="o">=</span><span class="nb">max</span><span class="p">(</span><span class="n">miller</span><span class="p">))</span>
+            <span class="n">slab</span> <span class="o">=</span> <span class="n">gen_normal</span><span class="o">.</span><span class="n">get_slab</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">slab</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">alpha</span><span class="p">,</span> <span class="mi">90</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">slab</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">beta</span><span class="p">,</span> <span class="mi">90</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertGreaterEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">gen_normal</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="p">),</span>
+                                    <span class="nb">len</span><span class="p">(</span><span class="n">gen</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="p">))</span>
+
+        <span class="n">graphite</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="s2">&quot;Graphite&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">miller</span> <span class="ow">in</span> <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]:</span>
+            <span class="n">gen</span> <span class="o">=</span> <span class="n">SlabGenerator</span><span class="p">(</span><span class="n">graphite</span><span class="p">,</span> <span class="n">miller</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+            <span class="n">gen_normal</span> <span class="o">=</span> <span class="n">SlabGenerator</span><span class="p">(</span><span class="n">graphite</span><span class="p">,</span> <span class="n">miller</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span>
+                                       <span class="n">max_normal_search</span><span class="o">=</span><span class="nb">max</span><span class="p">(</span><span class="n">miller</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertGreaterEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">gen_normal</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="p">),</span>
+                                    <span class="nb">len</span><span class="p">(</span><span class="n">gen</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="p">))</span>
+
+        <span class="n">sc</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">Lattice</span><span class="o">.</span><span class="n">hexagonal</span><span class="p">(</span><span class="mf">3.32</span><span class="p">,</span> <span class="mf">5.15</span><span class="p">),</span> <span class="p">[</span><span class="s2">&quot;Sc&quot;</span><span class="p">,</span> <span class="s2">&quot;Sc&quot;</span><span class="p">],</span>
+                       <span class="p">[[</span><span class="mi">1</span><span class="o">/</span><span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="o">/</span><span class="mi">3</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">],</span> <span class="p">[</span><span class="mi">2</span><span class="o">/</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="o">/</span><span class="mi">3</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">]])</span>
+        <span class="n">gen</span> <span class="o">=</span> <span class="n">SlabGenerator</span><span class="p">(</span><span class="n">sc</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">max_normal_search</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">gen</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">angles</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">90</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlabGeneratorTest.test_get_slabs"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.SlabGeneratorTest.test_get_slabs">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_slabs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">gen</span> <span class="o">=</span> <span class="n">SlabGenerator</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="s2">&quot;CsCl&quot;</span><span class="p">),</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+
+        <span class="c1">#Test orthogonality of some internal variables.</span>
+        <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">gen</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">matrix</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">gen</span><span class="o">.</span><span class="n">_normal</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">gen</span><span class="o">.</span><span class="n">_normal</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">gen</span><span class="o">.</span><span class="n">get_slabs</span><span class="p">()),</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="s2">&quot;LiFePO4&quot;</span><span class="p">)</span>
+        <span class="n">gen</span> <span class="o">=</span> <span class="n">SlabGenerator</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">gen</span><span class="o">.</span><span class="n">get_slabs</span><span class="p">()),</span> <span class="mi">5</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">gen</span><span class="o">.</span><span class="n">get_slabs</span><span class="p">(</span><span class="n">bonds</span><span class="o">=</span><span class="p">{(</span><span class="s2">&quot;P&quot;</span><span class="p">,</span> <span class="s2">&quot;O&quot;</span><span class="p">):</span> <span class="mi">3</span><span class="p">})),</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># There are no slabs in LFP that does not break either P-O or Fe-O</span>
+        <span class="c1"># bonds for a miller index of [0, 0, 1].</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">gen</span><span class="o">.</span><span class="n">get_slabs</span><span class="p">(</span>
+            <span class="n">bonds</span><span class="o">=</span><span class="p">{(</span><span class="s2">&quot;P&quot;</span><span class="p">,</span> <span class="s2">&quot;O&quot;</span><span class="p">):</span> <span class="mi">3</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;Fe&quot;</span><span class="p">,</span> <span class="s2">&quot;O&quot;</span><span class="p">):</span> <span class="mi">3</span><span class="p">})),</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1">#If we allow some broken bonds, there are a few slabs.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">gen</span><span class="o">.</span><span class="n">get_slabs</span><span class="p">(</span>
+            <span class="n">bonds</span><span class="o">=</span><span class="p">{(</span><span class="s2">&quot;P&quot;</span><span class="p">,</span> <span class="s2">&quot;O&quot;</span><span class="p">):</span> <span class="mi">3</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;Fe&quot;</span><span class="p">,</span> <span class="s2">&quot;O&quot;</span><span class="p">):</span> <span class="mi">3</span><span class="p">},</span>
+            <span class="n">max_broken_bonds</span><span class="o">=</span><span class="mi">2</span><span class="p">)),</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># At this threshold, only the origin and center Li results in</span>
+        <span class="c1"># clustering. All other sites are non-clustered. So the of</span>
+        <span class="c1"># slabs is of sites in LiFePO4 unit cell - 2 + 1.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">gen</span><span class="o">.</span><span class="n">get_slabs</span><span class="p">(</span><span class="n">tol</span><span class="o">=</span><span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">4</span><span class="p">)),</span> <span class="mi">15</span><span class="p">)</span>
+
+        <span class="n">LiCoO2</span><span class="o">=</span><span class="n">Structure</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">get_path</span><span class="p">(</span><span class="s2">&quot;icsd_LiCoO2.cif&quot;</span><span class="p">),</span>
+                                          <span class="n">primitive</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">gen</span> <span class="o">=</span> <span class="n">SlabGenerator</span><span class="p">(</span><span class="n">LiCoO2</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">lco</span> <span class="o">=</span> <span class="n">gen</span><span class="o">.</span><span class="n">get_slabs</span><span class="p">(</span><span class="n">bonds</span><span class="o">=</span><span class="p">{(</span><span class="s2">&quot;Co&quot;</span><span class="p">,</span> <span class="s2">&quot;O&quot;</span><span class="p">):</span> <span class="mi">3</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">lco</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">gen</span><span class="o">.</span><span class="n">oriented_unit_cell</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">matrix</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">gen</span><span class="o">.</span><span class="n">_normal</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">gen</span><span class="o">.</span><span class="n">_normal</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">scc</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_spacegroup</span><span class="p">(</span><span class="s2">&quot;Pm-3m&quot;</span><span class="p">,</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">cubic</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="p">[</span><span class="s2">&quot;Fe&quot;</span><span class="p">],</span>
+                                        <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span>
+        <span class="n">gen</span> <span class="o">=</span> <span class="n">SlabGenerator</span><span class="p">(</span><span class="n">scc</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">slabs</span> <span class="o">=</span> <span class="n">gen</span><span class="o">.</span><span class="n">get_slabs</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">slabs</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">gen</span> <span class="o">=</span> <span class="n">SlabGenerator</span><span class="p">(</span><span class="n">scc</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">max_normal_search</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">slabs</span> <span class="o">=</span> <span class="n">gen</span><span class="o">.</span><span class="n">get_slabs</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">slabs</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SlabGeneratorTest.test_triclinic_TeI"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.SlabGeneratorTest.test_triclinic_TeI">[docs]</a>    <span class="k">def</span> <span class="nf">test_triclinic_TeI</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Test case for a triclinic structure of TeI. Only these three</span>
+        <span class="c1"># Miller indices are used because it is easier to identify which</span>
+        <span class="c1"># atoms should be in a surface together. The closeness of the sites</span>
+        <span class="c1"># in other Miller indices can cause some ambiguity when choosing a</span>
+        <span class="c1"># higher tolerance.</span>
+        <span class="n">numb_slabs</span> <span class="o">=</span> <span class="p">{(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span> <span class="mi">5</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span> <span class="mi">3</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span> <span class="mi">7</span><span class="p">}</span>
+        <span class="n">TeI</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">get_path</span><span class="p">(</span><span class="s2">&quot;icsd_TeI.cif&quot;</span><span class="p">),</span>
+                                  <span class="n">primitive</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">numb_slabs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">trclnc_TeI</span> <span class="o">=</span> <span class="n">SlabGenerator</span><span class="p">(</span><span class="n">TeI</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+            <span class="n">TeI_slabs</span> <span class="o">=</span> <span class="n">trclnc_TeI</span><span class="o">.</span><span class="n">get_slabs</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">TeI_slabs</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SlabGeneratorTest.test_get_orthogonal_c_slab"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.SlabGeneratorTest.test_get_orthogonal_c_slab">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_orthogonal_c_slab</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">TeI</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">get_path</span><span class="p">(</span><span class="s2">&quot;icsd_TeI.cif&quot;</span><span class="p">),</span>
+                                  <span class="n">primitive</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">trclnc_TeI</span> <span class="o">=</span> <span class="n">SlabGenerator</span><span class="p">(</span><span class="n">TeI</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">TeI_slabs</span> <span class="o">=</span> <span class="n">trclnc_TeI</span><span class="o">.</span><span class="n">get_slabs</span><span class="p">()</span>
+        <span class="n">slab</span> <span class="o">=</span> <span class="n">TeI_slabs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">norm_slab</span> <span class="o">=</span> <span class="n">slab</span><span class="o">.</span><span class="n">get_orthogonal_c_slab</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">norm_slab</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">angles</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">90</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">norm_slab</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">angles</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">90</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="MillerIndexFinderTests"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.MillerIndexFinderTests">[docs]</a><span class="k">class</span> <span class="nc">MillerIndexFinderTests</span><span class="p">(</span><span class="n">PymatgenTest</span><span class="p">):</span>
+
+<div class="viewcode-block" id="MillerIndexFinderTests.setUp"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.MillerIndexFinderTests.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cscl</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_spacegroup</span><span class="p">(</span>
+            <span class="s2">&quot;Pm-3m&quot;</span><span class="p">,</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">cubic</span><span class="p">(</span><span class="mf">4.2</span><span class="p">),</span> <span class="p">[</span><span class="s2">&quot;Cs&quot;</span><span class="p">,</span> <span class="s2">&quot;Cl&quot;</span><span class="p">],</span>
+            <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">]])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">lifepo4</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="s2">&quot;LiFePO4&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tei</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">get_path</span><span class="p">(</span><span class="s2">&quot;icsd_TeI.cif&quot;</span><span class="p">),</span>
+                                       <span class="n">primitive</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">LiCoO2</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">get_path</span><span class="p">(</span><span class="s2">&quot;icsd_LiCoO2.cif&quot;</span><span class="p">),</span>
+                                          <span class="n">primitive</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">p1</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">Lattice</span><span class="o">.</span><span class="n">from_parameters</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">31</span><span class="p">,</span> <span class="mi">43</span><span class="p">,</span> <span class="mi">50</span><span class="p">),</span>
+                            <span class="p">[</span><span class="s2">&quot;H&quot;</span><span class="p">,</span> <span class="s2">&quot;He&quot;</span><span class="p">],</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">]])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">graphite</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="s2">&quot;Graphite&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MillerIndexFinderTests.test_get_symmetrically_distinct_miller_indices"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.MillerIndexFinderTests.test_get_symmetrically_distinct_miller_indices">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_symmetrically_distinct_miller_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="c1"># Tests to see if the function obtains the known number of unique slabs</span>
+
+        <span class="n">indices</span> <span class="o">=</span> <span class="n">get_symmetrically_distinct_miller_indices</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cscl</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">),</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="n">indices</span> <span class="o">=</span> <span class="n">get_symmetrically_distinct_miller_indices</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cscl</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">),</span> <span class="mi">6</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">get_symmetrically_distinct_miller_indices</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lifepo4</span><span class="p">,</span> <span class="mi">1</span><span class="p">)),</span> <span class="mi">7</span><span class="p">)</span>
+
+        <span class="c1"># The TeI P-1 structure should have 13 unique millers (only inversion</span>
+        <span class="c1"># symmetry eliminates pairs)</span>
+        <span class="n">indices</span> <span class="o">=</span> <span class="n">get_symmetrically_distinct_miller_indices</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tei</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">),</span> <span class="mi">13</span><span class="p">)</span>
+
+        <span class="c1"># P1 and P-1 should have the same # of miller indices since surfaces</span>
+        <span class="c1"># always have inversion symmetry.</span>
+        <span class="n">indices</span> <span class="o">=</span> <span class="n">get_symmetrically_distinct_miller_indices</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">),</span> <span class="mi">13</span><span class="p">)</span>
+
+        <span class="n">indices</span> <span class="o">=</span> <span class="n">get_symmetrically_distinct_miller_indices</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">graphite</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">),</span> <span class="mi">12</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MillerIndexFinderTests.test_generate_all_slabs"><a class="viewcode-back" href="../../../../pymatgen.core.tests.test_surface.html#pymatgen.core.tests.test_surface.MillerIndexFinderTests.test_generate_all_slabs">[docs]</a>    <span class="k">def</span> <span class="nf">test_generate_all_slabs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="n">slabs</span> <span class="o">=</span> <span class="n">generate_all_slabs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cscl</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+
+        <span class="c1"># Only three possible slabs, one each in (100), (110) and (111).</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">slabs</span><span class="p">),</span> <span class="mi">3</span><span class="p">)</span>
+
+        <span class="n">slabs</span> <span class="o">=</span> <span class="n">generate_all_slabs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cscl</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span>
+                                   <span class="n">bonds</span><span class="o">=</span><span class="p">{(</span><span class="s2">&quot;Cs&quot;</span><span class="p">,</span> <span class="s2">&quot;Cl&quot;</span><span class="p">):</span> <span class="mi">4</span><span class="p">})</span>
+        <span class="c1"># No slabs if we don&#39;t allow broken Cs-Cl</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">slabs</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">slabs</span> <span class="o">=</span> <span class="n">generate_all_slabs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cscl</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span>
+                                   <span class="n">bonds</span><span class="o">=</span><span class="p">{(</span><span class="s2">&quot;Cs&quot;</span><span class="p">,</span> <span class="s2">&quot;Cl&quot;</span><span class="p">):</span> <span class="mi">4</span><span class="p">},</span>
+                                   <span class="n">max_broken_bonds</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">slabs</span><span class="p">),</span> <span class="mi">3</span><span class="p">)</span>
+
+        <span class="n">slabs1</span> <span class="o">=</span> <span class="n">generate_all_slabs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lifepo4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+                                    <span class="n">bonds</span><span class="o">=</span><span class="p">{(</span><span class="s2">&quot;P&quot;</span><span class="p">,</span> <span class="s2">&quot;O&quot;</span><span class="p">):</span> <span class="mi">3</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">slabs1</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>
+
+        <span class="n">slabs2</span> <span class="o">=</span> <span class="n">generate_all_slabs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lifepo4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span>
+                                    <span class="n">bonds</span><span class="o">=</span><span class="p">{(</span><span class="s2">&quot;P&quot;</span><span class="p">,</span> <span class="s2">&quot;O&quot;</span><span class="p">):</span> <span class="mi">3</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;Fe&quot;</span><span class="p">,</span> <span class="s2">&quot;O&quot;</span><span class="p">):</span> <span class="mi">3</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">slabs2</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># There should be only one possible stable surfaces, all of which are</span>
+        <span class="c1"># in the (001) oriented unit cell</span>
+        <span class="n">slabs3</span> <span class="o">=</span> <span class="n">generate_all_slabs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">LiCoO2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span>
+                                    <span class="n">bonds</span><span class="o">=</span><span class="p">{(</span><span class="s2">&quot;Co&quot;</span><span class="p">,</span> <span class="s2">&quot;O&quot;</span><span class="p">):</span> <span class="mi">3</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">slabs3</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">mill</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">slabs3</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">miller_index</span><span class="p">,</span> <span class="n">mill</span><span class="p">)</span></div></div>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2011, Pymatgen Development Team.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
+    </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+<script type="text/javascript">
+  (function() {
+    var ga = document.createElement('script');
+    ga.src = ('https:' == document.location.protocol ?
+              'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    ga.setAttribute('async', 'true');
+    document.documentElement.firstChild.appendChild(ga);
+  })();
+</script>
+</div>
+
+  </body>
+</html>

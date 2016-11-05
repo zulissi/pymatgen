@@ -1,0 +1,287 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.analysis.chemenv.coordination_environments.tests.test_read_write &#8212; pymatgen 4.5.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../../_static/proBlue.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../../',
+        VERSION:     '4.5.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../../../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../../search.html" />
+    <link rel="top" title="pymatgen 4.5.0 documentation" href="../../../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../../../index.html" />
+ 
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-33990148-1']);
+  _gaq.push(['_trackPageview']);
+</script>
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pymatgen.analysis.chemenv.coordination_environments.tests.test_read_write</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python</span>
+
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s1">&#39;waroquiers&#39;</span>
+
+<span class="kn">import</span> <span class="nn">unittest2</span> <span class="k">as</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.chemenv.coordination_environments.coordination_geometry_finder</span> <span class="k">import</span> <span class="n">LocalGeometryFinder</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.chemenv.coordination_environments.structure_environments</span> <span class="k">import</span> <span class="n">StructureEnvironments</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.chemenv.coordination_environments.structure_environments</span> <span class="k">import</span> <span class="n">LightStructureEnvironments</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.chemenv.coordination_environments.chemenv_strategies</span> <span class="k">import</span> <span class="n">SimplestChemenvStrategy</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.chemenv.coordination_environments.chemenv_strategies</span> <span class="k">import</span> <span class="n">MultiWeightsChemenvStrategy</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.chemenv.coordination_environments.chemenv_strategies</span> <span class="k">import</span> <span class="n">AngleNbSetWeight</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.chemenv.coordination_environments.chemenv_strategies</span> <span class="k">import</span> <span class="n">CNBiasNbSetWeight</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.chemenv.coordination_environments.chemenv_strategies</span> <span class="k">import</span> <span class="n">DeltaCSMNbSetWeight</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.chemenv.coordination_environments.chemenv_strategies</span> <span class="k">import</span> <span class="n">DistanceAngleAreaNbSetWeight</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.chemenv.coordination_environments.chemenv_strategies</span> <span class="k">import</span> <span class="n">NormalizedAngleDistanceNbSetWeight</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.chemenv.coordination_environments.chemenv_strategies</span> <span class="k">import</span> <span class="n">SelfCSMNbSetWeight</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.chemenv.coordination_environments.voronoi</span> <span class="k">import</span> <span class="n">DetailedVoronoiContainer</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="k">import</span> <span class="n">Structure</span>
+
+<span class="n">json_files_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span>
+                              <span class="s1">&#39;test_files&#39;</span><span class="p">,</span> <span class="s2">&quot;chemenv&quot;</span><span class="p">,</span> <span class="s2">&quot;json_test_files&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ReadWriteChemenvTest"><a class="viewcode-back" href="../../../../../../pymatgen.analysis.chemenv.coordination_environments.tests.test_read_write.html#pymatgen.analysis.chemenv.coordination_environments.tests.test_read_write.ReadWriteChemenvTest">[docs]</a><span class="k">class</span> <span class="nc">ReadWriteChemenvTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="ReadWriteChemenvTest.setUpClass"><a class="viewcode-back" href="../../../../../../pymatgen.analysis.chemenv.coordination_environments.tests.test_read_write.html#pymatgen.analysis.chemenv.coordination_environments.tests.test_read_write.ReadWriteChemenvTest.setUpClass">[docs]</a>    <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">lgf</span> <span class="o">=</span> <span class="n">LocalGeometryFinder</span><span class="p">()</span>
+        <span class="n">cls</span><span class="o">.</span><span class="n">lgf</span><span class="o">.</span><span class="n">setup_parameters</span><span class="p">(</span><span class="n">centering_type</span><span class="o">=</span><span class="s1">&#39;standard&#39;</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="s1">&#39;tmp_dir&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ReadWriteChemenvTest.test_read_write_structure_environments"><a class="viewcode-back" href="../../../../../../pymatgen.analysis.chemenv.coordination_environments.tests.test_read_write.html#pymatgen.analysis.chemenv.coordination_environments.tests.test_read_write.ReadWriteChemenvTest.test_read_write_structure_environments">[docs]</a>    <span class="k">def</span> <span class="nf">test_read_write_structure_environments</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">/</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">json_files_dir</span><span class="p">,</span> <span class="s1">&#39;test_T--4_FePO4_icsd_4266.json&#39;</span><span class="p">),</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+        <span class="n">dd</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="n">atom_indices</span> <span class="o">=</span> <span class="n">dd</span><span class="p">[</span><span class="s1">&#39;atom_indices&#39;</span><span class="p">]</span>
+
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">dd</span><span class="p">[</span><span class="s1">&#39;structure&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lgf</span><span class="o">.</span><span class="n">setup_structure</span><span class="p">(</span><span class="n">struct</span><span class="p">)</span>
+        <span class="n">se</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lgf</span><span class="o">.</span><span class="n">compute_structure_environments</span><span class="p">(</span><span class="n">only_indices</span><span class="o">=</span><span class="n">atom_indices</span><span class="p">,</span>
+                                                     <span class="n">maximum_distance_factor</span><span class="o">=</span><span class="mf">2.25</span><span class="p">)</span>
+
+        <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;tmp_dir/se.json&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">se</span><span class="o">.</span><span class="n">as_dict</span><span class="p">(),</span> <span class="n">f</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;tmp_dir/se.json&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+        <span class="n">dd</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="n">se2</span> <span class="o">=</span> <span class="n">StructureEnvironments</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">dd</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">se</span><span class="p">,</span> <span class="n">se2</span><span class="p">)</span>
+
+        <span class="n">strategy</span> <span class="o">=</span> <span class="n">SimplestChemenvStrategy</span><span class="p">()</span>
+        <span class="n">lse</span> <span class="o">=</span> <span class="n">LightStructureEnvironments</span><span class="o">.</span><span class="n">from_structure_environments</span><span class="p">(</span><span class="n">structure_environments</span><span class="o">=</span><span class="n">se</span><span class="p">,</span> <span class="n">strategy</span><span class="o">=</span><span class="n">strategy</span><span class="p">,</span>
+                                                                     <span class="n">valences</span><span class="o">=</span><span class="s1">&#39;undefined&#39;</span><span class="p">)</span>
+
+        <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;tmp_dir/lse.json&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">lse</span><span class="o">.</span><span class="n">as_dict</span><span class="p">(),</span> <span class="n">f</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;tmp_dir/lse.json&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+        <span class="n">dd</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="n">lse2</span> <span class="o">=</span> <span class="n">LightStructureEnvironments</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">dd</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">lse</span><span class="p">,</span> <span class="n">lse2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ReadWriteChemenvTest.test_strategies"><a class="viewcode-back" href="../../../../../../pymatgen.analysis.chemenv.coordination_environments.tests.test_read_write.html#pymatgen.analysis.chemenv.coordination_environments.tests.test_read_write.ReadWriteChemenvTest.test_strategies">[docs]</a>    <span class="k">def</span> <span class="nf">test_strategies</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">simplest_strategy_1</span> <span class="o">=</span> <span class="n">SimplestChemenvStrategy</span><span class="p">()</span>
+        <span class="n">simplest_strategy_2</span> <span class="o">=</span> <span class="n">SimplestChemenvStrategy</span><span class="p">(</span><span class="n">distance_cutoff</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span> <span class="n">angle_cutoff</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">simplest_strategy_1</span> <span class="o">==</span> <span class="n">simplest_strategy_2</span><span class="p">)</span>
+        <span class="n">simplest_strategy_1_from_dict</span> <span class="o">=</span> <span class="n">SimplestChemenvStrategy</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">simplest_strategy_1</span><span class="o">.</span><span class="n">as_dict</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">simplest_strategy_1</span><span class="p">,</span> <span class="n">simplest_strategy_1_from_dict</span><span class="p">)</span>
+
+        <span class="n">effective_csm_estimator</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;function&#39;</span><span class="p">:</span> <span class="s1">&#39;power2_inverse_decreasing&#39;</span><span class="p">,</span>
+                                   <span class="s1">&#39;options&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;max_csm&#39;</span><span class="p">:</span> <span class="mf">8.0</span><span class="p">}}</span>
+        <span class="n">self_csm_weight</span> <span class="o">=</span> <span class="n">SelfCSMNbSetWeight</span><span class="p">()</span>
+        <span class="n">surface_definition</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;standard_elliptic&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;distance_bounds&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;lower&#39;</span><span class="p">:</span> <span class="mf">1.1</span><span class="p">,</span> <span class="s1">&#39;upper&#39;</span><span class="p">:</span> <span class="mf">1.9</span><span class="p">},</span>
+                              <span class="s1">&#39;angle_bounds&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;lower&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s1">&#39;upper&#39;</span><span class="p">:</span> <span class="mf">0.9</span><span class="p">}}</span>
+        <span class="n">surface_definition_2</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;standard_elliptic&#39;</span><span class="p">,</span>
+                              <span class="s1">&#39;distance_bounds&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;lower&#39;</span><span class="p">:</span> <span class="mf">1.1</span><span class="p">,</span> <span class="s1">&#39;upper&#39;</span><span class="p">:</span> <span class="mf">1.9</span><span class="p">},</span>
+                              <span class="s1">&#39;angle_bounds&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;lower&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s1">&#39;upper&#39;</span><span class="p">:</span> <span class="mf">0.95</span><span class="p">}}</span>
+        <span class="n">da_area_weight</span> <span class="o">=</span> <span class="n">DistanceAngleAreaNbSetWeight</span><span class="p">(</span><span class="n">weight_type</span><span class="o">=</span><span class="s1">&#39;has_intersection&#39;</span><span class="p">,</span>
+                                                      <span class="n">surface_definition</span><span class="o">=</span><span class="n">surface_definition</span><span class="p">,</span>
+                                                      <span class="n">nb_sets_from_hints</span><span class="o">=</span><span class="s1">&#39;fallback_to_source&#39;</span><span class="p">,</span>
+                                                      <span class="n">other_nb_sets</span><span class="o">=</span><span class="s1">&#39;0_weight&#39;</span><span class="p">,</span>
+                                                      <span class="n">additional_condition</span><span class="o">=</span><span class="n">DistanceAngleAreaNbSetWeight</span><span class="o">.</span><span class="n">AC</span><span class="o">.</span><span class="n">ONLY_ACB</span><span class="p">)</span>
+        <span class="n">da_area_weight_2</span> <span class="o">=</span> <span class="n">DistanceAngleAreaNbSetWeight</span><span class="p">(</span><span class="n">weight_type</span><span class="o">=</span><span class="s1">&#39;has_intersection&#39;</span><span class="p">,</span>
+                                                      <span class="n">surface_definition</span><span class="o">=</span><span class="n">surface_definition_2</span><span class="p">,</span>
+                                                      <span class="n">nb_sets_from_hints</span><span class="o">=</span><span class="s1">&#39;fallback_to_source&#39;</span><span class="p">,</span>
+                                                      <span class="n">other_nb_sets</span><span class="o">=</span><span class="s1">&#39;0_weight&#39;</span><span class="p">,</span>
+                                                      <span class="n">additional_condition</span><span class="o">=</span><span class="n">DistanceAngleAreaNbSetWeight</span><span class="o">.</span><span class="n">AC</span><span class="o">.</span><span class="n">ONLY_ACB</span><span class="p">)</span>
+        <span class="n">weight_estimator</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;function&#39;</span><span class="p">:</span> <span class="s1">&#39;smootherstep&#39;</span><span class="p">,</span>
+                            <span class="s1">&#39;options&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;delta_csm_min&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+                                        <span class="s1">&#39;delta_csm_max&#39;</span><span class="p">:</span> <span class="mf">3.0</span><span class="p">}}</span>
+        <span class="n">symmetry_measure_type</span> <span class="o">=</span> <span class="s1">&#39;csm_wcs_ctwcc&#39;</span>
+        <span class="n">delta_weight</span> <span class="o">=</span> <span class="n">DeltaCSMNbSetWeight</span><span class="p">(</span><span class="n">effective_csm_estimator</span><span class="o">=</span><span class="n">effective_csm_estimator</span><span class="p">,</span>
+                                           <span class="n">weight_estimator</span><span class="o">=</span><span class="n">weight_estimator</span><span class="p">,</span>
+                                           <span class="n">symmetry_measure_type</span><span class="o">=</span><span class="n">symmetry_measure_type</span><span class="p">)</span>
+        <span class="n">bias_weight</span> <span class="o">=</span> <span class="n">CNBiasNbSetWeight</span><span class="o">.</span><span class="n">linearly_equidistant</span><span class="p">(</span><span class="n">weight_cn1</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">weight_cn13</span><span class="o">=</span><span class="mf">4.0</span><span class="p">)</span>
+        <span class="n">bias_weight_2</span> <span class="o">=</span> <span class="n">CNBiasNbSetWeight</span><span class="o">.</span><span class="n">linearly_equidistant</span><span class="p">(</span><span class="n">weight_cn1</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">weight_cn13</span><span class="o">=</span><span class="mf">5.0</span><span class="p">)</span>
+        <span class="n">angle_weight</span> <span class="o">=</span> <span class="n">AngleNbSetWeight</span><span class="p">()</span>
+        <span class="n">nad_weight</span> <span class="o">=</span> <span class="n">NormalizedAngleDistanceNbSetWeight</span><span class="p">(</span><span class="n">average_type</span><span class="o">=</span><span class="s1">&#39;geometric&#39;</span><span class="p">,</span> <span class="n">aa</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">bb</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">multi_weights_strategy_1</span> <span class="o">=</span> <span class="n">MultiWeightsChemenvStrategy</span><span class="p">(</span><span class="n">dist_ang_area_weight</span><span class="o">=</span><span class="n">da_area_weight</span><span class="p">,</span>
+                                                               <span class="n">self_csm_weight</span><span class="o">=</span><span class="n">self_csm_weight</span><span class="p">,</span>
+                                                               <span class="n">delta_csm_weight</span><span class="o">=</span><span class="n">delta_weight</span><span class="p">,</span>
+                                                               <span class="n">cn_bias_weight</span><span class="o">=</span><span class="n">bias_weight</span><span class="p">,</span>
+                                                               <span class="n">angle_weight</span><span class="o">=</span><span class="n">angle_weight</span><span class="p">,</span>
+                                                               <span class="n">normalized_angle_distance_weight</span><span class="o">=</span><span class="n">nad_weight</span><span class="p">,</span>
+                                                               <span class="n">symmetry_measure_type</span><span class="o">=</span><span class="n">symmetry_measure_type</span><span class="p">)</span>
+        <span class="n">multi_weights_strategy_2</span> <span class="o">=</span> <span class="n">MultiWeightsChemenvStrategy</span><span class="p">(</span><span class="n">dist_ang_area_weight</span><span class="o">=</span><span class="n">da_area_weight</span><span class="p">,</span>
+                                                               <span class="n">self_csm_weight</span><span class="o">=</span><span class="n">self_csm_weight</span><span class="p">,</span>
+                                                               <span class="n">delta_csm_weight</span><span class="o">=</span><span class="n">delta_weight</span><span class="p">,</span>
+                                                               <span class="n">cn_bias_weight</span><span class="o">=</span><span class="n">bias_weight_2</span><span class="p">,</span>
+                                                               <span class="n">angle_weight</span><span class="o">=</span><span class="n">angle_weight</span><span class="p">,</span>
+                                                               <span class="n">normalized_angle_distance_weight</span><span class="o">=</span><span class="n">nad_weight</span><span class="p">,</span>
+                                                               <span class="n">symmetry_measure_type</span><span class="o">=</span><span class="n">symmetry_measure_type</span><span class="p">)</span>
+        <span class="n">multi_weights_strategy_3</span> <span class="o">=</span> <span class="n">MultiWeightsChemenvStrategy</span><span class="p">(</span><span class="n">dist_ang_area_weight</span><span class="o">=</span><span class="n">da_area_weight_2</span><span class="p">,</span>
+                                                               <span class="n">self_csm_weight</span><span class="o">=</span><span class="n">self_csm_weight</span><span class="p">,</span>
+                                                               <span class="n">delta_csm_weight</span><span class="o">=</span><span class="n">delta_weight</span><span class="p">,</span>
+                                                               <span class="n">cn_bias_weight</span><span class="o">=</span><span class="n">bias_weight</span><span class="p">,</span>
+                                                               <span class="n">angle_weight</span><span class="o">=</span><span class="n">angle_weight</span><span class="p">,</span>
+                                                               <span class="n">normalized_angle_distance_weight</span><span class="o">=</span><span class="n">nad_weight</span><span class="p">,</span>
+                                                               <span class="n">symmetry_measure_type</span><span class="o">=</span><span class="n">symmetry_measure_type</span><span class="p">)</span>
+        <span class="n">multi_weights_strategy_1_from_dict</span> <span class="o">=</span> <span class="n">MultiWeightsChemenvStrategy</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">multi_weights_strategy_1</span><span class="o">.</span><span class="n">as_dict</span><span class="p">())</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">multi_weights_strategy_1</span> <span class="o">==</span> <span class="n">multi_weights_strategy_1_from_dict</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">simplest_strategy_1</span> <span class="o">==</span> <span class="n">multi_weights_strategy_1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">multi_weights_strategy_1</span> <span class="o">==</span> <span class="n">multi_weights_strategy_2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">multi_weights_strategy_1</span> <span class="o">==</span> <span class="n">multi_weights_strategy_3</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="n">multi_weights_strategy_2</span> <span class="o">==</span> <span class="n">multi_weights_strategy_3</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ReadWriteChemenvTest.test_read_write_voronoi"><a class="viewcode-back" href="../../../../../../pymatgen.analysis.chemenv.coordination_environments.tests.test_read_write.html#pymatgen.analysis.chemenv.coordination_environments.tests.test_read_write.ReadWriteChemenvTest.test_read_write_voronoi">[docs]</a>    <span class="k">def</span> <span class="nf">test_read_write_voronoi</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">/</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">json_files_dir</span><span class="p">,</span> <span class="s1">&#39;test_T--4_FePO4_icsd_4266.json&#39;</span><span class="p">),</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+        <span class="n">dd</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">dd</span><span class="p">[</span><span class="s1">&#39;structure&#39;</span><span class="p">])</span>
+
+        <span class="n">valences</span> <span class="o">=</span> <span class="p">[</span><span class="n">site</span><span class="o">.</span><span class="n">specie</span><span class="o">.</span><span class="n">oxi_state</span> <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">struct</span><span class="p">]</span>
+
+        <span class="n">detailed_voronoi_container</span> <span class="o">=</span> <span class="n">DetailedVoronoiContainer</span><span class="p">(</span><span class="n">structure</span><span class="o">=</span><span class="n">struct</span><span class="p">,</span> <span class="n">valences</span><span class="o">=</span><span class="n">valences</span><span class="p">)</span>
+
+        <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;tmp_dir/se.json&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">detailed_voronoi_container</span><span class="o">.</span><span class="n">as_dict</span><span class="p">(),</span> <span class="n">f</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;tmp_dir/se.json&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+        <span class="n">dd</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="n">detailed_voronoi_container2</span> <span class="o">=</span> <span class="n">DetailedVoronoiContainer</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">dd</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">detailed_voronoi_container</span><span class="p">,</span> <span class="n">detailed_voronoi_container2</span><span class="p">)</span></div>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="ReadWriteChemenvTest.tearDownClass"><a class="viewcode-back" href="../../../../../../pymatgen.analysis.chemenv.coordination_environments.tests.test_read_write.html#pymatgen.analysis.chemenv.coordination_environments.tests.test_read_write.ReadWriteChemenvTest.tearDownClass">[docs]</a>    <span class="k">def</span> <span class="nf">tearDownClass</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="c1">#Remove the directory in which the temporary files have been created</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="s1">&#39;tmp_dir&#39;</span><span class="p">)</span></div></div>
+
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2011, Pymatgen Development Team.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
+    </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+<script type="text/javascript">
+  (function() {
+    var ga = document.createElement('script');
+    ga.src = ('https:' == document.location.protocol ?
+              'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    ga.setAttribute('async', 'true');
+    document.documentElement.firstChild.appendChild(ga);
+  })();
+</script>
+</div>
+
+  </body>
+</html>

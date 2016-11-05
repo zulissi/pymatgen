@@ -1,0 +1,589 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.io.tests.test_nwchem &#8212; pymatgen 4.5.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '4.5.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="top" title="pymatgen 4.5.0 documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" />
+ 
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-33990148-1']);
+  _gaq.push(['_trackPageview']);
+</script>
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pymatgen.io.tests.test_nwchem</h1><div class="highlight"><pre>
+<span></span><span class="c1"># coding: utf-8</span>
+<span class="c1"># Copyright (c) Pymatgen Development Team.</span>
+<span class="c1"># Distributed under the terms of the MIT License.</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">unicode_literals</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">TODO: Modify module doc.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s2">&quot;Copyright 2012, The Materials Project&quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;0.1&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s2">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s2">&quot;shyuep@gmail.com&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span> <span class="s2">&quot;6/6/13&quot;</span>
+
+<span class="kn">import</span> <span class="nn">unittest2</span> <span class="k">as</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">json</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="k">import</span> <span class="n">Molecule</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.nwchem</span> <span class="k">import</span> <span class="n">NwTask</span><span class="p">,</span> <span class="n">NwInput</span><span class="p">,</span> <span class="n">NwInputError</span><span class="p">,</span> <span class="n">NwOutput</span>
+
+
+<span class="n">test_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span>
+                        <span class="s1">&#39;test_files&#39;</span><span class="p">,</span> <span class="s2">&quot;molecules&quot;</span><span class="p">)</span>
+
+
+<span class="n">coords</span> <span class="o">=</span> <span class="p">[[</span><span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">],</span>
+          <span class="p">[</span><span class="mf">0.000000</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">,</span> <span class="mf">1.089000</span><span class="p">],</span>
+          <span class="p">[</span><span class="mf">1.026719</span><span class="p">,</span> <span class="mf">0.000000</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.363000</span><span class="p">],</span>
+          <span class="p">[</span><span class="o">-</span><span class="mf">0.513360</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.889165</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.363000</span><span class="p">],</span>
+          <span class="p">[</span><span class="o">-</span><span class="mf">0.513360</span><span class="p">,</span> <span class="mf">0.889165</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.363000</span><span class="p">]]</span>
+<span class="n">mol</span> <span class="o">=</span> <span class="n">Molecule</span><span class="p">([</span><span class="s2">&quot;C&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span><span class="p">],</span> <span class="n">coords</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="NwTaskTest"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_nwchem.html#pymatgen.io.tests.test_nwchem.NwTaskTest">[docs]</a><span class="k">class</span> <span class="nc">NwTaskTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="NwTaskTest.setUp"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_nwchem.html#pymatgen.io.tests.test_nwchem.NwTaskTest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">task</span> <span class="o">=</span> <span class="n">NwTask</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">basis_set</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;H&quot;</span><span class="p">:</span> <span class="s2">&quot;6-31g&quot;</span><span class="p">},</span> <span class="n">theory</span><span class="o">=</span><span class="s2">&quot;dft&quot;</span><span class="p">,</span>
+                           <span class="n">theory_directives</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;xc&quot;</span><span class="p">:</span> <span class="s2">&quot;b3lyp&quot;</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">task_cosmo</span> <span class="o">=</span> <span class="n">NwTask</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">basis_set</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;H&quot;</span><span class="p">:</span> <span class="s2">&quot;6-31g&quot;</span><span class="p">},</span> <span class="n">theory</span><span class="o">=</span><span class="s2">&quot;dft&quot;</span><span class="p">,</span>
+                                 <span class="n">theory_directives</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;xc&quot;</span><span class="p">:</span> <span class="s2">&quot;b3lyp&quot;</span><span class="p">},</span>
+                                 <span class="n">alternate_directives</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;cosmo&#39;</span><span class="p">:</span> <span class="s2">&quot;cosmo&quot;</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">task_esp</span> <span class="o">=</span> <span class="n">NwTask</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">basis_set</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;H&quot;</span><span class="p">:</span> <span class="s2">&quot;6-31g&quot;</span><span class="p">},</span> <span class="n">theory</span><span class="o">=</span><span class="s2">&quot;esp&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NwTaskTest.test_multi_bset"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_nwchem.html#pymatgen.io.tests.test_nwchem.NwTaskTest.test_multi_bset">[docs]</a>    <span class="k">def</span> <span class="nf">test_multi_bset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">NwTask</span><span class="o">.</span><span class="n">from_molecule</span><span class="p">(</span>
+            <span class="n">mol</span><span class="p">,</span> <span class="n">theory</span><span class="o">=</span><span class="s2">&quot;dft&quot;</span><span class="p">,</span> <span class="n">basis_set</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;C&quot;</span><span class="p">:</span> <span class="s2">&quot;6-311++G**&quot;</span><span class="p">,</span>
+                                          <span class="s2">&quot;H&quot;</span><span class="p">:</span> <span class="s2">&quot;6-31++G**&quot;</span><span class="p">},</span>
+            <span class="n">theory_directives</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;xc&quot;</span><span class="p">:</span> <span class="s2">&quot;b3lyp&quot;</span><span class="p">})</span>
+        <span class="n">ans</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;title &quot;H4C1 dft optimize&quot;</span>
+<span class="s2">charge 0</span>
+<span class="s2">basis cartesian</span>
+<span class="s2"> C library &quot;6-311++G**&quot;</span>
+<span class="s2"> H library &quot;6-31++G**&quot;</span>
+<span class="s2">end</span>
+<span class="s2">dft</span>
+<span class="s2"> xc b3lyp</span>
+<span class="s2">end</span>
+<span class="s2">task dft optimize&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">t</span><span class="p">),</span> <span class="n">ans</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NwTaskTest.test_str_and_from_string"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_nwchem.html#pymatgen.io.tests.test_nwchem.NwTaskTest.test_str_and_from_string">[docs]</a>    <span class="k">def</span> <span class="nf">test_str_and_from_string</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="n">ans</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;title &quot;dft optimize&quot;</span>
+<span class="s2">charge 0</span>
+<span class="s2">basis cartesian</span>
+<span class="s2"> H library &quot;6-31g&quot;</span>
+<span class="s2">end</span>
+<span class="s2">dft</span>
+<span class="s2"> xc b3lyp</span>
+<span class="s2">end</span>
+<span class="s2">task dft optimize&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">task</span><span class="p">),</span> <span class="n">ans</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NwTaskTest.test_to_from_dict"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_nwchem.html#pymatgen.io.tests.test_nwchem.NwTaskTest.test_to_from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">test_to_from_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">task</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">NwTask</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsInstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">NwTask</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NwTaskTest.test_init"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_nwchem.html#pymatgen.io.tests.test_nwchem.NwTaskTest.test_init">[docs]</a>    <span class="k">def</span> <span class="nf">test_init</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">NwInputError</span><span class="p">,</span> <span class="n">NwTask</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;H&quot;</span><span class="p">:</span> <span class="s2">&quot;6-31g&quot;</span><span class="p">},</span>
+                          <span class="n">theory</span><span class="o">=</span><span class="s2">&quot;bad&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">NwInputError</span><span class="p">,</span> <span class="n">NwTask</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;H&quot;</span><span class="p">:</span> <span class="s2">&quot;6-31g&quot;</span><span class="p">},</span>
+                          <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;bad&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NwTaskTest.test_dft_task"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_nwchem.html#pymatgen.io.tests.test_nwchem.NwTaskTest.test_dft_task">[docs]</a>    <span class="k">def</span> <span class="nf">test_dft_task</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">task</span> <span class="o">=</span> <span class="n">NwTask</span><span class="o">.</span><span class="n">dft_task</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">charge</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;energy&quot;</span><span class="p">)</span>
+        <span class="n">ans</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;title &quot;H4C1 dft energy&quot;</span>
+<span class="s2">charge 1</span>
+<span class="s2">basis cartesian</span>
+<span class="s2"> C library &quot;6-31g&quot;</span>
+<span class="s2"> H library &quot;6-31g&quot;</span>
+<span class="s2">end</span>
+<span class="s2">dft</span>
+<span class="s2"> mult 2</span>
+<span class="s2"> xc b3lyp</span>
+<span class="s2">end</span>
+<span class="s2">task dft energy&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">task</span><span class="p">),</span> <span class="n">ans</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NwTaskTest.test_dft_cosmo_task"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_nwchem.html#pymatgen.io.tests.test_nwchem.NwTaskTest.test_dft_cosmo_task">[docs]</a>    <span class="k">def</span> <span class="nf">test_dft_cosmo_task</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">task</span> <span class="o">=</span> <span class="n">NwTask</span><span class="o">.</span><span class="n">dft_task</span><span class="p">(</span>
+            <span class="n">mol</span><span class="p">,</span> <span class="n">charge</span><span class="o">=</span><span class="n">mol</span><span class="o">.</span><span class="n">charge</span><span class="p">,</span> <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;energy&quot;</span><span class="p">,</span>
+            <span class="n">xc</span><span class="o">=</span><span class="s2">&quot;b3lyp&quot;</span><span class="p">,</span> <span class="n">basis_set</span><span class="o">=</span><span class="s2">&quot;6-311++G**&quot;</span><span class="p">,</span>
+            <span class="n">alternate_directives</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;cosmo&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;dielec&quot;</span><span class="p">:</span> <span class="mf">78.0</span><span class="p">}})</span>
+        <span class="n">ans</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;title &quot;H4C1 dft energy&quot;</span>
+<span class="s2">charge 0</span>
+<span class="s2">basis cartesian</span>
+<span class="s2"> C library &quot;6-311++G**&quot;</span>
+<span class="s2"> H library &quot;6-311++G**&quot;</span>
+<span class="s2">end</span>
+<span class="s2">dft</span>
+<span class="s2"> mult 1</span>
+<span class="s2"> xc b3lyp</span>
+<span class="s2">end</span>
+<span class="s2">cosmo</span>
+<span class="s2"> dielec 78.0</span>
+<span class="s2">end</span>
+<span class="s2">task dft energy&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">task</span><span class="p">),</span> <span class="n">ans</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NwTaskTest.test_esp_task"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_nwchem.html#pymatgen.io.tests.test_nwchem.NwTaskTest.test_esp_task">[docs]</a>    <span class="k">def</span> <span class="nf">test_esp_task</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">task</span> <span class="o">=</span> <span class="n">NwTask</span><span class="o">.</span><span class="n">esp_task</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">charge</span><span class="o">=</span><span class="n">mol</span><span class="o">.</span><span class="n">charge</span><span class="p">,</span> <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+                               <span class="n">basis_set</span><span class="o">=</span><span class="s2">&quot;6-311++G**&quot;</span><span class="p">)</span>
+        <span class="n">ans</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;title &quot;H4C1 esp &quot;</span>
+<span class="s2">charge 0</span>
+<span class="s2">basis cartesian</span>
+<span class="s2"> C library &quot;6-311++G**&quot;</span>
+<span class="s2"> H library &quot;6-311++G**&quot;</span>
+<span class="s2">end</span>
+
+<span class="s2">task esp &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">task</span><span class="p">),</span> <span class="n">ans</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="NwInputTest"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_nwchem.html#pymatgen.io.tests.test_nwchem.NwInputTest">[docs]</a><span class="k">class</span> <span class="nc">NwInputTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="NwInputTest.setUp"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_nwchem.html#pymatgen.io.tests.test_nwchem.NwInputTest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">NwTask</span><span class="o">.</span><span class="n">dft_task</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;optimize&quot;</span><span class="p">,</span> <span class="n">xc</span><span class="o">=</span><span class="s2">&quot;b3lyp&quot;</span><span class="p">,</span>
+                            <span class="n">basis_set</span><span class="o">=</span><span class="s2">&quot;6-31++G*&quot;</span><span class="p">),</span>
+            <span class="n">NwTask</span><span class="o">.</span><span class="n">dft_task</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;freq&quot;</span><span class="p">,</span> <span class="n">xc</span><span class="o">=</span><span class="s2">&quot;b3lyp&quot;</span><span class="p">,</span>
+                            <span class="n">basis_set</span><span class="o">=</span><span class="s2">&quot;6-31++G*&quot;</span><span class="p">),</span>
+            <span class="n">NwTask</span><span class="o">.</span><span class="n">dft_task</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;energy&quot;</span><span class="p">,</span> <span class="n">xc</span><span class="o">=</span><span class="s2">&quot;b3lyp&quot;</span><span class="p">,</span>
+                            <span class="n">basis_set</span><span class="o">=</span><span class="s2">&quot;6-311++G**&quot;</span><span class="p">),</span>
+            <span class="n">NwTask</span><span class="o">.</span><span class="n">dft_task</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">charge</span><span class="o">=</span><span class="n">mol</span><span class="o">.</span><span class="n">charge</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;energy&quot;</span><span class="p">,</span>
+                            <span class="n">xc</span><span class="o">=</span><span class="s2">&quot;b3lyp&quot;</span><span class="p">,</span> <span class="n">basis_set</span><span class="o">=</span><span class="s2">&quot;6-311++G**&quot;</span><span class="p">),</span>
+            <span class="n">NwTask</span><span class="o">.</span><span class="n">dft_task</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">charge</span><span class="o">=</span><span class="n">mol</span><span class="o">.</span><span class="n">charge</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;energy&quot;</span><span class="p">,</span>
+                            <span class="n">xc</span><span class="o">=</span><span class="s2">&quot;b3lyp&quot;</span><span class="p">,</span> <span class="n">basis_set</span><span class="o">=</span><span class="s2">&quot;6-311++G**&quot;</span><span class="p">)</span>
+        <span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">nwi</span> <span class="o">=</span> <span class="n">NwInput</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">tasks</span><span class="p">,</span>
+                           <span class="n">geometry_options</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;units&quot;</span><span class="p">,</span> <span class="s2">&quot;angstroms&quot;</span><span class="p">,</span> <span class="s2">&quot;noautoz&quot;</span><span class="p">],</span>
+                           <span class="n">memory_options</span><span class="o">=</span><span class="s2">&quot;total 1000 mb&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nwi_symm</span> <span class="o">=</span> <span class="n">NwInput</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">tasks</span><span class="p">,</span>
+                                <span class="n">geometry_options</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;units&quot;</span><span class="p">,</span> <span class="s2">&quot;angstroms&quot;</span><span class="p">,</span>
+                                                  <span class="s2">&quot;noautoz&quot;</span><span class="p">],</span>
+                                <span class="n">symmetry_options</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;c1&quot;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="NwInputTest.test_str"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_nwchem.html#pymatgen.io.tests.test_nwchem.NwInputTest.test_str">[docs]</a>    <span class="k">def</span> <span class="nf">test_str</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">ans</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;memory total 1000 mb</span>
+<span class="s2">geometry units angstroms noautoz</span>
+<span class="s2"> C 0.0 0.0 0.0</span>
+<span class="s2"> H 0.0 0.0 1.089</span>
+<span class="s2"> H 1.026719 0.0 -0.363</span>
+<span class="s2"> H -0.51336 -0.889165 -0.363</span>
+<span class="s2"> H -0.51336 0.889165 -0.363</span>
+<span class="s2">end</span>
+
+<span class="s2">title &quot;H4C1 dft optimize&quot;</span>
+<span class="s2">charge 0</span>
+<span class="s2">basis cartesian</span>
+<span class="s2"> C library &quot;6-31++G*&quot;</span>
+<span class="s2"> H library &quot;6-31++G*&quot;</span>
+<span class="s2">end</span>
+<span class="s2">dft</span>
+<span class="s2"> mult 1</span>
+<span class="s2"> xc b3lyp</span>
+<span class="s2">end</span>
+<span class="s2">task dft optimize</span>
+
+<span class="s2">title &quot;H4C1 dft freq&quot;</span>
+<span class="s2">charge 0</span>
+<span class="s2">basis cartesian</span>
+<span class="s2"> C library &quot;6-31++G*&quot;</span>
+<span class="s2"> H library &quot;6-31++G*&quot;</span>
+<span class="s2">end</span>
+<span class="s2">dft</span>
+<span class="s2"> mult 1</span>
+<span class="s2"> xc b3lyp</span>
+<span class="s2">end</span>
+<span class="s2">task dft freq</span>
+
+<span class="s2">title &quot;H4C1 dft energy&quot;</span>
+<span class="s2">charge 0</span>
+<span class="s2">basis cartesian</span>
+<span class="s2"> C library &quot;6-311++G**&quot;</span>
+<span class="s2"> H library &quot;6-311++G**&quot;</span>
+<span class="s2">end</span>
+<span class="s2">dft</span>
+<span class="s2"> mult 1</span>
+<span class="s2"> xc b3lyp</span>
+<span class="s2">end</span>
+<span class="s2">task dft energy</span>
+
+<span class="s2">title &quot;H4C1 dft energy&quot;</span>
+<span class="s2">charge 1</span>
+<span class="s2">basis cartesian</span>
+<span class="s2"> C library &quot;6-311++G**&quot;</span>
+<span class="s2"> H library &quot;6-311++G**&quot;</span>
+<span class="s2">end</span>
+<span class="s2">dft</span>
+<span class="s2"> mult 2</span>
+<span class="s2"> xc b3lyp</span>
+<span class="s2">end</span>
+<span class="s2">task dft energy</span>
+
+<span class="s2">title &quot;H4C1 dft energy&quot;</span>
+<span class="s2">charge -1</span>
+<span class="s2">basis cartesian</span>
+<span class="s2"> C library &quot;6-311++G**&quot;</span>
+<span class="s2"> H library &quot;6-311++G**&quot;</span>
+<span class="s2">end</span>
+<span class="s2">dft</span>
+<span class="s2"> mult 2</span>
+<span class="s2"> xc b3lyp</span>
+<span class="s2">end</span>
+<span class="s2">task dft energy</span>
+<span class="s2">&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nwi</span><span class="p">),</span> <span class="n">ans</span><span class="p">)</span>
+
+        <span class="n">ans_symm</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;geometry units angstroms noautoz</span>
+<span class="s2"> symmetry c1</span>
+<span class="s2"> C 0.0 0.0 0.0</span>
+<span class="s2"> H 0.0 0.0 1.089</span>
+<span class="s2"> H 1.026719 0.0 -0.363</span>
+<span class="s2"> H -0.51336 -0.889165 -0.363</span>
+<span class="s2"> H -0.51336 0.889165 -0.363</span>
+<span class="s2">end</span>
+
+<span class="s2">title &quot;H4C1 dft optimize&quot;</span>
+<span class="s2">charge 0</span>
+<span class="s2">basis cartesian</span>
+<span class="s2"> C library &quot;6-31++G*&quot;</span>
+<span class="s2"> H library &quot;6-31++G*&quot;</span>
+<span class="s2">end</span>
+<span class="s2">dft</span>
+<span class="s2"> mult 1</span>
+<span class="s2"> xc b3lyp</span>
+<span class="s2">end</span>
+<span class="s2">task dft optimize</span>
+
+<span class="s2">title &quot;H4C1 dft freq&quot;</span>
+<span class="s2">charge 0</span>
+<span class="s2">basis cartesian</span>
+<span class="s2"> C library &quot;6-31++G*&quot;</span>
+<span class="s2"> H library &quot;6-31++G*&quot;</span>
+<span class="s2">end</span>
+<span class="s2">dft</span>
+<span class="s2"> mult 1</span>
+<span class="s2"> xc b3lyp</span>
+<span class="s2">end</span>
+<span class="s2">task dft freq</span>
+
+<span class="s2">title &quot;H4C1 dft energy&quot;</span>
+<span class="s2">charge 0</span>
+<span class="s2">basis cartesian</span>
+<span class="s2"> C library &quot;6-311++G**&quot;</span>
+<span class="s2"> H library &quot;6-311++G**&quot;</span>
+<span class="s2">end</span>
+<span class="s2">dft</span>
+<span class="s2"> mult 1</span>
+<span class="s2"> xc b3lyp</span>
+<span class="s2">end</span>
+<span class="s2">task dft energy</span>
+
+<span class="s2">title &quot;H4C1 dft energy&quot;</span>
+<span class="s2">charge 1</span>
+<span class="s2">basis cartesian</span>
+<span class="s2"> C library &quot;6-311++G**&quot;</span>
+<span class="s2"> H library &quot;6-311++G**&quot;</span>
+<span class="s2">end</span>
+<span class="s2">dft</span>
+<span class="s2"> mult 2</span>
+<span class="s2"> xc b3lyp</span>
+<span class="s2">end</span>
+<span class="s2">task dft energy</span>
+
+<span class="s2">title &quot;H4C1 dft energy&quot;</span>
+<span class="s2">charge -1</span>
+<span class="s2">basis cartesian</span>
+<span class="s2"> C library &quot;6-311++G**&quot;</span>
+<span class="s2"> H library &quot;6-311++G**&quot;</span>
+<span class="s2">end</span>
+<span class="s2">dft</span>
+<span class="s2"> mult 2</span>
+<span class="s2"> xc b3lyp</span>
+<span class="s2">end</span>
+<span class="s2">task dft energy</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nwi_symm</span><span class="p">),</span> <span class="n">ans_symm</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NwInputTest.test_to_from_dict"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_nwchem.html#pymatgen.io.tests.test_nwchem.NwInputTest.test_to_from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">test_to_from_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nwi</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span>
+        <span class="n">nwi</span> <span class="o">=</span> <span class="n">NwInput</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsInstance</span><span class="p">(</span><span class="n">nwi</span><span class="p">,</span> <span class="n">NwInput</span><span class="p">)</span>
+        <span class="c1">#Ensure it is json-serializable.</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nwi_symm</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span>
+        <span class="n">nwi_symm</span> <span class="o">=</span> <span class="n">NwInput</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsInstance</span><span class="p">(</span><span class="n">nwi_symm</span><span class="p">,</span> <span class="n">NwInput</span><span class="p">)</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">d</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="NwInputTest.test_from_string_and_file"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_nwchem.html#pymatgen.io.tests.test_nwchem.NwInputTest.test_from_string_and_file">[docs]</a>    <span class="k">def</span> <span class="nf">test_from_string_and_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">nwi</span> <span class="o">=</span> <span class="n">NwInput</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s2">&quot;ch4.nw&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwi</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">theory</span><span class="p">,</span> <span class="s2">&quot;dft&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwi</span><span class="o">.</span><span class="n">memory_options</span><span class="p">,</span> <span class="s2">&quot;total 1000 mb stack 400 mb&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwi</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">basis_set</span><span class="p">[</span><span class="s2">&quot;C&quot;</span><span class="p">],</span> <span class="s2">&quot;6-31++G*&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwi</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">basis_set</span><span class="p">[</span><span class="s2">&quot;C&quot;</span><span class="p">],</span> <span class="s2">&quot;6-311++G**&quot;</span><span class="p">)</span>
+        <span class="c1">#Try a simplified input.</span>
+        <span class="n">str_inp</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;start H4C1</span>
+<span class="s2">geometry units angstroms</span>
+<span class="s2"> C 0.0 0.0 0.0</span>
+<span class="s2"> H 0.0 0.0 1.089</span>
+<span class="s2"> H 1.026719 0.0 -0.363</span>
+<span class="s2"> H -0.51336 -0.889165 -0.363</span>
+<span class="s2"> H -0.51336 0.889165 -0.363</span>
+<span class="s2">end</span>
+
+<span class="s2">title &quot;H4C1 dft optimize&quot;</span>
+<span class="s2">charge 0</span>
+<span class="s2">basis cartesian</span>
+<span class="s2"> H library &quot;6-31++G*&quot;</span>
+<span class="s2"> C library &quot;6-31++G*&quot;</span>
+<span class="s2">end</span>
+<span class="s2">dft</span>
+<span class="s2"> xc b3lyp</span>
+<span class="s2"> mult 1</span>
+<span class="s2">end</span>
+<span class="s2">task scf optimize</span>
+
+<span class="s2">title &quot;H4C1 dft freq&quot;</span>
+<span class="s2">charge 0</span>
+<span class="s2">task scf freq</span>
+
+<span class="s2">title &quot;H4C1 dft energy&quot;</span>
+<span class="s2">charge 0</span>
+<span class="s2">basis cartesian</span>
+<span class="s2"> H library &quot;6-311++G**&quot;</span>
+<span class="s2"> C library &quot;6-311++G**&quot;</span>
+<span class="s2">end</span>
+<span class="s2">task dft energy</span>
+
+<span class="s2">title &quot;H4C1 dft energy&quot;</span>
+<span class="s2">charge 1</span>
+<span class="s2">dft</span>
+<span class="s2"> xc b3lyp</span>
+<span class="s2"> mult 2</span>
+<span class="s2">end</span>
+<span class="s2">task dft energy</span>
+
+<span class="s2">title &quot;H4C1 dft energy&quot;</span>
+<span class="s2">charge -1</span>
+<span class="s2">task dft energy</span>
+<span class="s2">&quot;&quot;&quot;</span>
+        <span class="n">nwi</span> <span class="o">=</span> <span class="n">NwInput</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">str_inp</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwi</span><span class="o">.</span><span class="n">geometry_options</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;units&#39;</span><span class="p">,</span> <span class="s1">&#39;angstroms&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwi</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">theory</span><span class="p">,</span> <span class="s2">&quot;scf&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwi</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">basis_set</span><span class="p">[</span><span class="s2">&quot;C&quot;</span><span class="p">],</span> <span class="s2">&quot;6-31++G*&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwi</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">theory</span><span class="p">,</span> <span class="s2">&quot;dft&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwi</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">basis_set</span><span class="p">[</span><span class="s2">&quot;C&quot;</span><span class="p">],</span> <span class="s2">&quot;6-311++G**&quot;</span><span class="p">)</span>
+
+        <span class="n">str_inp_symm</span> <span class="o">=</span> <span class="n">str_inp</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;geometry units angstroms&quot;</span><span class="p">,</span>
+                                       <span class="s2">&quot;geometry units angstroms</span><span class="se">\n</span><span class="s2"> symmetry &quot;</span>
+                                       <span class="s2">&quot;c1&quot;</span><span class="p">)</span>
+
+        <span class="n">nwi_symm</span> <span class="o">=</span> <span class="n">NwInput</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">str_inp_symm</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwi_symm</span><span class="o">.</span><span class="n">geometry_options</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;units&#39;</span><span class="p">,</span> <span class="s1">&#39;angstroms&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwi_symm</span><span class="o">.</span><span class="n">symmetry_options</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;c1&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwi_symm</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">theory</span><span class="p">,</span> <span class="s2">&quot;scf&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwi_symm</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">basis_set</span><span class="p">[</span><span class="s2">&quot;C&quot;</span><span class="p">],</span> <span class="s2">&quot;6-31++G*&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwi_symm</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">theory</span><span class="p">,</span> <span class="s2">&quot;dft&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwi_symm</span><span class="o">.</span><span class="n">tasks</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">basis_set</span><span class="p">[</span><span class="s2">&quot;C&quot;</span><span class="p">],</span> <span class="s2">&quot;6-311++G**&quot;</span><span class="p">)</span></div></div>
+
+
+
+<div class="viewcode-block" id="NwOutputTest"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_nwchem.html#pymatgen.io.tests.test_nwchem.NwOutputTest">[docs]</a><span class="k">class</span> <span class="nc">NwOutputTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="NwOutputTest.test_read"><a class="viewcode-back" href="../../../../pymatgen.io.tests.test_nwchem.html#pymatgen.io.tests.test_nwchem.NwOutputTest.test_read">[docs]</a>    <span class="k">def</span> <span class="nf">test_read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">nwo</span> <span class="o">=</span> <span class="n">NwOutput</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s2">&quot;CH4.nwout&quot;</span><span class="p">))</span>
+        <span class="n">nwo_cosmo</span> <span class="o">=</span> <span class="n">NwOutput</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s2">&quot;N2O4.nwout&quot;</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;charge&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;charge&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="o">-</span><span class="mf">1102.6224491715582</span><span class="p">,</span> <span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;energies&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="o">-</span><span class="mf">1102.9986291578023</span><span class="p">,</span> <span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="s2">&quot;energies&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="o">-</span><span class="mf">11156.354030653656</span><span class="p">,</span>
+                               <span class="n">nwo_cosmo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">5</span><span class="p">][</span><span class="s2">&quot;energies&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;cosmo scf&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="o">-</span><span class="mf">11153.374133394364</span><span class="p">,</span>
+                               <span class="n">nwo_cosmo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">5</span><span class="p">][</span><span class="s2">&quot;energies&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;gas phase&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="o">-</span><span class="mf">11156.353632962995</span><span class="p">,</span>
+                               <span class="n">nwo_cosmo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">5</span><span class="p">][</span><span class="s2">&quot;energies&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;sol phase&quot;</span><span class="p">],</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="o">-</span><span class="mf">11168.818934311605</span><span class="p">,</span>
+                               <span class="n">nwo_cosmo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">6</span><span class="p">][</span><span class="s2">&quot;energies&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;cosmo scf&quot;</span><span class="p">],</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="o">-</span><span class="mf">11166.3624424611462</span><span class="p">,</span>
+                               <span class="n">nwo_cosmo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">6</span><span class="p">][</span><span class="s2">&quot;energies&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;gas phase&#39;</span><span class="p">],</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="o">-</span><span class="mf">11168.818934311605</span><span class="p">,</span>
+                               <span class="n">nwo_cosmo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">6</span><span class="p">][</span><span class="s2">&quot;energies&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;sol phase&#39;</span><span class="p">],</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="o">-</span><span class="mf">11165.227959110889</span><span class="p">,</span>
+                               <span class="n">nwo_cosmo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">7</span><span class="p">][</span><span class="s2">&quot;energies&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;cosmo scf&#39;</span><span class="p">],</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="o">-</span><span class="mf">11165.025443612385</span><span class="p">,</span>
+                               <span class="n">nwo_cosmo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">7</span><span class="p">][</span><span class="s2">&quot;energies&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;gas phase&#39;</span><span class="p">],</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="o">-</span><span class="mf">11165.227959110154</span><span class="p">,</span>
+                               <span class="n">nwo_cosmo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">7</span><span class="p">][</span><span class="s2">&quot;energies&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;sol phase&#39;</span><span class="p">],</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;hessian&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="mf">4.60187e+01</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;hessian&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">],</span> <span class="o">-</span><span class="mf">1.14030e-08</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;hessian&quot;</span><span class="p">][</span><span class="mi">2</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="mf">2.60819e+01</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;hessian&quot;</span><span class="p">][</span><span class="mi">6</span><span class="p">][</span><span class="mi">6</span><span class="p">],</span> <span class="mf">1.45055e+02</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;hessian&quot;</span><span class="p">][</span><span class="mi">11</span><span class="p">][</span><span class="mi">14</span><span class="p">],</span> <span class="mf">1.35078e+01</span><span class="p">)</span>
+
+        <span class="c1"># CH4.nwout, line 722</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;forces&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span> <span class="o">-</span><span class="mf">0.001991</span><span class="p">)</span>
+
+        <span class="c1"># N2O4.nwout, line 1071</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">nwo_cosmo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;forces&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">4</span><span class="p">],</span> <span class="mf">0.011948</span><span class="p">)</span>
+
+        <span class="c1"># There should be four DFT gradients.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">nwo_cosmo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;forces&quot;</span><span class="p">]),</span> <span class="mi">4</span><span class="p">)</span>
+
+        <span class="n">ie</span> <span class="o">=</span> <span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">4</span><span class="p">][</span><span class="s2">&quot;energies&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="s2">&quot;energies&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">ea</span> <span class="o">=</span> <span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="s2">&quot;energies&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="s2">&quot;energies&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="mf">0.7575358648355177</span><span class="p">,</span> <span class="n">ie</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="o">-</span><span class="mf">14.997877958701338</span><span class="p">,</span> <span class="n">ea</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">4</span><span class="p">][</span><span class="s2">&quot;basis_set&quot;</span><span class="p">][</span><span class="s2">&quot;C&quot;</span><span class="p">][</span><span class="s2">&quot;description&quot;</span><span class="p">],</span>
+                         <span class="s2">&quot;6-311++G**&quot;</span><span class="p">)</span>
+
+        <span class="n">nwo</span> <span class="o">=</span> <span class="n">NwOutput</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s2">&quot;H4C3O3_1.nwout&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;has_error&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;errors&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="s2">&quot;Bad convergence&quot;</span><span class="p">)</span>
+
+        <span class="n">nwo</span> <span class="o">=</span> <span class="n">NwOutput</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s2">&quot;CH3CH2O.nwout&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;has_error&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;errors&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="s2">&quot;Bad convergence&quot;</span><span class="p">)</span>
+
+        <span class="n">nwo</span> <span class="o">=</span> <span class="n">NwOutput</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s2">&quot;C1N1Cl1_1.nwout&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;has_error&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;errors&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="s2">&quot;autoz error&quot;</span><span class="p">)</span>
+
+        <span class="n">nwo</span> <span class="o">=</span> <span class="n">NwOutput</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span>
+                       <span class="s2">&quot;anthrachinon_wfs_16_ethyl.nwout&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;has_error&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;errors&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+                         <span class="s2">&quot;Geometry optimization failed&quot;</span><span class="p">)</span>
+        <span class="n">nwo</span> <span class="o">=</span> <span class="n">NwOutput</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span>
+                       <span class="s2">&quot;anthrachinon_wfs_15_carboxyl.nwout&quot;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;frequencies&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mf">70.47</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;frequencies&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]),</span> <span class="mi">27</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;frequencies&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="mf">3696.74</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;frequencies&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                         <span class="p">(</span><span class="mf">0.20498</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.94542</span><span class="p">,</span> <span class="o">-</span><span class="mf">0.00073</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;normal_frequencies&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mf">70.72</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;normal_frequencies&quot;</span><span class="p">][</span><span class="mi">3</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mf">61.92</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">nwo</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;normal_frequencies&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                         <span class="p">(</span><span class="mf">0.00056</span><span class="p">,</span> <span class="mf">0.00042</span><span class="p">,</span> <span class="mf">0.06781</span><span class="p">))</span></div></div>
+
+
+
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2011, Pymatgen Development Team.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
+    </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+<script type="text/javascript">
+  (function() {
+    var ga = document.createElement('script');
+    ga.src = ('https:' == document.location.protocol ?
+              'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    ga.setAttribute('async', 'true');
+    document.documentElement.firstChild.appendChild(ga);
+  })();
+</script>
+</div>
+
+  </body>
+</html>

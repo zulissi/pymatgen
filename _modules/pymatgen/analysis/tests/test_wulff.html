@@ -1,0 +1,292 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.analysis.tests.test_wulff &#8212; pymatgen 4.5.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '4.5.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="top" title="pymatgen 4.5.0 documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" />
+ 
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-33990148-1']);
+  _gaq.push(['_trackPageview']);
+</script>
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pymatgen.analysis.tests.test_wulff</h1><div class="highlight"><pre>
+<span></span><span class="c1"># coding: utf-8</span>
+<span class="kn">import</span> <span class="nn">matplotlib</span>
+
+<span class="n">matplotlib</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="s2">&quot;pdf&quot;</span><span class="p">)</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+<span class="kn">from</span> <span class="nn">pymatgen.symmetry.analyzer</span> <span class="k">import</span> <span class="n">SpacegroupAnalyzer</span>
+<span class="kn">from</span> <span class="nn">pymatgen.util.testing</span> <span class="k">import</span> <span class="n">PymatgenTest</span>
+<span class="kn">from</span> <span class="nn">pymatgen.util.coord_utils</span> <span class="k">import</span> <span class="n">in_coord_list</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.lattice</span> <span class="k">import</span> <span class="n">Lattice</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="k">import</span> <span class="n">Structure</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.wulff</span> <span class="k">import</span> <span class="n">WulffShape</span>
+
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s1">&#39;Zihan Xu, Richard Tran, Balachandran Radhakrishnan&#39;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s1">&#39;Copyright 2013, The Materials Virtual Lab&#39;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s1">&#39;0.1&#39;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s1">&#39;Zihan Xu&#39;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s1">&#39;zix009@eng.ucsd.edu&#39;</span>
+<span class="n">__date__</span> <span class="o">=</span> <span class="s1">&#39;May 05 2016&#39;</span>
+
+
+<div class="viewcode-block" id="WulffShapeTest"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_wulff.html#pymatgen.analysis.tests.test_wulff.WulffShapeTest">[docs]</a><span class="k">class</span> <span class="nc">WulffShapeTest</span><span class="p">(</span><span class="n">PymatgenTest</span><span class="p">):</span>
+<div class="viewcode-block" id="WulffShapeTest.setUp"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_wulff.html#pymatgen.analysis.tests.test_wulff.WulffShapeTest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="n">module_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">__file__</span><span class="p">))</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">module_dir</span><span class="p">,</span> <span class="s2">&quot;surface_samples.json&quot;</span><span class="p">))</span> <span class="k">as</span> <span class="n">data_file</span><span class="p">:</span>
+            <span class="n">surface_properties</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">data_file</span><span class="p">)</span>
+
+        <span class="n">surface_energies</span><span class="p">,</span> <span class="n">miller_indices</span> <span class="o">=</span> <span class="p">{},</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">mpid</span> <span class="ow">in</span> <span class="n">surface_properties</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">e_surf_list</span><span class="p">,</span> <span class="n">miller_list</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">surface</span> <span class="ow">in</span> <span class="n">surface_properties</span><span class="p">[</span><span class="n">mpid</span><span class="p">][</span><span class="s2">&quot;surfaces&quot;</span><span class="p">]:</span>
+                <span class="n">e_surf_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">surface</span><span class="p">[</span><span class="s2">&quot;surface_energy&quot;</span><span class="p">])</span>
+                <span class="n">miller_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">surface</span><span class="p">[</span><span class="s2">&quot;miller_index&quot;</span><span class="p">])</span>
+            <span class="n">surface_energies</span><span class="p">[</span><span class="n">mpid</span><span class="p">]</span> <span class="o">=</span> <span class="n">e_surf_list</span>
+            <span class="n">miller_indices</span><span class="p">[</span><span class="n">mpid</span><span class="p">]</span> <span class="o">=</span> <span class="n">miller_list</span>
+
+        <span class="c1"># In the case of a high anisotropy material</span>
+        <span class="c1"># Nb: mp-8636</span>
+        <span class="n">latt_Nb</span> <span class="o">=</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">cubic</span><span class="p">(</span><span class="mf">2.992</span><span class="p">)</span>
+        <span class="c1"># In the case of an fcc material</span>
+        <span class="c1"># Ir: mp-101</span>
+        <span class="n">latt_Ir</span> <span class="o">=</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">cubic</span><span class="p">(</span><span class="mf">3.8312</span><span class="p">)</span>
+        <span class="c1"># In the case of a hcp material</span>
+        <span class="c1"># Ti: mp-72</span>
+        <span class="n">latt_Ti</span> <span class="o">=</span> <span class="n">Lattice</span><span class="o">.</span><span class="n">hexagonal</span><span class="p">(</span><span class="mf">4.6000</span><span class="p">,</span> <span class="mf">2.8200</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ucell_Nb</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">latt_Nb</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;Nb&quot;</span><span class="p">,</span> <span class="s2">&quot;Nb&quot;</span><span class="p">,</span> <span class="s2">&quot;Nb&quot;</span><span class="p">,</span> <span class="s2">&quot;Nb&quot;</span><span class="p">],</span>
+                                  <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span>
+                                   <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wulff_Nb</span> <span class="o">=</span> <span class="n">WulffShape</span><span class="p">(</span><span class="n">latt_Nb</span><span class="p">,</span> <span class="n">miller_indices</span><span class="p">[</span><span class="s2">&quot;mp-8636&quot;</span><span class="p">],</span>
+                                   <span class="n">surface_energies</span><span class="p">[</span><span class="s2">&quot;mp-8636&quot;</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">ucell_Ir</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">latt_Nb</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;Ir&quot;</span><span class="p">,</span> <span class="s2">&quot;Ir&quot;</span><span class="p">,</span> <span class="s2">&quot;Ir&quot;</span><span class="p">,</span> <span class="s2">&quot;Ir&quot;</span><span class="p">],</span>
+                                  <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span>
+                                   <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wulff_Ir</span> <span class="o">=</span> <span class="n">WulffShape</span><span class="p">(</span><span class="n">latt_Ir</span><span class="p">,</span> <span class="n">miller_indices</span><span class="p">[</span><span class="s2">&quot;mp-101&quot;</span><span class="p">],</span>
+                                   <span class="n">surface_energies</span><span class="p">[</span><span class="s2">&quot;mp-101&quot;</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">ucell_Ti</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">latt_Ti</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;Ti&quot;</span><span class="p">,</span> <span class="s2">&quot;Ti&quot;</span><span class="p">,</span> <span class="s2">&quot;Ti&quot;</span><span class="p">],</span>
+                                  <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.333333</span><span class="p">,</span> <span class="mf">0.666667</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span>
+                                   <span class="p">[</span><span class="mf">0.666667</span><span class="p">,</span> <span class="mf">0.333333</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">]])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wulff_Ti</span> <span class="o">=</span> <span class="n">WulffShape</span><span class="p">(</span><span class="n">latt_Ti</span><span class="p">,</span> <span class="n">miller_indices</span><span class="p">[</span><span class="s2">&quot;mp-72&quot;</span><span class="p">],</span>
+                                   <span class="n">surface_energies</span><span class="p">[</span><span class="s2">&quot;mp-72&quot;</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">surface_properties</span> <span class="o">=</span> <span class="n">surface_properties</span></div>
+
+<div class="viewcode-block" id="WulffShapeTest.test_get_plot"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_wulff.html#pymatgen.analysis.tests.test_wulff.WulffShapeTest.test_get_plot">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Basic test, not really a unittest.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wulff_Ti</span><span class="o">.</span><span class="n">get_plot</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wulff_Nb</span><span class="o">.</span><span class="n">get_plot</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wulff_Ir</span><span class="o">.</span><span class="n">get_plot</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="WulffShapeTest.symm_check"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_wulff.html#pymatgen.analysis.tests.test_wulff.WulffShapeTest.symm_check">[docs]</a>    <span class="k">def</span> <span class="nf">symm_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ucell</span><span class="p">,</span> <span class="n">wulff_vertices</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        # Checks if the point group of the Wulff shape matches</span>
+<span class="sd">        # the point group of its conventional unit cell</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            ucell (string): Unit cell that the Wulff shape is based on.</span>
+<span class="sd">            wulff_vertices (list): List of all vertices on the Wulff</span>
+<span class="sd">                shape. Use wulff.wulff_pt_list to obtain the list</span>
+<span class="sd">                (see wulff_generator.py).</span>
+
+<span class="sd">        return (bool)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">space_group_analyzer</span> <span class="o">=</span> <span class="n">SpacegroupAnalyzer</span><span class="p">(</span><span class="n">ucell</span><span class="p">)</span>
+        <span class="n">symm_ops</span> <span class="o">=</span> <span class="n">space_group_analyzer</span><span class="o">.</span><span class="n">get_point_group_operations</span><span class="p">(</span>
+            <span class="n">cartesian</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">point</span> <span class="ow">in</span> <span class="n">wulff_vertices</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">symm_ops</span><span class="p">:</span>
+                <span class="n">symm_point</span> <span class="o">=</span> <span class="n">op</span><span class="o">.</span><span class="n">operate</span><span class="p">(</span><span class="n">point</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">in_coord_list</span><span class="p">(</span><span class="n">wulff_vertices</span><span class="p">,</span> <span class="n">symm_point</span><span class="p">):</span>
+                    <span class="k">continue</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="WulffShapeTest.consistency_tests"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_wulff.html#pymatgen.analysis.tests.test_wulff.WulffShapeTest.consistency_tests">[docs]</a>    <span class="k">def</span> <span class="nf">consistency_tests</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="c1"># For a set of given values, these tests will</span>
+        <span class="c1"># ensure that the general result given by the</span>
+        <span class="c1"># algorithm does not change as the code is editted</span>
+
+        <span class="c1"># For fcc Ir, make sure the (111) direction</span>
+        <span class="c1"># is the most dominant facet on the Wulff shape</span>
+
+        <span class="n">fractional_areas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wulff_Ir</span><span class="o">.</span><span class="n">area_fraction_dict</span>
+        <span class="n">miller_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">hkl</span> <span class="k">for</span> <span class="n">hkl</span> <span class="ow">in</span> <span class="n">fractional_areas</span><span class="o">.</span><span class="n">keys</span><span class="p">()]</span>
+        <span class="n">area_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">fractional_areas</span><span class="p">[</span><span class="n">hkl</span><span class="p">]</span> <span class="k">for</span> <span class="n">hkl</span> <span class="ow">in</span> <span class="n">fractional_areas</span><span class="o">.</span><span class="n">keys</span><span class="p">()]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">miller_list</span><span class="p">[</span><span class="n">area_list</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">area_list</span><span class="p">))],</span>
+                         <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+        <span class="c1"># Overall weighted surface energy of fcc Nb should be</span>
+        <span class="c1"># equal to the energy of the (310) surface, ie. fcc Nb</span>
+        <span class="c1"># is anisotropic, the (310) surface is so low in energy,</span>
+        <span class="c1"># its the only facet that exists in the Wulff shape</span>
+
+        <span class="n">Nb_area_fraction_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wulff_Nb</span><span class="o">.</span><span class="n">area_fraction_dict</span>
+        <span class="k">for</span> <span class="n">hkl</span> <span class="ow">in</span> <span class="n">Nb_area_fraction_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">hkl</span> <span class="o">==</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">Nb_area_fraction_dict</span><span class="p">[</span><span class="n">hkl</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">Nb_area_fraction_dict</span><span class="p">[</span><span class="n">hkl</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">wulff_Nb</span><span class="o">.</span><span class="n">miller_energy_dict</span><span class="p">[(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)],</span>
+                         <span class="bp">self</span><span class="o">.</span><span class="n">wulff_Nb</span><span class="o">.</span><span class="n">weighted_surface_energy</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="WulffShapeTest.symmetry_test"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_wulff.html#pymatgen.analysis.tests.test_wulff.WulffShapeTest.symmetry_test">[docs]</a>    <span class="k">def</span> <span class="nf">symmetry_test</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="c1"># Maintains that all wulff shapes have the same point</span>
+        <span class="c1"># groups as the conventional unit cell they were</span>
+        <span class="c1"># derived from. This test should pass for all subsequent</span>
+        <span class="c1"># updates of the surface_properties collection</span>
+
+        <span class="n">check_symmetry_Nb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">symm_check</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ucell_Nb</span><span class="p">,</span>
+                                            <span class="bp">self</span><span class="o">.</span><span class="n">wulff_Nb</span><span class="o">.</span><span class="n">wulff_pt_list</span><span class="p">)</span>
+        <span class="n">check_symmetry_Ir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">symm_check</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ucell_Ir</span><span class="p">,</span>
+                                            <span class="bp">self</span><span class="o">.</span><span class="n">wulff_Ir</span><span class="o">.</span><span class="n">wulff_pt_list</span><span class="p">)</span>
+        <span class="n">check_symmetry_Ti</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">symm_check</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ucell_Ti</span><span class="p">,</span>
+                                            <span class="bp">self</span><span class="o">.</span><span class="n">wulff_Ti</span><span class="o">.</span><span class="n">wulff_pt_list</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">check_symmetry_Nb</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">check_symmetry_Ir</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">check_symmetry_Ti</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="WulffShapeTest.test_get_azimuth_elev"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_wulff.html#pymatgen.analysis.tests.test_wulff.WulffShapeTest.test_get_azimuth_elev">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_azimuth_elev</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="c1"># Test out the viewing of the Wulff shape from Miller indices.</span>
+        <span class="n">azim</span><span class="p">,</span> <span class="n">elev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wulff_Ir</span><span class="o">.</span><span class="n">_get_azimuth_elev</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">azim</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">elev</span><span class="p">,</span> <span class="mi">90</span><span class="p">)</span>
+        <span class="n">azim</span><span class="p">,</span> <span class="n">elev</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">wulff_Ir</span><span class="o">.</span><span class="n">_get_azimuth_elev</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">azim</span><span class="p">,</span> <span class="mi">45</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="WulffShapeTest.test_properties"><a class="viewcode-back" href="../../../../pymatgen.analysis.tests.test_wulff.html#pymatgen.analysis.tests.test_wulff.WulffShapeTest.test_properties">[docs]</a>    <span class="k">def</span> <span class="nf">test_properties</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="c1"># Simple test to check if the values of some</span>
+        <span class="c1"># properties are consistent with what we already have</span>
+
+        <span class="n">wulff_shapes</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;mp-8636&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">wulff_Nb</span><span class="p">,</span> <span class="s2">&quot;mp-72&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">wulff_Ti</span><span class="p">,</span>
+                        <span class="s2">&quot;mp-101&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">wulff_Ir</span><span class="p">}</span>
+        <span class="k">for</span> <span class="n">mpid</span> <span class="ow">in</span> <span class="n">wulff_shapes</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">properties</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">surface_properties</span><span class="p">[</span><span class="n">mpid</span><span class="p">]</span>
+            <span class="n">wulff</span> <span class="o">=</span> <span class="n">wulff_shapes</span><span class="p">[</span><span class="n">mpid</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">wulff</span><span class="o">.</span><span class="n">weighted_surface_energy</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+                             <span class="nb">round</span><span class="p">(</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;weighted_surface_energy&quot;</span><span class="p">],</span> <span class="mi">3</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">wulff</span><span class="o">.</span><span class="n">shape_factor</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+                             <span class="nb">round</span><span class="p">(</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;shape_factor&quot;</span><span class="p">],</span> <span class="mi">3</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">wulff</span><span class="o">.</span><span class="n">anisotropy</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+                             <span class="nb">round</span><span class="p">(</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;surface_anisotropy&quot;</span><span class="p">],</span> <span class="mi">3</span><span class="p">))</span></div></div>
+
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2011, Pymatgen Development Team.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
+    </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+<script type="text/javascript">
+  (function() {
+    var ga = document.createElement('script');
+    ga.src = ('https:' == document.location.protocol ?
+              'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    ga.setAttribute('async', 'true');
+    document.documentElement.firstChild.appendChild(ga);
+  })();
+</script>
+</div>
+
+  </body>
+</html>

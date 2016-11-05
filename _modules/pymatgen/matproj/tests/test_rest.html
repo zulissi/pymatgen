@@ -1,0 +1,386 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.matproj.tests.test_rest &#8212; pymatgen 4.5.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '4.5.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="top" title="pymatgen 4.5.0 documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" />
+ 
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-33990148-1']);
+  _gaq.push(['_trackPageview']);
+</script>
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pymatgen.matproj.tests.test_rest</h1><div class="highlight"><pre>
+<span></span><span class="c1"># coding: utf-8</span>
+<span class="c1"># Copyright (c) Pymatgen Development Team.</span>
+<span class="c1"># Distributed under the terms of the MIT License.</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">unittest2</span> <span class="k">as</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen</span> <span class="k">import</span> <span class="n">SETTINGS</span>
+<span class="kn">from</span> <span class="nn">pymatgen.matproj.rest</span> <span class="k">import</span> <span class="n">MPRester</span><span class="p">,</span> <span class="n">MPRestError</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="k">import</span> <span class="n">Element</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="k">import</span> <span class="n">Structure</span><span class="p">,</span> <span class="n">Composition</span>
+<span class="kn">from</span> <span class="nn">pymatgen.entries.computed_entries</span> <span class="k">import</span> <span class="n">ComputedEntry</span>
+<span class="kn">from</span> <span class="nn">pymatgen.electronic_structure.dos</span> <span class="k">import</span> <span class="n">CompleteDos</span>
+<span class="kn">from</span> <span class="nn">pymatgen.electronic_structure.bandstructure</span> <span class="k">import</span> <span class="n">BandStructureSymmLine</span>
+<span class="kn">from</span> <span class="nn">pymatgen.entries.compatibility</span> <span class="k">import</span> <span class="n">MaterialsProjectCompatibility</span>
+<span class="kn">from</span> <span class="nn">pymatgen.phasediagram.maker</span> <span class="k">import</span> <span class="n">PhaseDiagram</span>
+<span class="kn">from</span> <span class="nn">pymatgen.phasediagram.analyzer</span> <span class="k">import</span> <span class="n">PDAnalyzer</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.cif</span> <span class="k">import</span> <span class="n">CifParser</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Created on Jun 9, 2012</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s2">&quot;Copyright 2012, The Materials Project&quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;0.1&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s2">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s2">&quot;shyuep@gmail.com&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span> <span class="s2">&quot;Jun 9, 2012&quot;</span>
+
+
+<span class="n">test_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span>
+                        <span class="s1">&#39;test_files&#39;</span><span class="p">)</span>
+
+
+<span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="s2">&quot;MAPI_KEY&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">SETTINGS</span><span class="p">,</span>
+                 <span class="s2">&quot;MAPI_KEY environment variable not set.&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="MPResterTest"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest">[docs]</a><span class="k">class</span> <span class="nc">MPResterTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="MPResterTest.setUp"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rester</span> <span class="o">=</span> <span class="n">MPRester</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="MPResterTest.test_get_data"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.test_get_data">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">props</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;energy&quot;</span><span class="p">,</span> <span class="s2">&quot;energy_per_atom&quot;</span><span class="p">,</span> <span class="s2">&quot;formation_energy_per_atom&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;nsites&quot;</span><span class="p">,</span> <span class="s2">&quot;unit_cell_formula&quot;</span><span class="p">,</span> <span class="s2">&quot;pretty_formula&quot;</span><span class="p">,</span> <span class="s2">&quot;is_hubbard&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;elements&quot;</span><span class="p">,</span> <span class="s2">&quot;nelements&quot;</span><span class="p">,</span> <span class="s2">&quot;e_above_hull&quot;</span><span class="p">,</span> <span class="s2">&quot;hubbards&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;is_compatible&quot;</span><span class="p">,</span> <span class="s2">&quot;task_ids&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;density&quot;</span><span class="p">,</span> <span class="s2">&quot;icsd_ids&quot;</span><span class="p">,</span> <span class="s2">&quot;total_magnetization&quot;</span><span class="p">]</span>
+        <span class="c1"># unicode literals have been reintroduced in py&gt;3.2</span>
+        <span class="n">expected_vals</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mf">191.33812137</span><span class="p">,</span> <span class="o">-</span><span class="mf">6.833504334642858</span><span class="p">,</span> <span class="o">-</span><span class="mf">2.551358929370749</span><span class="p">,</span>
+                         <span class="mi">28</span><span class="p">,</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="p">{</span><span class="s1">&#39;P&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;Fe&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;O&#39;</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span> <span class="s1">&#39;Li&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">}</span><span class="o">.</span><span class="n">items</span><span class="p">()},</span>
+                         <span class="s2">&quot;LiFePO4&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;Li&#39;</span><span class="p">,</span> <span class="s1">&#39;O&#39;</span><span class="p">,</span> <span class="s1">&#39;P&#39;</span><span class="p">,</span> <span class="s1">&#39;Fe&#39;</span><span class="p">],</span> <span class="mi">4</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span>
+                         <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="p">{</span><span class="s1">&#39;Fe&#39;</span><span class="p">:</span> <span class="mf">5.3</span><span class="p">,</span> <span class="s1">&#39;Li&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s1">&#39;O&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s1">&#39;P&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">}</span><span class="o">.</span><span class="n">items</span><span class="p">()},</span> <span class="kc">True</span><span class="p">,</span>
+                         <span class="p">[</span><span class="s1">u&#39;mp-601412&#39;</span><span class="p">,</span> <span class="s1">u&#39;mp-19017&#39;</span><span class="p">,</span> <span class="s1">u&#39;mp-796535&#39;</span><span class="p">,</span> <span class="s1">u&#39;mp-797820&#39;</span><span class="p">,</span>
+                          <span class="s1">u&#39;mp-540081&#39;</span><span class="p">,</span> <span class="s1">u&#39;mp-797269&#39;</span><span class="p">],</span>
+                         <span class="mf">3.4662026991351147</span><span class="p">,</span>
+                         <span class="p">[</span><span class="mi">159107</span><span class="p">,</span> <span class="mi">154117</span><span class="p">,</span> <span class="mi">160776</span><span class="p">,</span> <span class="mi">99860</span><span class="p">,</span> <span class="mi">181272</span><span class="p">,</span> <span class="mi">166815</span><span class="p">,</span>
+                          <span class="mi">260571</span><span class="p">,</span> <span class="mi">92198</span><span class="p">,</span> <span class="mi">165000</span><span class="p">,</span> <span class="mi">155580</span><span class="p">,</span> <span class="mi">38209</span><span class="p">,</span> <span class="mi">161479</span><span class="p">,</span> <span class="mi">153699</span><span class="p">,</span>
+                          <span class="mi">260569</span><span class="p">,</span> <span class="mi">260570</span><span class="p">,</span> <span class="mi">200155</span><span class="p">,</span> <span class="mi">260572</span><span class="p">,</span> <span class="mi">181341</span><span class="p">,</span> <span class="mi">181342</span><span class="p">,</span>
+                          <span class="mi">72545</span><span class="p">,</span> <span class="mi">56291</span><span class="p">,</span> <span class="mi">97764</span><span class="p">,</span> <span class="mi">162282</span><span class="p">,</span> <span class="mi">155635</span><span class="p">],</span>
+                         <span class="mf">16.0002716</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">prop</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">props</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">prop</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;hubbards&#39;</span><span class="p">,</span> <span class="s1">&#39;unit_cell_formula&#39;</span><span class="p">,</span> <span class="s1">&#39;elements&#39;</span><span class="p">,</span>
+                            <span class="s1">&#39;icsd_ids&#39;</span><span class="p">,</span> <span class="s1">&#39;task_ids&#39;</span><span class="p">]:</span>
+                <span class="n">val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_data</span><span class="p">(</span><span class="s2">&quot;mp-19017&quot;</span><span class="p">,</span> <span class="n">prop</span><span class="o">=</span><span class="n">prop</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="n">prop</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">expected_vals</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">val</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">prop</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;elements&quot;</span><span class="p">,</span> <span class="s2">&quot;icsd_ids&quot;</span><span class="p">,</span> <span class="s2">&quot;task_ids&quot;</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">expected_vals</span><span class="p">[</span><span class="n">i</span><span class="p">]),</span>
+                                 <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_data</span><span class="p">(</span><span class="s2">&quot;mp-19017&quot;</span><span class="p">,</span>
+                                                          <span class="n">prop</span><span class="o">=</span><span class="n">prop</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="n">prop</span><span class="p">]))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">expected_vals</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                                 <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_data</span><span class="p">(</span><span class="s2">&quot;mp-19017&quot;</span><span class="p">,</span>
+                                                      <span class="n">prop</span><span class="o">=</span><span class="n">prop</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="n">prop</span><span class="p">])</span>
+
+        <span class="n">props</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;structure&#39;</span><span class="p">,</span> <span class="s1">&#39;initial_structure&#39;</span><span class="p">,</span> <span class="s1">&#39;final_structure&#39;</span><span class="p">,</span> <span class="s1">&#39;entry&#39;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">props</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">prop</span><span class="p">)</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_data</span><span class="p">(</span><span class="s2">&quot;mp-19017&quot;</span><span class="p">,</span> <span class="n">prop</span><span class="o">=</span><span class="n">prop</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="n">prop</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">prop</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;structure&quot;</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertIsInstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">Structure</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">prop</span> <span class="o">==</span> <span class="s2">&quot;entry&quot;</span><span class="p">:</span>
+                <span class="n">obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_data</span><span class="p">(</span><span class="s2">&quot;mp-19017&quot;</span><span class="p">,</span> <span class="n">prop</span><span class="o">=</span><span class="n">prop</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="n">prop</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertIsInstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">ComputedEntry</span><span class="p">)</span>
+
+        <span class="c1">#Test chemsys search</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_data</span><span class="p">(</span><span class="s1">&#39;Fe-Li-O&#39;</span><span class="p">,</span> <span class="n">prop</span><span class="o">=</span><span class="s1">&#39;unit_cell_formula&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">elements</span> <span class="o">=</span> <span class="p">{</span><span class="n">Element</span><span class="p">(</span><span class="s2">&quot;Li&quot;</span><span class="p">),</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;Fe&quot;</span><span class="p">),</span> <span class="n">Element</span><span class="p">(</span><span class="s2">&quot;O&quot;</span><span class="p">)}</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span>
+                <span class="nb">set</span><span class="p">(</span><span class="n">Composition</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s1">&#39;unit_cell_formula&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">elements</span><span class="p">)</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span>
+                    <span class="n">elements</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">MPRestError</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_data</span><span class="p">,</span> <span class="s2">&quot;Fe2O3&quot;</span><span class="p">,</span>
+                          <span class="s2">&quot;badmethod&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MPResterTest.test_get_materials_id_from_task_id"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.test_get_materials_id_from_task_id">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_materials_id_from_task_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_materials_id_from_task_id</span><span class="p">(</span>
+            <span class="s2">&quot;mp-540081&quot;</span><span class="p">),</span> <span class="s2">&quot;mp-19017&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MPResterTest.test_get_materials_id_references"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.test_get_materials_id_references">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_materials_id_references</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># nosetests pymatgen/matproj/tests/test_rest.py:MPResterTest.test_get_materials_id_references</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">MPRester</span><span class="p">()</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">get_materials_id_references</span><span class="p">(</span><span class="s1">&#39;mp-123&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1000</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MPResterTest.test_find_structure"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.test_find_structure">[docs]</a>    <span class="k">def</span> <span class="nf">test_find_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># nosetests pymatgen/matproj/tests/test_rest.py:MPResterTest.test_find_structure</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">MPRester</span><span class="p">()</span>
+        <span class="n">ciffile</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;Fe3O4.cif&#39;</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">find_structure</span><span class="p">(</span><span class="n">ciffile</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">CifParser</span><span class="p">(</span><span class="n">ciffile</span><span class="p">)</span><span class="o">.</span><span class="n">get_structures</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">find_structure</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MPResterTest.test_get_entries_in_chemsys"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.test_get_entries_in_chemsys">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_entries_in_chemsys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">syms</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Li&quot;</span><span class="p">,</span> <span class="s2">&quot;Fe&quot;</span><span class="p">,</span> <span class="s2">&quot;O&quot;</span><span class="p">]</span>
+        <span class="n">entries</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_entries_in_chemsys</span><span class="p">(</span><span class="n">syms</span><span class="p">)</span>
+        <span class="n">elements</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span><span class="n">Element</span><span class="p">(</span><span class="n">sym</span><span class="p">)</span> <span class="k">for</span> <span class="n">sym</span> <span class="ow">in</span> <span class="n">syms</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertIsInstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">ComputedEntry</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">elements</span><span class="p">)</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="n">elements</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="MPResterTest.test_get_structure_by_material_id"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.test_get_structure_by_material_id">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_structure_by_material_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">s1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_structure_by_material_id</span><span class="p">(</span><span class="s2">&quot;mp-1&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s1</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Cs1&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MPResterTest.test_get_entry_by_material_id"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.test_get_entry_by_material_id">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_entry_by_material_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">e</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_entry_by_material_id</span><span class="p">(</span><span class="s2">&quot;mp-19017&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsInstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">ComputedEntry</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">reduced_formula</span><span class="p">,</span> <span class="s2">&quot;LiFePO4&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MPResterTest.test_query"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.test_query">[docs]</a>    <span class="k">def</span> <span class="nf">test_query</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">criteria</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;elements&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;$in&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;Li&#39;</span><span class="p">,</span> <span class="s1">&#39;Na&#39;</span><span class="p">,</span> <span class="s1">&#39;K&#39;</span><span class="p">],</span> <span class="s1">&#39;$all&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;O&#39;</span><span class="p">]}}</span>
+        <span class="n">props</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;pretty_formula&#39;</span><span class="p">,</span> <span class="s1">&#39;energy&#39;</span><span class="p">]</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">criteria</span><span class="o">=</span><span class="n">criteria</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="n">props</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">6</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">criteria</span><span class="o">=</span><span class="s2">&quot;*2O&quot;</span><span class="p">,</span> <span class="n">properties</span><span class="o">=</span><span class="n">props</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertGreaterEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">),</span> <span class="mi">52</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s2">&quot;Li2O&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s2">&quot;pretty_formula&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="MPResterTest.test_get_exp_thermo_data"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.test_get_exp_thermo_data">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_exp_thermo_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_exp_thermo_data</span><span class="p">(</span><span class="s2">&quot;Fe2O3&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Fe2O3&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MPResterTest.test_get_dos_by_id"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.test_get_dos_by_id">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_dos_by_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">dos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_dos_by_material_id</span><span class="p">(</span><span class="s2">&quot;mp-2254&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsInstance</span><span class="p">(</span><span class="n">dos</span><span class="p">,</span> <span class="n">CompleteDos</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MPResterTest.test_get_bandstructure_by_material_id"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.test_get_bandstructure_by_material_id">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_bandstructure_by_material_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">bs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_bandstructure_by_material_id</span><span class="p">(</span><span class="s2">&quot;mp-2254&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsInstance</span><span class="p">(</span><span class="n">bs</span><span class="p">,</span> <span class="n">BandStructureSymmLine</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MPResterTest.test_get_structures"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.test_get_structures">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_structures</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">structs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_structures</span><span class="p">(</span><span class="s2">&quot;Mn3O4&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">structs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MPResterTest.test_get_entries"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.test_get_entries">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_entries</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">entries</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_entries</span><span class="p">(</span><span class="s2">&quot;TiO2&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">entries</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">reduced_formula</span><span class="p">,</span> <span class="s2">&quot;TiO2&quot;</span><span class="p">)</span>
+
+        <span class="n">entries</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_entries</span><span class="p">(</span><span class="s2">&quot;TiO2&quot;</span><span class="p">,</span> <span class="n">inc_structure</span><span class="o">=</span><span class="s2">&quot;final&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">entries</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">structure</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">reduced_formula</span><span class="p">,</span> <span class="s2">&quot;TiO2&quot;</span><span class="p">)</span>
+
+        <span class="n">all_entries</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_entries</span><span class="p">(</span><span class="s2">&quot;Fe&quot;</span><span class="p">,</span> <span class="n">compatible_only</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">entries</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_entries</span><span class="p">(</span><span class="s2">&quot;Fe&quot;</span><span class="p">,</span> <span class="n">compatible_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">entries</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_entries</span><span class="p">))</span>
+
+        <span class="n">entries</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_entries</span><span class="p">(</span><span class="s2">&quot;Fe&quot;</span><span class="p">,</span> <span class="n">compatible_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                          <span class="n">property_data</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;cif&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s2">&quot;cif&quot;</span><span class="p">,</span> <span class="n">entries</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MPResterTest.test_get_exp_entry"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.test_get_exp_entry">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_exp_entry</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">entry</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_exp_entry</span><span class="p">(</span><span class="s2">&quot;Fe2O3&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">energy</span><span class="p">,</span> <span class="o">-</span><span class="mf">825.5</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MPResterTest.test_submit_query_delete_snl"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.test_submit_query_delete_snl">[docs]</a>    <span class="k">def</span> <span class="nf">test_submit_query_delete_snl</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">([[</span><span class="mi">5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">]],</span> <span class="p">[</span><span class="s2">&quot;Fe&quot;</span><span class="p">],</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span></div>
+        <span class="c1"># d = self.rester.submit_snl(</span>
+        <span class="c1">#     [s, s], remarks=[&quot;unittest&quot;],</span>
+        <span class="c1">#     authors=&quot;Test User &lt;test@materialsproject.com&gt;&quot;)</span>
+        <span class="c1"># self.assertEqual(len(d), 2)</span>
+        <span class="c1"># data = self.rester.query_snl({&quot;about.remarks&quot;: &quot;unittest&quot;})</span>
+        <span class="c1"># self.assertEqual(len(data), 2)</span>
+        <span class="c1"># snlids = [d[&quot;_id&quot;] for d in data]</span>
+        <span class="c1"># self.rester.delete_snl(snlids)</span>
+        <span class="c1"># data = self.rester.query_snl({&quot;about.remarks&quot;: &quot;unittest&quot;})</span>
+        <span class="c1"># self.assertEqual(len(data), 0)</span>
+
+<div class="viewcode-block" id="MPResterTest.test_get_stability"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.test_get_stability">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_stability</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">entries</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_entries_in_chemsys</span><span class="p">([</span><span class="s2">&quot;Fe&quot;</span><span class="p">,</span> <span class="s2">&quot;O&quot;</span><span class="p">])</span>
+        <span class="n">modified_entries</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">:</span>
+            <span class="c1"># Create modified entries with energies that are 0.01eV higher</span>
+            <span class="c1"># than the corresponding entries.</span>
+            <span class="k">if</span> <span class="n">entry</span><span class="o">.</span><span class="n">composition</span><span class="o">.</span><span class="n">reduced_formula</span> <span class="o">==</span> <span class="s2">&quot;Fe2O3&quot;</span><span class="p">:</span>
+                <span class="n">modified_entries</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">ComputedEntry</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">composition</span><span class="p">,</span>
+                                  <span class="n">entry</span><span class="o">.</span><span class="n">uncorrected_energy</span> <span class="o">+</span> <span class="mf">0.01</span><span class="p">,</span>
+                                  <span class="n">parameters</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">parameters</span><span class="p">,</span>
+                                  <span class="n">entry_id</span><span class="o">=</span><span class="s2">&quot;mod_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">entry_id</span><span class="p">)))</span>
+        <span class="n">rest_ehulls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_stability</span><span class="p">(</span><span class="n">modified_entries</span><span class="p">)</span>
+        <span class="n">all_entries</span> <span class="o">=</span> <span class="n">entries</span> <span class="o">+</span> <span class="n">modified_entries</span>
+        <span class="n">compat</span> <span class="o">=</span> <span class="n">MaterialsProjectCompatibility</span><span class="p">()</span>
+        <span class="n">all_entries</span> <span class="o">=</span> <span class="n">compat</span><span class="o">.</span><span class="n">process_entries</span><span class="p">(</span><span class="n">all_entries</span><span class="p">)</span>
+        <span class="n">pd</span> <span class="o">=</span> <span class="n">PhaseDiagram</span><span class="p">(</span><span class="n">all_entries</span><span class="p">)</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">PDAnalyzer</span><span class="p">(</span><span class="n">pd</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">all_entries</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">entry_id</span><span class="p">)</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;mod&quot;</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">rest_ehulls</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;entry_id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">e</span><span class="o">.</span><span class="n">entry_id</span><span class="p">:</span>
+                        <span class="n">data</span> <span class="o">=</span> <span class="n">d</span>
+                        <span class="k">break</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">get_e_above_hull</span><span class="p">(</span><span class="n">e</span><span class="p">),</span>
+                                       <span class="n">data</span><span class="p">[</span><span class="s2">&quot;e_above_hull&quot;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="MPResterTest.test_get_reaction"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.test_get_reaction">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_reaction</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">rxn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_reaction</span><span class="p">([</span><span class="s2">&quot;Li&quot;</span><span class="p">,</span> <span class="s2">&quot;O&quot;</span><span class="p">],</span> <span class="p">[</span><span class="s2">&quot;Li2O&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s2">&quot;Li2O&quot;</span><span class="p">,</span> <span class="n">rxn</span><span class="p">[</span><span class="s2">&quot;Experimental_references&quot;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="MPResterTest.test_get_substrates"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.test_get_substrates">[docs]</a>    <span class="k">def</span> <span class="nf">test_get_substrates</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">substrate_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rester</span><span class="o">.</span><span class="n">get_substrates</span><span class="p">(</span><span class="s1">&#39;mp-123&#39;</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="n">substrates</span> <span class="o">=</span> <span class="p">[</span><span class="n">sub_dict</span><span class="p">[</span><span class="s1">&#39;sub_id&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">sub_dict</span> <span class="ow">in</span> <span class="n">substrate_data</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s2">&quot;mp-2534&quot;</span><span class="p">,</span> <span class="n">substrates</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MPResterTest.test_parse_criteria"><a class="viewcode-back" href="../../../../pymatgen.matproj.tests.test_rest.html#pymatgen.matproj.tests.test_rest.MPResterTest.test_parse_criteria">[docs]</a>    <span class="k">def</span> <span class="nf">test_parse_criteria</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">crit</span> <span class="o">=</span> <span class="n">MPRester</span><span class="o">.</span><span class="n">parse_criteria</span><span class="p">(</span><span class="s2">&quot;mp-1234 Li-*&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s2">&quot;Li-O&quot;</span><span class="p">,</span> <span class="n">crit</span><span class="p">[</span><span class="s2">&quot;$or&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">][</span><span class="s2">&quot;chemsys&quot;</span><span class="p">][</span><span class="s2">&quot;$in&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">({</span><span class="s2">&quot;task_id&quot;</span><span class="p">:</span> <span class="s2">&quot;mp-1234&quot;</span><span class="p">},</span> <span class="n">crit</span><span class="p">[</span><span class="s2">&quot;$or&quot;</span><span class="p">])</span>
+
+        <span class="n">crit</span> <span class="o">=</span> <span class="n">MPRester</span><span class="o">.</span><span class="n">parse_criteria</span><span class="p">(</span><span class="s2">&quot;Li2*&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s2">&quot;Li2O&quot;</span><span class="p">,</span> <span class="n">crit</span><span class="p">[</span><span class="s2">&quot;pretty_formula&quot;</span><span class="p">][</span><span class="s2">&quot;$in&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s2">&quot;Li2I&quot;</span><span class="p">,</span> <span class="n">crit</span><span class="p">[</span><span class="s2">&quot;pretty_formula&quot;</span><span class="p">][</span><span class="s2">&quot;$in&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s2">&quot;CsLi2&quot;</span><span class="p">,</span> <span class="n">crit</span><span class="p">[</span><span class="s2">&quot;pretty_formula&quot;</span><span class="p">][</span><span class="s2">&quot;$in&quot;</span><span class="p">])</span>
+
+        <span class="n">crit</span> <span class="o">=</span> <span class="n">MPRester</span><span class="o">.</span><span class="n">parse_criteria</span><span class="p">(</span><span class="s2">&quot;Li-*-*&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s2">&quot;Li-Re-Ru&quot;</span><span class="p">,</span> <span class="n">crit</span><span class="p">[</span><span class="s2">&quot;chemsys&quot;</span><span class="p">][</span><span class="s2">&quot;$in&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotIn</span><span class="p">(</span><span class="s2">&quot;Li-Li&quot;</span><span class="p">,</span> <span class="n">crit</span><span class="p">[</span><span class="s2">&quot;chemsys&quot;</span><span class="p">][</span><span class="s2">&quot;$in&quot;</span><span class="p">])</span>
+
+        <span class="n">comps</span> <span class="o">=</span> <span class="n">MPRester</span><span class="o">.</span><span class="n">parse_criteria</span><span class="p">(</span><span class="s2">&quot;**O3&quot;</span><span class="p">)[</span><span class="s2">&quot;pretty_formula&quot;</span><span class="p">][</span><span class="s2">&quot;$in&quot;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">comps</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">Composition</span><span class="p">(</span><span class="n">c</span><span class="p">)),</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;Failed in </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">c</span><span class="p">)</span>
+
+        <span class="n">chemsys</span> <span class="o">=</span> <span class="n">MPRester</span><span class="o">.</span><span class="n">parse_criteria</span><span class="p">(</span><span class="s2">&quot;{Fe,Mn}-O&quot;</span><span class="p">)[</span><span class="s2">&quot;chemsys&quot;</span><span class="p">][</span><span class="s2">&quot;$in&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">chemsys</span><span class="p">),</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">comps</span> <span class="o">=</span> <span class="n">MPRester</span><span class="o">.</span><span class="n">parse_criteria</span><span class="p">(</span><span class="s2">&quot;{Fe,Mn,Co}O&quot;</span><span class="p">)[</span><span class="s2">&quot;pretty_formula&quot;</span><span class="p">][</span><span class="s2">&quot;$in&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">comps</span><span class="p">),</span> <span class="mi">3</span><span class="p">,</span> <span class="n">comps</span><span class="p">)</span>
+
+        <span class="c1">#Let&#39;s test some invalid symbols</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">MPRester</span><span class="o">.</span><span class="n">parse_criteria</span><span class="p">,</span> <span class="s2">&quot;li-fe&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">MPRester</span><span class="o">.</span><span class="n">parse_criteria</span><span class="p">,</span> <span class="s2">&quot;LO2&quot;</span><span class="p">)</span>
+
+        <span class="n">crit</span> <span class="o">=</span> <span class="n">MPRester</span><span class="o">.</span><span class="n">parse_criteria</span><span class="p">(</span><span class="s2">&quot;POPO2&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s2">&quot;P2O3&quot;</span><span class="p">,</span> <span class="n">crit</span><span class="p">[</span><span class="s2">&quot;pretty_formula&quot;</span><span class="p">][</span><span class="s2">&quot;$in&quot;</span><span class="p">])</span></div></div>
+
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2011, Pymatgen Development Team.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
+    </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+<script type="text/javascript">
+  (function() {
+    var ga = document.createElement('script');
+    ga.src = ('https:' == document.location.protocol ?
+              'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    ga.setAttribute('async', 'true');
+    document.documentElement.firstChild.appendChild(ga);
+  })();
+</script>
+</div>
+
+  </body>
+</html>

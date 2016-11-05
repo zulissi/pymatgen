@@ -1,0 +1,445 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.transformations.tests.test_advanced_transformations &#8212; pymatgen 4.5.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/proBlue.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '4.5.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+    <link rel="top" title="pymatgen 4.5.0 documentation" href="../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../index.html" />
+ 
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-33990148-1']);
+  _gaq.push(['_trackPageview']);
+</script>
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pymatgen.transformations.tests.test_advanced_transformations</h1><div class="highlight"><pre>
+<span></span><span class="c1"># coding: utf-8</span>
+<span class="c1"># Copyright (c) Pymatgen Development Team.</span>
+<span class="c1"># Distributed under the terms of the MIT License.</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">unicode_literals</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Created on Jul 24, 2012</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s2">&quot;Copyright 2012, The Materials Project&quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;0.1&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s2">&quot;Shyue Ping Ong&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s2">&quot;shyuep@gmail.com&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span> <span class="s2">&quot;Jul 24, 2012&quot;</span>
+
+<span class="kn">import</span> <span class="nn">unittest2</span> <span class="k">as</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">json</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">pymatgen</span> <span class="k">import</span> <span class="n">Lattice</span><span class="p">,</span> <span class="n">Structure</span><span class="p">,</span> <span class="n">Specie</span>
+<span class="kn">from</span> <span class="nn">pymatgen.transformations.standard_transformations</span> <span class="k">import</span> \
+    <span class="n">OxidationStateDecorationTransformation</span><span class="p">,</span> <span class="n">SubstitutionTransformation</span><span class="p">,</span> \
+    <span class="n">OrderDisorderedStructureTransformation</span>
+<span class="kn">from</span> <span class="nn">pymatgen.transformations.advanced_transformations</span> <span class="k">import</span> \
+    <span class="n">SuperTransformation</span><span class="p">,</span> <span class="n">EnumerateStructureTransformation</span><span class="p">,</span> \
+    <span class="n">MultipleSubstitutionTransformation</span><span class="p">,</span> <span class="n">ChargeBalanceTransformation</span><span class="p">,</span> \
+    <span class="n">SubstitutionPredictorTransformation</span><span class="p">,</span> <span class="n">MagOrderingTransformation</span><span class="p">,</span> \
+    <span class="n">DopingTransformation</span><span class="p">,</span> <span class="n">_find_codopant</span>
+<span class="kn">from</span> <span class="nn">monty.os.path</span> <span class="k">import</span> <span class="n">which</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.vasp.inputs</span> <span class="k">import</span> <span class="n">Poscar</span>
+<span class="kn">from</span> <span class="nn">pymatgen.symmetry.analyzer</span> <span class="k">import</span> <span class="n">SpacegroupAnalyzer</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.energy_models</span> <span class="k">import</span> <span class="n">IsingModel</span>
+<span class="kn">from</span> <span class="nn">pymatgen.util.testing</span> <span class="k">import</span> <span class="n">PymatgenTest</span>
+
+<span class="n">test_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span>
+                        <span class="s1">&#39;test_files&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_table"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.get_table">[docs]</a><span class="k">def</span> <span class="nf">get_table</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Loads a lightweight lambda table for use in unit tests to reduce</span>
+<span class="sd">    initialization time, and make unit tests insensitive to changes in the</span>
+<span class="sd">    default lambda table.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">data_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span>
+                            <span class="s1">&#39;test_files&#39;</span><span class="p">,</span> <span class="s1">&#39;struct_predictor&#39;</span><span class="p">)</span>
+    <span class="n">json_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="s1">&#39;test_lambda.json&#39;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">json_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">lambda_table</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">lambda_table</span></div>
+
+
+<span class="n">enumlib_present</span> <span class="o">=</span> <span class="n">which</span><span class="p">(</span><span class="s1">&#39;multienum.x&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">which</span><span class="p">(</span><span class="s1">&#39;makestr.x&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="SuperTransformationTest"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.SuperTransformationTest">[docs]</a><span class="k">class</span> <span class="nc">SuperTransformationTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="SuperTransformationTest.test_apply_transformation"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.SuperTransformationTest.test_apply_transformation">[docs]</a>    <span class="k">def</span> <span class="nf">test_apply_transformation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">tl</span> <span class="o">=</span> <span class="p">[</span><span class="n">SubstitutionTransformation</span><span class="p">({</span><span class="s2">&quot;Li+&quot;</span><span class="p">:</span> <span class="s2">&quot;Na+&quot;</span><span class="p">}),</span>
+              <span class="n">SubstitutionTransformation</span><span class="p">({</span><span class="s2">&quot;Li+&quot;</span><span class="p">:</span> <span class="s2">&quot;K+&quot;</span><span class="p">})]</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">SuperTransformation</span><span class="p">(</span><span class="n">tl</span><span class="p">)</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.375</span><span class="p">,</span> <span class="mf">0.375</span><span class="p">,</span> <span class="mf">0.375</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="o">.</span><span class="mi">5</span><span class="p">,</span> <span class="o">.</span><span class="mi">5</span><span class="p">,</span> <span class="o">.</span><span class="mi">5</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.875</span><span class="p">,</span> <span class="mf">0.875</span><span class="p">,</span> <span class="mf">0.875</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.125</span><span class="p">,</span> <span class="mf">0.125</span><span class="p">,</span> <span class="mf">0.125</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.625</span><span class="p">,</span> <span class="mf">0.625</span><span class="p">,</span> <span class="mf">0.625</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">])</span>
+
+        <span class="n">lattice</span> <span class="o">=</span> <span class="n">Lattice</span><span class="p">([[</span><span class="mf">3.8401979337</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">],</span>
+                           <span class="p">[</span><span class="mf">1.9200989668</span><span class="p">,</span> <span class="mf">3.3257101909</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">],</span>
+                           <span class="p">[</span><span class="mf">0.00</span><span class="p">,</span> <span class="o">-</span><span class="mf">2.2171384943</span><span class="p">,</span> <span class="mf">3.1355090603</span><span class="p">]])</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;Li+&quot;</span><span class="p">,</span> <span class="s2">&quot;Li+&quot;</span><span class="p">,</span> <span class="s2">&quot;Li+&quot;</span><span class="p">,</span> <span class="s2">&quot;Li+&quot;</span><span class="p">,</span> <span class="s2">&quot;Li+&quot;</span><span class="p">,</span> <span class="s2">&quot;Li+&quot;</span><span class="p">,</span>
+                                     <span class="s2">&quot;O2-&quot;</span><span class="p">,</span> <span class="s2">&quot;O2-&quot;</span><span class="p">],</span> <span class="n">coords</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">struct</span><span class="p">,</span> <span class="n">return_ranked_list</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">s_and_t</span> <span class="ow">in</span> <span class="n">s</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">s_and_t</span><span class="p">[</span><span class="s1">&#39;transformation&#39;</span><span class="p">]</span>
+                             <span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">struct</span><span class="p">),</span>
+                             <span class="n">s_and_t</span><span class="p">[</span><span class="s1">&#39;structure&#39;</span><span class="p">])</span></div>
+
+    <span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="ow">not</span> <span class="n">enumlib_present</span><span class="p">,</span> <span class="s2">&quot;enum_lib not present.&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="SuperTransformationTest.test_apply_transformation_mult"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.SuperTransformationTest.test_apply_transformation_mult">[docs]</a>    <span class="k">def</span> <span class="nf">test_apply_transformation_mult</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1">#Test returning multiple structures from each transformation.</span>
+        <span class="n">disord</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="mf">4.209</span><span class="p">,</span> <span class="p">[{</span><span class="s2">&quot;Cs+&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span> <span class="s2">&quot;K+&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">},</span> <span class="s2">&quot;Cl-&quot;</span><span class="p">],</span>
+                           <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">]])</span>
+        <span class="n">disord</span><span class="o">.</span><span class="n">make_supercell</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+
+
+        <span class="n">tl</span> <span class="o">=</span> <span class="p">[</span><span class="n">EnumerateStructureTransformation</span><span class="p">(),</span>
+              <span class="n">OrderDisorderedStructureTransformation</span><span class="p">()]</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">SuperTransformation</span><span class="p">(</span><span class="n">tl</span><span class="p">,</span> <span class="n">nstructures_per_trans</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">disord</span><span class="p">,</span>
+                                                    <span class="n">return_ranked_list</span><span class="o">=</span><span class="mi">20</span><span class="p">)),</span> <span class="mi">8</span><span class="p">)</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">SuperTransformation</span><span class="p">(</span><span class="n">tl</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">disord</span><span class="p">,</span>
+                                                    <span class="n">return_ranked_list</span><span class="o">=</span><span class="mi">20</span><span class="p">)),</span> <span class="mi">2</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="MultipleSubstitutionTransformationTest"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.MultipleSubstitutionTransformationTest">[docs]</a><span class="k">class</span> <span class="nc">MultipleSubstitutionTransformationTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="MultipleSubstitutionTransformationTest.test_apply_transformation"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.MultipleSubstitutionTransformationTest.test_apply_transformation">[docs]</a>    <span class="k">def</span> <span class="nf">test_apply_transformation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">sub_dict</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;Na&quot;</span><span class="p">,</span> <span class="s2">&quot;K&quot;</span><span class="p">]}</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">MultipleSubstitutionTransformation</span><span class="p">(</span><span class="s2">&quot;Li+&quot;</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">sub_dict</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">])</span>
+        <span class="n">lattice</span> <span class="o">=</span> <span class="n">Lattice</span><span class="p">([[</span><span class="mf">3.8401979337</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">],</span>
+                           <span class="p">[</span><span class="mf">1.9200989668</span><span class="p">,</span> <span class="mf">3.3257101909</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">],</span>
+                           <span class="p">[</span><span class="mf">0.00</span><span class="p">,</span> <span class="o">-</span><span class="mf">2.2171384943</span><span class="p">,</span> <span class="mf">3.1355090603</span><span class="p">]])</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;Li+&quot;</span><span class="p">,</span> <span class="s2">&quot;Li+&quot;</span><span class="p">,</span> <span class="s2">&quot;O2-&quot;</span><span class="p">,</span> <span class="s2">&quot;O2-&quot;</span><span class="p">],</span> <span class="n">coords</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">struct</span><span class="p">,</span>
+                                                    <span class="n">return_ranked_list</span><span class="o">=</span><span class="kc">True</span><span class="p">)),</span>
+                         <span class="mi">2</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ChargeBalanceTransformationTest"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.ChargeBalanceTransformationTest">[docs]</a><span class="k">class</span> <span class="nc">ChargeBalanceTransformationTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="ChargeBalanceTransformationTest.test_apply_transformation"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.ChargeBalanceTransformationTest.test_apply_transformation">[docs]</a>    <span class="k">def</span> <span class="nf">test_apply_transformation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">ChargeBalanceTransformation</span><span class="p">(</span><span class="s1">&#39;Li+&#39;</span><span class="p">)</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.375</span><span class="p">,</span> <span class="mf">0.375</span><span class="p">,</span> <span class="mf">0.375</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="o">.</span><span class="mi">5</span><span class="p">,</span> <span class="o">.</span><span class="mi">5</span><span class="p">,</span> <span class="o">.</span><span class="mi">5</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.875</span><span class="p">,</span> <span class="mf">0.875</span><span class="p">,</span> <span class="mf">0.875</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.125</span><span class="p">,</span> <span class="mf">0.125</span><span class="p">,</span> <span class="mf">0.125</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.625</span><span class="p">,</span> <span class="mf">0.625</span><span class="p">,</span> <span class="mf">0.625</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">])</span>
+
+        <span class="n">lattice</span> <span class="o">=</span> <span class="n">Lattice</span><span class="p">([[</span><span class="mf">3.8401979337</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">],</span>
+                           <span class="p">[</span><span class="mf">1.9200989668</span><span class="p">,</span> <span class="mf">3.3257101909</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">],</span>
+                           <span class="p">[</span><span class="mf">0.00</span><span class="p">,</span> <span class="o">-</span><span class="mf">2.2171384943</span><span class="p">,</span> <span class="mf">3.1355090603</span><span class="p">]])</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;Li+&quot;</span><span class="p">,</span> <span class="s2">&quot;Li+&quot;</span><span class="p">,</span> <span class="s2">&quot;Li+&quot;</span><span class="p">,</span> <span class="s2">&quot;Li+&quot;</span><span class="p">,</span> <span class="s2">&quot;Li+&quot;</span><span class="p">,</span> <span class="s2">&quot;Li+&quot;</span><span class="p">,</span>
+                                     <span class="s2">&quot;O2-&quot;</span><span class="p">,</span> <span class="s2">&quot;O2-&quot;</span><span class="p">],</span> <span class="n">coords</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">struct</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertAlmostEqual</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">charge</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span></div></div>
+
+
+<span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="ow">not</span> <span class="n">enumlib_present</span><span class="p">,</span> <span class="s2">&quot;enum_lib not present.&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="EnumerateStructureTransformationTest"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.EnumerateStructureTransformationTest">[docs]</a><span class="k">class</span> <span class="nc">EnumerateStructureTransformationTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+<div class="viewcode-block" id="EnumerateStructureTransformationTest.test_apply_transformation"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.EnumerateStructureTransformationTest.test_apply_transformation">[docs]</a>    <span class="k">def</span> <span class="nf">test_apply_transformation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">enum_trans</span> <span class="o">=</span> <span class="n">EnumerateStructureTransformation</span><span class="p">(</span><span class="n">refine_structure</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">Poscar</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;POSCAR.LiFePO4&#39;</span><span class="p">),</span>
+                             <span class="n">check_for_POTCAR</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">structure</span>
+        <span class="n">expected_ans</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">frac</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">([</span><span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">]):</span>
+            <span class="n">trans</span> <span class="o">=</span> <span class="n">SubstitutionTransformation</span><span class="p">({</span><span class="s1">&#39;Fe&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;Fe&#39;</span><span class="p">:</span> <span class="n">frac</span><span class="p">}})</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">trans</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">struct</span><span class="p">)</span>
+            <span class="n">oxitrans</span> <span class="o">=</span> <span class="n">OxidationStateDecorationTransformation</span><span class="p">(</span>
+                <span class="p">{</span><span class="s1">&#39;Li&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;Fe&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;P&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;O&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">2</span><span class="p">})</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">oxitrans</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+            <span class="n">alls</span> <span class="o">=</span> <span class="n">enum_trans</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">alls</span><span class="p">),</span> <span class="n">expected_ans</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertIsInstance</span><span class="p">(</span><span class="n">trans</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">s</span><span class="p">),</span> <span class="n">Structure</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">alls</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertIn</span><span class="p">(</span><span class="s2">&quot;energy&quot;</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+
+        <span class="c1">#make sure it works for non-oxidation state decorated structure</span>
+        <span class="n">trans</span> <span class="o">=</span> <span class="n">SubstitutionTransformation</span><span class="p">({</span><span class="s1">&#39;Fe&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;Fe&#39;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">}})</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">trans</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">struct</span><span class="p">)</span>
+        <span class="n">alls</span> <span class="o">=</span> <span class="n">enum_trans</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">alls</span><span class="p">),</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsInstance</span><span class="p">(</span><span class="n">trans</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">s</span><span class="p">),</span> <span class="n">Structure</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">alls</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertNotIn</span><span class="p">(</span><span class="s2">&quot;energy&quot;</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="EnumerateStructureTransformationTest.test_to_from_dict"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.EnumerateStructureTransformationTest.test_to_from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">test_to_from_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">trans</span> <span class="o">=</span> <span class="n">EnumerateStructureTransformation</span><span class="p">()</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">trans</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span>
+        <span class="n">trans</span> <span class="o">=</span> <span class="n">EnumerateStructureTransformation</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">trans</span><span class="o">.</span><span class="n">symm_prec</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="SubstitutionPredictorTransformationTest"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.SubstitutionPredictorTransformationTest">[docs]</a><span class="k">class</span> <span class="nc">SubstitutionPredictorTransformationTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="SubstitutionPredictorTransformationTest.test_apply_transformation"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.SubstitutionPredictorTransformationTest.test_apply_transformation">[docs]</a>    <span class="k">def</span> <span class="nf">test_apply_transformation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">SubstitutionPredictorTransformation</span><span class="p">(</span><span class="n">threshold</span><span class="o">=</span><span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=-</span><span class="mi">5</span><span class="p">,</span>
+                                                <span class="n">lambda_table</span><span class="o">=</span><span class="n">get_table</span><span class="p">())</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.75</span><span class="p">])</span>
+        <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">])</span>
+        <span class="n">lattice</span> <span class="o">=</span> <span class="n">Lattice</span><span class="p">([[</span><span class="mf">3.8401979337</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">],</span>
+                           <span class="p">[</span><span class="mf">1.9200989668</span><span class="p">,</span> <span class="mf">3.3257101909</span><span class="p">,</span> <span class="mf">0.00</span><span class="p">],</span>
+                           <span class="p">[</span><span class="mf">0.00</span><span class="p">,</span> <span class="o">-</span><span class="mf">2.2171384943</span><span class="p">,</span> <span class="mf">3.1355090603</span><span class="p">]])</span>
+        <span class="n">struct</span> <span class="o">=</span> <span class="n">Structure</span><span class="p">(</span><span class="n">lattice</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;O2-&#39;</span><span class="p">,</span> <span class="s1">&#39;Li1+&#39;</span><span class="p">,</span> <span class="s1">&#39;Li1+&#39;</span><span class="p">],</span> <span class="n">coords</span><span class="p">)</span>
+
+        <span class="n">outputs</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">struct</span><span class="p">,</span> <span class="n">return_ranked_list</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">outputs</span><span class="p">),</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;incorrect number of structures&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SubstitutionPredictorTransformationTest.test_as_dict"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.SubstitutionPredictorTransformationTest.test_as_dict">[docs]</a>    <span class="k">def</span> <span class="nf">test_as_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">SubstitutionPredictorTransformation</span><span class="p">(</span><span class="n">threshold</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=-</span><span class="mi">2</span><span class="p">,</span>
+                                                <span class="n">lambda_table</span><span class="o">=</span><span class="n">get_table</span><span class="p">())</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">SubstitutionPredictorTransformation</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">threshold</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span>
+                         <span class="s1">&#39;incorrect threshold passed through dict&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">_substitutor</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">alpha</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">,</span>
+                         <span class="s1">&#39;incorrect alpha passed through dict&#39;</span><span class="p">)</span></div></div>
+
+
+<span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">(</span><span class="ow">not</span> <span class="n">enumlib_present</span><span class="p">,</span> <span class="s2">&quot;enum_lib not present.&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="MagOrderingTransformationTest"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.MagOrderingTransformationTest">[docs]</a><span class="k">class</span> <span class="nc">MagOrderingTransformationTest</span><span class="p">(</span><span class="n">PymatgenTest</span><span class="p">):</span>
+
+<div class="viewcode-block" id="MagOrderingTransformationTest.test_apply_transformation"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.MagOrderingTransformationTest.test_apply_transformation">[docs]</a>    <span class="k">def</span> <span class="nf">test_apply_transformation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">trans</span> <span class="o">=</span> <span class="n">MagOrderingTransformation</span><span class="p">({</span><span class="s2">&quot;Fe&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">})</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">Poscar</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;POSCAR.LiFePO4&#39;</span><span class="p">),</span>
+                             <span class="n">check_for_POTCAR</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">structure</span>
+        <span class="n">alls</span> <span class="o">=</span> <span class="n">trans</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">alls</span><span class="p">),</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">SpacegroupAnalyzer</span><span class="p">(</span><span class="n">alls</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;structure&quot;</span><span class="p">],</span> <span class="mf">0.1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">get_space_group_number</span><span class="p">(),</span> <span class="mi">31</span><span class="p">)</span>
+
+        <span class="n">model</span> <span class="o">=</span> <span class="n">IsingModel</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+        <span class="n">trans</span> <span class="o">=</span> <span class="n">MagOrderingTransformation</span><span class="p">({</span><span class="s2">&quot;Fe&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">},</span>
+                                          <span class="n">energy_model</span><span class="o">=</span><span class="n">model</span><span class="p">)</span>
+        <span class="n">alls2</span> <span class="o">=</span> <span class="n">trans</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="c1">#Ising model with +J penalizes similar neighbor magmom.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertNotEqual</span><span class="p">(</span><span class="n">alls</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;structure&quot;</span><span class="p">],</span> <span class="n">alls2</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;structure&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">alls</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;structure&quot;</span><span class="p">],</span> <span class="n">alls2</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="s2">&quot;structure&quot;</span><span class="p">])</span>
+
+        <span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="s1">&#39;Li2O&#39;</span><span class="p">)</span>
+        <span class="c1">#Li2O doesn&#39;t have magnetism of course, but this is to test the</span>
+        <span class="c1"># enumeration.</span>
+        <span class="n">trans</span> <span class="o">=</span> <span class="n">MagOrderingTransformation</span><span class="p">({</span><span class="s2">&quot;Li+&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span> <span class="n">max_cell_size</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+        <span class="n">alls</span> <span class="o">=</span> <span class="n">trans</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">alls</span><span class="p">),</span> <span class="mi">10</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MagOrderingTransformationTest.test_ferrimagnetic"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.MagOrderingTransformationTest.test_ferrimagnetic">[docs]</a>    <span class="k">def</span> <span class="nf">test_ferrimagnetic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">trans</span> <span class="o">=</span> <span class="n">MagOrderingTransformation</span><span class="p">({</span><span class="s2">&quot;Fe&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">},</span> <span class="mf">0.75</span><span class="p">,</span> <span class="n">max_cell_size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">Poscar</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;POSCAR.LiFePO4&#39;</span><span class="p">),</span>
+                             <span class="n">check_for_POTCAR</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">structure</span>
+        <span class="n">alls</span> <span class="o">=</span> <span class="n">trans</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">alls</span><span class="p">),</span> <span class="mi">2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MagOrderingTransformationTest.test_as_from_dict"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.MagOrderingTransformationTest.test_as_from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">test_as_from_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">trans</span> <span class="o">=</span> <span class="n">MagOrderingTransformation</span><span class="p">({</span><span class="s2">&quot;Fe&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">},</span> <span class="mf">0.75</span><span class="p">)</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">trans</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span>
+        <span class="c1">#Check json encodability</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="n">trans</span> <span class="o">=</span> <span class="n">MagOrderingTransformation</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">trans</span><span class="o">.</span><span class="n">mag_species_spin</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;Fe&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">})</span>
+        <span class="kn">from</span> <span class="nn">pymatgen.analysis.energy_models</span> <span class="k">import</span> <span class="n">SymmetryModel</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsInstance</span><span class="p">(</span><span class="n">trans</span><span class="o">.</span><span class="n">energy_model</span><span class="p">,</span> <span class="n">SymmetryModel</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MagOrderingTransformationTest.test_zero_spin_case"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.MagOrderingTransformationTest.test_zero_spin_case">[docs]</a>    <span class="k">def</span> <span class="nf">test_zero_spin_case</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1">#ensure that zero spin case maintains sites and formula</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="s1">&#39;Li2O&#39;</span><span class="p">)</span>
+        <span class="n">trans</span> <span class="o">=</span> <span class="n">MagOrderingTransformation</span><span class="p">({</span><span class="s2">&quot;Li+&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">},</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">alls</span> <span class="o">=</span> <span class="n">trans</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="c1">#Ensure s does not have a spin property</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span><span class="p">(</span><span class="s1">&#39;spin&#39;</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">specie</span><span class="o">.</span><span class="n">_properties</span><span class="p">)</span>
+        <span class="c1">#ensure sites are assigned a spin property in alls</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">(</span><span class="s1">&#39;spin&#39;</span> <span class="ow">in</span> <span class="n">alls</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">specie</span><span class="o">.</span><span class="n">_properties</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="DopingTransformationTest"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.DopingTransformationTest">[docs]</a><span class="k">class</span> <span class="nc">DopingTransformationTest</span><span class="p">(</span><span class="n">PymatgenTest</span><span class="p">):</span>
+
+<div class="viewcode-block" id="DopingTransformationTest.test_apply_transformation"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.DopingTransformationTest.test_apply_transformation">[docs]</a>    <span class="k">def</span> <span class="nf">test_apply_transformation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">structure</span> <span class="o">=</span> <span class="n">PymatgenTest</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="s2">&quot;LiFePO4&quot;</span><span class="p">)</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">DopingTransformation</span><span class="p">(</span><span class="s2">&quot;Ca2+&quot;</span><span class="p">,</span> <span class="n">min_length</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+        <span class="n">ss</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ss</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">t</span> <span class="o">=</span> <span class="n">DopingTransformation</span><span class="p">(</span><span class="s2">&quot;Al3+&quot;</span><span class="p">,</span> <span class="n">min_length</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">ionic_radius_tol</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+        <span class="n">ss</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ss</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Aliovalent doping with vacancies</span>
+        <span class="k">for</span> <span class="n">dopant</span><span class="p">,</span> <span class="n">nstructures</span> <span class="ow">in</span> <span class="p">[(</span><span class="s2">&quot;Al3+&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;N3-&quot;</span><span class="p">,</span> <span class="mi">420</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;Cl-&quot;</span><span class="p">,</span> <span class="mi">16</span><span class="p">)]:</span>
+            <span class="n">t</span> <span class="o">=</span> <span class="n">DopingTransformation</span><span class="p">(</span><span class="n">dopant</span><span class="p">,</span> <span class="n">min_length</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">alio_tol</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                                     <span class="n">max_structures_per_enum</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+            <span class="n">ss</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ss</span><span class="p">),</span> <span class="n">nstructures</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">ss</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s2">&quot;structure&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">charge</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Aliovalent doping with codopant</span>
+        <span class="k">for</span> <span class="n">dopant</span><span class="p">,</span> <span class="n">nstructures</span> <span class="ow">in</span> <span class="p">[(</span><span class="s2">&quot;Al3+&quot;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;N3-&quot;</span><span class="p">,</span> <span class="mi">60</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;Cl-&quot;</span><span class="p">,</span> <span class="mi">60</span><span class="p">)]:</span>
+            <span class="n">t</span> <span class="o">=</span> <span class="n">DopingTransformation</span><span class="p">(</span><span class="n">dopant</span><span class="p">,</span> <span class="n">min_length</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">alio_tol</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                                     <span class="n">codopant</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                     <span class="n">max_structures_per_enum</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+            <span class="n">ss</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ss</span><span class="p">),</span> <span class="n">nstructures</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">ss</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s2">&quot;structure&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">charge</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Make sure compensation is done with lowest oxi state</span>
+        <span class="n">structure</span> <span class="o">=</span> <span class="n">PymatgenTest</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="s2">&quot;SrTiO3&quot;</span><span class="p">)</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">DopingTransformation</span><span class="p">(</span><span class="s2">&quot;Nb5+&quot;</span><span class="p">,</span> <span class="n">min_length</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">alio_tol</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                                 <span class="n">max_structures_per_enum</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+                                 <span class="n">allowed_doping_species</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Ti4+&quot;</span><span class="p">])</span>
+        <span class="n">ss</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">apply_transformation</span><span class="p">(</span><span class="n">structure</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ss</span><span class="p">),</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">ss</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s2">&quot;structure&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">formula</span><span class="p">,</span> <span class="s2">&quot;Sr7 Ti6 Nb2 O24&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DopingTransformationTest.test_as_from_dict"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.DopingTransformationTest.test_as_from_dict">[docs]</a>    <span class="k">def</span> <span class="nf">test_as_from_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">trans</span> <span class="o">=</span> <span class="n">DopingTransformation</span><span class="p">(</span><span class="s2">&quot;Al3+&quot;</span><span class="p">,</span> <span class="n">min_length</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">alio_tol</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                                     <span class="n">codopant</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">max_structures_per_enum</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">trans</span><span class="o">.</span><span class="n">as_dict</span><span class="p">()</span>
+        <span class="c1"># Check json encodability</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="n">trans</span> <span class="o">=</span> <span class="n">DopingTransformation</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">trans</span><span class="o">.</span><span class="n">dopant</span><span class="p">),</span> <span class="s2">&quot;Al3+&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">trans</span><span class="o">.</span><span class="n">max_structures_per_enum</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DopingTransformationTest.test_find_codopant"><a class="viewcode-back" href="../../../../pymatgen.transformations.tests.test_advanced_transformations.html#pymatgen.transformations.tests.test_advanced_transformations.DopingTransformationTest.test_find_codopant">[docs]</a>    <span class="k">def</span> <span class="nf">test_find_codopant</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">_find_codopant</span><span class="p">(</span><span class="n">Specie</span><span class="p">(</span><span class="s2">&quot;Fe&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="mi">1</span><span class="p">),</span> <span class="n">Specie</span><span class="p">(</span><span class="s2">&quot;Cu&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">_find_codopant</span><span class="p">(</span><span class="n">Specie</span><span class="p">(</span><span class="s2">&quot;Fe&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="mi">3</span><span class="p">),</span> <span class="n">Specie</span><span class="p">(</span><span class="s2">&quot;In&quot;</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span></div></div>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">logging</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+    <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2011, Pymatgen Development Team.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
+    </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+<script type="text/javascript">
+  (function() {
+    var ga = document.createElement('script');
+    ga.src = ('https:' == document.location.protocol ?
+              'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    ga.setAttribute('async', 'true');
+    document.documentElement.firstChild.appendChild(ga);
+  })();
+</script>
+</div>
+
+  </body>
+</html>

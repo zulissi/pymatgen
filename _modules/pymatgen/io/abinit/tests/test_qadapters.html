@@ -1,0 +1,573 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.io.abinit.tests.test_qadapters &#8212; pymatgen 4.5.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../_static/proBlue.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '4.5.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" />
+    <link rel="top" title="pymatgen 4.5.0 documentation" href="../../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../../index.html" />
+ 
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-33990148-1']);
+  _gaq.push(['_trackPageview']);
+</script>
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pymatgen.io.abinit.tests.test_qadapters</h1><div class="highlight"><pre>
+<span></span><span class="c1"># coding: utf-8</span>
+<span class="c1"># Copyright (c) Pymatgen Development Team.</span>
+<span class="c1"># Distributed under the terms of the MIT License.</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">unicode_literals</span><span class="p">,</span> <span class="n">division</span><span class="p">,</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">yaml</span>
+<span class="kn">import</span> <span class="nn">unittest2</span> <span class="k">as</span> <span class="nn">unittest</span>
+
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">OrderedDict</span>
+<span class="kn">from</span> <span class="nn">monty.collections</span> <span class="k">import</span> <span class="n">AttrDict</span>
+<span class="kn">from</span> <span class="nn">pymatgen.util.testing</span> <span class="k">import</span> <span class="n">PymatgenTest</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.abinit.tasks</span> <span class="k">import</span> <span class="n">ParalConf</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.abinit.qadapters</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">pymatgen.io.abinit.qadapters</span> <span class="k">import</span> <span class="n">QueueAdapter</span><span class="p">,</span> <span class="n">SlurmAdapter</span> 
+<span class="kn">from</span> <span class="nn">pymatgen.io.abinit</span> <span class="k">import</span> <span class="n">qutils</span> <span class="k">as</span> <span class="n">qu</span>
+
+<div class="viewcode-block" id="ParseTimestr"><a class="viewcode-back" href="../../../../../pymatgen.io.abinit.tests.test_qadapters.html#pymatgen.io.abinit.tests.test_qadapters.ParseTimestr">[docs]</a><span class="k">class</span> <span class="nc">ParseTimestr</span><span class="p">(</span><span class="n">PymatgenTest</span><span class="p">):</span>
+<div class="viewcode-block" id="ParseTimestr.test_slurm_parse_timestr"><a class="viewcode-back" href="../../../../../pymatgen.io.abinit.tests.test_qadapters.html#pymatgen.io.abinit.tests.test_qadapters.ParseTimestr.test_slurm_parse_timestr">[docs]</a>    <span class="k">def</span> <span class="nf">test_slurm_parse_timestr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">days</span><span class="p">,</span> <span class="n">hours</span><span class="p">,</span> <span class="n">minutes</span><span class="p">,</span> <span class="n">secs</span> <span class="o">=</span> <span class="mi">24</span><span class="o">*</span><span class="mi">60</span><span class="o">*</span><span class="mi">60</span><span class="p">,</span> <span class="mi">60</span><span class="o">*</span><span class="mi">60</span><span class="p">,</span> <span class="mi">60</span><span class="p">,</span> <span class="mi">1</span>
+        <span class="n">aequal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span>
+
+        <span class="n">slurm_parse_timestr</span> <span class="o">=</span> <span class="n">qu</span><span class="o">.</span><span class="n">slurm_parse_timestr</span> 
+
+        <span class="c1"># &quot;days-hours&quot;,</span>
+        <span class="n">aequal</span><span class="p">(</span><span class="n">slurm_parse_timestr</span><span class="p">(</span><span class="s2">&quot;2-1&quot;</span><span class="p">),</span> <span class="mi">2</span><span class="o">*</span><span class="n">days</span> <span class="o">+</span> <span class="n">hours</span><span class="p">)</span>
+        <span class="c1"># &quot;days-hours:minutes&quot;,                                        </span>
+        <span class="n">aequal</span><span class="p">(</span><span class="n">slurm_parse_timestr</span><span class="p">(</span><span class="s2">&quot;2-1:1&quot;</span><span class="p">),</span> <span class="mi">2</span><span class="o">*</span><span class="n">days</span> <span class="o">+</span> <span class="n">hours</span> <span class="o">+</span> <span class="n">minutes</span><span class="p">)</span>
+        <span class="c1"># &quot;days-hours:minutes:seconds&quot;.                                </span>
+        <span class="n">aequal</span><span class="p">(</span><span class="n">slurm_parse_timestr</span><span class="p">(</span><span class="s2">&quot;3-4:2:20&quot;</span><span class="p">),</span> <span class="mi">3</span><span class="o">*</span><span class="n">days</span> <span class="o">+</span> <span class="mi">4</span><span class="o">*</span><span class="n">hours</span> <span class="o">+</span> <span class="mi">2</span><span class="o">*</span><span class="n">minutes</span> <span class="o">+</span> <span class="mi">20</span><span class="o">*</span><span class="n">secs</span><span class="p">)</span>
+        <span class="c1"># &quot;minutes&quot;,</span>
+        <span class="n">aequal</span><span class="p">(</span><span class="n">slurm_parse_timestr</span><span class="p">(</span><span class="s2">&quot;10&quot;</span><span class="p">),</span> <span class="mi">10</span><span class="o">*</span><span class="n">minutes</span><span class="p">)</span>
+        <span class="c1"># &quot;minutes:seconds&quot;,</span>
+        <span class="n">aequal</span><span class="p">(</span><span class="n">slurm_parse_timestr</span><span class="p">(</span><span class="s2">&quot;3:20&quot;</span><span class="p">),</span> <span class="mi">3</span><span class="o">*</span><span class="n">minutes</span> <span class="o">+</span> <span class="mi">20</span><span class="o">*</span><span class="n">secs</span><span class="p">)</span>
+        <span class="c1"># &quot;hours:minutes:seconds&quot;,</span>
+        <span class="n">aequal</span><span class="p">(</span><span class="n">slurm_parse_timestr</span><span class="p">(</span><span class="s2">&quot;3:2:5&quot;</span><span class="p">),</span> <span class="mi">3</span><span class="o">*</span><span class="n">hours</span> <span class="o">+</span> <span class="mi">2</span><span class="o">*</span><span class="n">minutes</span> <span class="o">+</span> <span class="mi">5</span><span class="o">*</span><span class="n">secs</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="QadapterTest"><a class="viewcode-back" href="../../../../../pymatgen.io.abinit.tests.test_qadapters.html#pymatgen.io.abinit.tests.test_qadapters.QadapterTest">[docs]</a><span class="k">class</span> <span class="nc">QadapterTest</span><span class="p">(</span><span class="n">PymatgenTest</span><span class="p">):</span>
+    <span class="n">QDICT</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s2">priority: 1</span>
+<span class="s2">queue:</span>
+<span class="s2">    qtype: slurm</span>
+<span class="s2">    qname: Oban</span>
+<span class="s2">limits:</span>
+<span class="s2">    timelimit: 2:00</span>
+<span class="s2">    min_cores: 1</span>
+<span class="s2">    max_cores: 24</span>
+<span class="s2">    #condition: {&quot;$eq&quot;: </span><span class="si">{omp_threads: 2}</span><span class="s2">}</span>
+<span class="s2">job:</span>
+<span class="s2">    modules:</span>
+<span class="s2">        - intel/compilerpro/13.0.1.117</span>
+<span class="s2">        - fftw3/intel/3.3</span>
+<span class="s2">    shell_env:</span>
+<span class="s2">        PATH: /home/user/tmp_intel13/src/98_main/:/home/user//NAPS/intel13/bin:$PATH</span>
+<span class="s2">    mpi_runner: mpirun</span>
+<span class="s2">hardware:</span>
+<span class="s2">   num_nodes: 3</span>
+<span class="s2">   sockets_per_node: 2</span>
+<span class="s2">   cores_per_socket: 4</span>
+<span class="s2">   mem_per_node: 8 Gb</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="QadapterTest.test_base"><a class="viewcode-back" href="../../../../../pymatgen.io.abinit.tests.test_qadapters.html#pymatgen.io.abinit.tests.test_qadapters.QadapterTest.test_base">[docs]</a>    <span class="k">def</span> <span class="nf">test_base</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;unit tests for Qadapter subclasses. A more complete coverage would require integration testing.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">maxDiff</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">aequal</span><span class="p">,</span> <span class="n">atrue</span><span class="p">,</span> <span class="n">afalse</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertTrue</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertFalse</span>
+        <span class="n">sub_classes</span> <span class="o">=</span> <span class="n">QueueAdapter</span><span class="o">.</span><span class="n">__subclasses__</span><span class="p">()</span>
+
+        <span class="c1"># Test if we can instantiate the concrete classes with the abc protocol.</span>
+        <span class="k">for</span> <span class="n">subc</span> <span class="ow">in</span> <span class="n">sub_classes</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;subclass: &quot;</span><span class="p">,</span> <span class="n">subc</span><span class="p">)</span>
+
+            <span class="c1"># Create the adapter subclass.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">QDICT</span><span class="p">[</span><span class="s2">&quot;queue&quot;</span><span class="p">][</span><span class="s2">&quot;qtype&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">subc</span><span class="o">.</span><span class="n">QTYPE</span>
+            <span class="n">qad</span> <span class="o">=</span> <span class="n">make_qadapter</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">QDICT</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">qad</span><span class="p">)</span>
+            <span class="n">hw</span> <span class="o">=</span> <span class="n">qad</span><span class="o">.</span><span class="n">hw</span>
+            <span class="n">giga</span> <span class="o">=</span> <span class="mi">1024</span>
+
+            <span class="c1"># Test the programmatic interface used to change job parameters.</span>
+            <span class="n">aequal</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">num_launches</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">afalse</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">has_omp</span><span class="p">)</span>
+            <span class="n">atrue</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">has_mpi</span><span class="p">)</span>
+            <span class="n">qad</span><span class="o">.</span><span class="n">set_mpi_procs</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">aequal</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">mpi_procs</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">atrue</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">pure_mpi</span><span class="p">)</span>
+            <span class="n">afalse</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">pure_omp</span><span class="p">)</span>
+            <span class="n">afalse</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">hybrid_mpi_omp</span><span class="p">)</span>
+            <span class="n">aequal</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">mem_per_proc</span><span class="p">,</span> <span class="n">giga</span><span class="p">)</span>
+            <span class="n">qad</span><span class="o">.</span><span class="n">set_mem_per_proc</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">giga</span><span class="p">)</span>
+            <span class="n">aequal</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">mem_per_proc</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">giga</span><span class="p">)</span>
+            <span class="n">aequal</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">timelimit</span><span class="p">,</span> <span class="mi">120</span><span class="p">)</span>
+
+            <span class="c1"># Enable OMP</span>
+            <span class="n">qad</span><span class="o">.</span><span class="n">set_omp_threads</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">aequal</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">omp_threads</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">atrue</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">has_omp</span><span class="p">)</span>
+            <span class="n">afalse</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">pure_mpi</span><span class="p">)</span>
+            <span class="n">afalse</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">pure_omp</span><span class="p">)</span>
+            <span class="n">atrue</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">hybrid_mpi_omp</span><span class="p">)</span>
+
+            <span class="n">atrue</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">hw</span><span class="o">.</span><span class="n">can_use_omp_threads</span><span class="p">(</span><span class="n">hw</span><span class="o">.</span><span class="n">sockets_per_node</span> <span class="o">*</span> <span class="n">hw</span><span class="o">.</span><span class="n">cores_per_socket</span><span class="p">))</span>
+            <span class="n">afalse</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">hw</span><span class="o">.</span><span class="n">can_use_omp_threads</span><span class="p">(</span><span class="n">hw</span><span class="o">.</span><span class="n">sockets_per_node</span> <span class="o">*</span> <span class="n">hw</span><span class="o">.</span><span class="n">cores_per_socket</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+
+            <span class="c1"># Test the creation of the script</span>
+            <span class="n">script</span> <span class="o">=</span> <span class="n">qad</span><span class="o">.</span><span class="n">get_script_str</span><span class="p">(</span><span class="s2">&quot;job.sh&quot;</span><span class="p">,</span> <span class="s2">&quot;/launch/dir&quot;</span><span class="p">,</span> <span class="s2">&quot;executable&quot;</span><span class="p">,</span> <span class="s2">&quot;qout_path&quot;</span><span class="p">,</span> <span class="s2">&quot;qerr_path&quot;</span><span class="p">,</span> 
+                                        <span class="n">stdin</span><span class="o">=</span><span class="s2">&quot;STDIN&quot;</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="s2">&quot;STDOUT&quot;</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="s2">&quot;STDERR&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Test whether qad can be serialized with Pickle.</span>
+            <span class="n">deserialized_qads</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">serialize_with_pickle</span><span class="p">(</span><span class="n">qad</span><span class="p">,</span> <span class="n">test_eq</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">new_qad</span> <span class="ow">in</span> <span class="n">deserialized_qads</span><span class="p">:</span>
+                <span class="n">new_script</span> <span class="o">=</span> <span class="n">new_qad</span><span class="o">.</span><span class="n">get_script_str</span><span class="p">(</span><span class="s2">&quot;job.sh&quot;</span><span class="p">,</span> <span class="s2">&quot;/launch/dir&quot;</span><span class="p">,</span> <span class="s2">&quot;executable&quot;</span><span class="p">,</span> <span class="s2">&quot;qout_path&quot;</span><span class="p">,</span> <span class="s2">&quot;qerr_path&quot;</span><span class="p">,</span> 
+                                                    <span class="n">stdin</span><span class="o">=</span><span class="s2">&quot;STDIN&quot;</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="s2">&quot;STDOUT&quot;</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="s2">&quot;STDERR&quot;</span><span class="p">)</span>
+                <span class="n">aequal</span><span class="p">(</span><span class="n">new_script</span><span class="p">,</span> <span class="n">script</span><span class="p">)</span>
+
+            <span class="c1"># Test can_run and distribute</span>
+            <span class="c1"># The hardware has num_nodes=3, sockets_per_node=2, cores_per_socket=4, mem_per_node=&quot;8 Gb&quot;</span>
+            <span class="n">afalse</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">can_run_pconf</span><span class="p">(</span><span class="n">ParalConf</span><span class="p">(</span><span class="n">mpi_ncpus</span><span class="o">=</span><span class="n">hw</span><span class="o">.</span><span class="n">num_cores</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">omp_ncpus</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">mem_per_cpu</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)))</span>
+            <span class="n">afalse</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">can_run_pconf</span><span class="p">(</span><span class="n">ParalConf</span><span class="p">(</span><span class="n">mpi_ncpus</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">omp_ncpus</span><span class="o">=</span><span class="mi">9</span><span class="p">,</span> <span class="n">mem_per_cpu</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)))</span>
+            <span class="n">afalse</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">can_run_pconf</span><span class="p">(</span><span class="n">ParalConf</span><span class="p">(</span><span class="n">mpi_ncpus</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">omp_ncpus</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">mem_per_cpu</span><span class="o">=</span><span class="mi">10</span> <span class="o">*</span> <span class="n">giga</span><span class="p">)))</span>
+
+            <span class="n">d</span> <span class="o">=</span> <span class="n">qad</span><span class="o">.</span><span class="n">distribute</span><span class="p">(</span><span class="n">mpi_procs</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">omp_threads</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">mem_per_proc</span><span class="o">=</span><span class="n">giga</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">d</span><span class="o">.</span><span class="n">num_nodes</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">d</span><span class="o">.</span><span class="n">mpi_per_node</span> <span class="o">==</span> <span class="mi">4</span> <span class="ow">and</span> <span class="n">d</span><span class="o">.</span><span class="n">exact</span>
+
+            <span class="n">d</span> <span class="o">=</span> <span class="n">qad</span><span class="o">.</span><span class="n">distribute</span><span class="p">(</span><span class="n">mpi_procs</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">omp_threads</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">mem_per_proc</span><span class="o">=</span><span class="n">giga</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">d</span><span class="o">.</span><span class="n">num_nodes</span> <span class="o">==</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">d</span><span class="o">.</span><span class="n">mpi_per_node</span> <span class="o">==</span> <span class="mi">8</span> <span class="ow">and</span> <span class="n">d</span><span class="o">.</span><span class="n">exact</span>
+
+            <span class="c1"># not enough memory per node but can distribute.</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="n">qad</span><span class="o">.</span><span class="n">distribute</span><span class="p">(</span><span class="n">mpi_procs</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">omp_threads</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">mem_per_proc</span><span class="o">=</span><span class="mi">2</span> <span class="o">*</span> <span class="n">giga</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">d</span><span class="o">.</span><span class="n">num_nodes</span> <span class="o">==</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">d</span><span class="o">.</span><span class="n">mpi_per_node</span> <span class="o">==</span> <span class="mi">4</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">d</span><span class="o">.</span><span class="n">exact</span>
+
+            <span class="c1"># mem_per_proc &gt; mem_per_node!</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">Error</span><span class="p">):</span>
+                <span class="n">d</span> <span class="o">=</span> <span class="n">qad</span><span class="o">.</span><span class="n">distribute</span><span class="p">(</span><span class="n">mpi_procs</span><span class="o">=</span><span class="mi">9</span><span class="p">,</span> <span class="n">omp_threads</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">mem_per_proc</span><span class="o">=</span><span class="mi">10</span> <span class="o">*</span> <span class="n">giga</span><span class="p">)</span>
+
+            <span class="c1"># TODO</span>
+            <span class="c1"># not commensurate with node</span>
+            <span class="c1">#d = qad.distribute(mpi_procs=9, omp_threads=1, mem_per_proc=giga)</span>
+            <span class="c1">#assert d.num_nodes == 3 and d.mpi_per_node == 3 and not d.exact</span>
+
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">Error</span><span class="p">):</span> 
+                <span class="n">qad</span><span class="o">.</span><span class="n">set_mpi_procs</span><span class="p">(</span><span class="mi">25</span><span class="p">)</span>
+                <span class="n">qad</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">Error</span><span class="p">):</span> 
+                <span class="n">qad</span><span class="o">.</span><span class="n">set_mpi_procs</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+                <span class="n">qad</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">Error</span><span class="p">):</span> 
+                <span class="n">qad</span><span class="o">.</span><span class="n">set_omp_threads</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+                <span class="n">qad</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">Error</span><span class="p">):</span> 
+                <span class="n">qad</span><span class="o">.</span><span class="n">set_mem_per_proc</span><span class="p">(</span><span class="mi">9</span> <span class="o">*</span> <span class="n">giga</span><span class="p">)</span>
+                <span class="n">qad</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
+
+        <span class="c1"># Test if one can register a customized class.</span>
+        <span class="k">class</span> <span class="nc">MyAdapter</span><span class="p">(</span><span class="n">SlurmAdapter</span><span class="p">):</span>
+            <span class="n">QTYPE</span> <span class="o">=</span> <span class="s2">&quot;myslurm&quot;</span>
+
+        <span class="n">SlurmAdapter</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">MyAdapter</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">MyAdapter</span><span class="p">,</span> <span class="n">QueueAdapter</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">QDICT</span><span class="p">[</span><span class="s2">&quot;queue&quot;</span><span class="p">][</span><span class="s2">&quot;qtype&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;myslurm&quot;</span>
+        <span class="n">qad</span> <span class="o">=</span> <span class="n">make_qadapter</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">QDICT</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">qad</span><span class="p">,</span> <span class="n">MyAdapter</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ShellAdapterTest"><a class="viewcode-back" href="../../../../../pymatgen.io.abinit.tests.test_qadapters.html#pymatgen.io.abinit.tests.test_qadapters.ShellAdapterTest">[docs]</a><span class="k">class</span> <span class="nc">ShellAdapterTest</span><span class="p">(</span><span class="n">PymatgenTest</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Test suite for Shell adapter.&quot;&quot;&quot;</span>
+    <span class="n">QDICT</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s2">priority: 1</span>
+<span class="s2">queue:</span>
+<span class="s2">    qname: localhost</span>
+<span class="s2">    qtype: shell</span>
+<span class="s2">job:</span>
+<span class="s2">    mpi_runner: /home/local/bin/mpirun</span>
+<span class="s2">    pre_run:</span>
+<span class="s2">        - &quot;source ~/env1.sh&quot;</span>
+<span class="s2">limits:</span>
+<span class="s2">    timelimit: 10:00</span>
+<span class="s2">    min_cores: 1</span>
+<span class="s2">    max_cores: 1</span>
+<span class="s2">hardware:</span>
+<span class="s2">    num_nodes: 1</span>
+<span class="s2">    sockets_per_node: 1</span>
+<span class="s2">    cores_per_socket: 1</span>
+<span class="s2">    mem_per_node: 4 Gb</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="ShellAdapterTest.test_methods"><a class="viewcode-back" href="../../../../../pymatgen.io.abinit.tests.test_qadapters.html#pymatgen.io.abinit.tests.test_qadapters.ShellAdapterTest.test_methods">[docs]</a>    <span class="k">def</span> <span class="nf">test_methods</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">qad</span> <span class="o">=</span> <span class="n">make_qadapter</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">QDICT</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">qad</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">mpi_runner</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="n">qad</span><span class="o">.</span><span class="n">QTYPE</span> <span class="o">==</span> <span class="s2">&quot;shell&quot;</span> <span class="ow">and</span> <span class="n">qad</span><span class="o">.</span><span class="n">has_mpi</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">qad</span><span class="o">.</span><span class="n">has_omp</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">mpi_procs</span><span class="p">,</span> <span class="n">qad</span><span class="o">.</span><span class="n">omp_threads</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">qad</span><span class="o">.</span><span class="n">priority</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">qad</span><span class="o">.</span><span class="n">num_launches</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">qad</span><span class="o">.</span><span class="n">last_launch</span> <span class="ow">is</span> <span class="kc">None</span>
+
+        <span class="n">qad</span><span class="o">.</span><span class="n">set_omp_threads</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">qad</span><span class="o">.</span><span class="n">has_omp</span>
+
+        <span class="n">s</span> <span class="o">=</span> <span class="n">qad</span><span class="o">.</span><span class="n">get_script_str</span><span class="p">(</span><span class="s2">&quot;job_name&quot;</span><span class="p">,</span> <span class="s2">&quot;/launch_dir&quot;</span><span class="p">,</span> <span class="s2">&quot;executable&quot;</span><span class="p">,</span> <span class="s2">&quot;qout_path&quot;</span><span class="p">,</span> <span class="s2">&quot;qerr_path&quot;</span><span class="p">,</span>
+                               <span class="n">stdin</span><span class="o">=</span><span class="s2">&quot;stdin&quot;</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="s2">&quot;stdout&quot;</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="s2">&quot;stderr&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertMultiLineEqual</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s2">#!/bin/bash</span>
+<span class="s2">cd /launch_dir</span>
+<span class="s2"># OpenMp Environment</span>
+<span class="s2">export OMP_NUM_THREADS=1</span>
+
+<span class="s2"># Commands before execution</span>
+<span class="s2">source ~/env1.sh</span>
+
+<span class="s2">/home/local/bin/mpirun -n 1 executable &lt; stdin &gt; stdout 2&gt; stderr</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="SlurmAdapterTest"><a class="viewcode-back" href="../../../../../pymatgen.io.abinit.tests.test_qadapters.html#pymatgen.io.abinit.tests.test_qadapters.SlurmAdapterTest">[docs]</a><span class="k">class</span> <span class="nc">SlurmAdapterTest</span><span class="p">(</span><span class="n">PymatgenTest</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Test suite for Slurm adapter.&quot;&quot;&quot;</span>
+    <span class="n">QDICT</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s2">priority: 5</span>
+<span class="s2">queue:</span>
+<span class="s2">  qtype: slurm</span>
+<span class="s2">  qname: Oban</span>
+<span class="s2">  qparams:</span>
+<span class="s2">      account: user_account</span>
+<span class="s2">      mail_user: user@mail.com</span>
+<span class="s2">limits:</span>
+<span class="s2">  timelimit: 10:00</span>
+<span class="s2">  min_cores: 3</span>
+<span class="s2">  max_cores: 16</span>
+<span class="s2">job:</span>
+<span class="s2">  mpi_runner: mpirun</span>
+<span class="s2">  # pre_run is a string in verbatim mode (note |)</span>
+<span class="s2">  setup:</span>
+<span class="s2">      - echo $</span><span class="si">{SLURM_JOB_NODELIST}</span><span class="s2"></span>
+<span class="s2">      - ulimit -s unlimited</span>
+<span class="s2">  modules:</span>
+<span class="s2">      - intel/compilerpro/13.0.1.117</span>
+<span class="s2">      - fftw3/intel/3.3</span>
+<span class="s2">  shell_env:</span>
+<span class="s2">      PATH: /home/user/bin:$PATH</span>
+<span class="s2">hardware:</span>
+<span class="s2">   # Mandatory</span>
+<span class="s2">   num_nodes: 2</span>
+<span class="s2">   sockets_per_node: 2</span>
+<span class="s2">   cores_per_socket: 4</span>
+<span class="s2">   mem_per_node: 8 Gb</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SlurmAdapterTest.test_methods"><a class="viewcode-back" href="../../../../../pymatgen.io.abinit.tests.test_qadapters.html#pymatgen.io.abinit.tests.test_qadapters.SlurmAdapterTest.test_methods">[docs]</a>    <span class="k">def</span> <span class="nf">test_methods</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">maxDiff</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">qad</span> <span class="o">=</span> <span class="n">make_qadapter</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">QDICT</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">qad</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">mpi_runner</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="n">qad</span><span class="o">.</span><span class="n">QTYPE</span> <span class="o">==</span> <span class="s2">&quot;slurm&quot;</span> 
+        <span class="k">assert</span> <span class="n">qad</span><span class="o">.</span><span class="n">has_mpi</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">qad</span><span class="o">.</span><span class="n">has_omp</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">mpi_procs</span><span class="p">,</span> <span class="n">qad</span><span class="o">.</span><span class="n">omp_threads</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">qad</span><span class="o">.</span><span class="n">priority</span> <span class="o">==</span> <span class="mi">5</span> <span class="ow">and</span> <span class="n">qad</span><span class="o">.</span><span class="n">num_launches</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">qad</span><span class="o">.</span><span class="n">last_launch</span> <span class="ow">is</span> <span class="kc">None</span>
+
+        <span class="n">qad</span><span class="o">.</span><span class="n">set_mpi_procs</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+
+        <span class="n">s</span> <span class="o">=</span> <span class="n">qad</span><span class="o">.</span><span class="n">get_script_str</span><span class="p">(</span><span class="s2">&quot;job_name&quot;</span><span class="p">,</span> <span class="s2">&quot;/launch_dir&quot;</span><span class="p">,</span> <span class="s2">&quot;executable&quot;</span><span class="p">,</span> <span class="s2">&quot;qout_path&quot;</span><span class="p">,</span> <span class="s2">&quot;qerr_path&quot;</span><span class="p">,</span>
+                               <span class="n">stdin</span><span class="o">=</span><span class="s2">&quot;stdin&quot;</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="s2">&quot;stdout&quot;</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="s2">&quot;stderr&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertMultiLineEqual</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s2">#!/bin/bash</span>
+
+<span class="s2">#SBATCH --partition=Oban</span>
+<span class="s2">#SBATCH --job-name=job_name</span>
+<span class="s2">#SBATCH --ntasks=4</span>
+<span class="s2">#SBATCH --mem-per-cpu=1024</span>
+<span class="s2">#SBATCH --time=0-0:10:0</span>
+<span class="s2">#SBATCH --account=user_account</span>
+<span class="s2">#SBATCH --mail-user=user@mail.com</span>
+<span class="s2">#SBATCH --output=qout_path</span>
+<span class="s2">#SBATCH --error=qerr_path</span>
+<span class="s2">cd /launch_dir</span>
+<span class="s2"># Setup section</span>
+<span class="s2">echo $</span><span class="si">{SLURM_JOB_NODELIST}</span><span class="s2"></span>
+<span class="s2">ulimit -s unlimited</span>
+
+<span class="s2"># Load Modules</span>
+<span class="s2">module purge</span>
+<span class="s2">module load intel/compilerpro/13.0.1.117 2&gt;&gt; mods.err</span>
+<span class="s2">module load fftw3/intel/3.3 2&gt;&gt; mods.err</span>
+
+<span class="s2"># OpenMp Environment</span>
+<span class="s2">export OMP_NUM_THREADS=1</span>
+<span class="s2"># Shell Environment</span>
+<span class="s2">export PATH=/home/user/bin:$PATH</span>
+
+<span class="s2">mpirun -n 4 executable &lt; stdin &gt; stdout 2&gt; stderr</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="p">)</span></div></div>
+        <span class="c1">#assert 0</span>
+        <span class="c1">#qad.set_omp_threads(1)</span>
+        <span class="c1">#assert qad.has_omp</span>
+
+
+<div class="viewcode-block" id="PbsProadapterTest"><a class="viewcode-back" href="../../../../../pymatgen.io.abinit.tests.test_qadapters.html#pymatgen.io.abinit.tests.test_qadapters.PbsProadapterTest">[docs]</a><span class="k">class</span> <span class="nc">PbsProadapterTest</span><span class="p">(</span><span class="n">PymatgenTest</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Test suite for PbsPro adapter.&quot;&quot;&quot;</span>
+    <span class="n">QDICT</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s2">priority: 1</span>
+<span class="s2">queue:</span>
+<span class="s2">    qtype: pbspro</span>
+<span class="s2">    qname: fat</span>
+<span class="s2">    qparams:</span>
+<span class="s2">        group_list: naps</span>
+<span class="s2">limits:</span>
+<span class="s2">    timelimit: 0:0:10</span>
+<span class="s2">    min_cores: 3</span>
+<span class="s2">    max_cores: 200</span>
+<span class="s2">job:</span>
+<span class="s2">    mpi_runner: mpirun</span>
+<span class="s2">hardware:</span>
+<span class="s2">    num_nodes: 100</span>
+<span class="s2">    sockets_per_node: 2</span>
+<span class="s2">    cores_per_socket: 4</span>
+<span class="s2">    mem_per_node: 8 Gb&quot;&quot;&quot;</span><span class="p">)</span>
+    <span class="n">QDICT_SHARED</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s2">priority: 1</span>
+<span class="s2">queue:</span>
+<span class="s2">    qtype: pbspro</span>
+<span class="s2">    qname: fat_shared</span>
+<span class="s2">    qnodes: shared</span>
+<span class="s2">    qparams:</span>
+<span class="s2">        group_list: naps</span>
+<span class="s2">limits:</span>
+<span class="s2">    timelimit: 0:0:10</span>
+<span class="s2">    min_cores: 3</span>
+<span class="s2">    max_cores: 200</span>
+<span class="s2">    min_mem_per_proc: 2000</span>
+<span class="s2">master_mem_overhead: 1000</span>
+<span class="s2">job:</span>
+<span class="s2">    mpi_runner: mpirun</span>
+<span class="s2">hardware:</span>
+<span class="s2">    num_nodes: 100</span>
+<span class="s2">    sockets_per_node: 2</span>
+<span class="s2">    cores_per_socket: 12</span>
+<span class="s2">    mem_per_node: 48000 Mb&quot;&quot;&quot;</span><span class="p">)</span>
+    <span class="n">QDICT_EXCLUSIVE</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s2">priority: 1</span>
+<span class="s2">queue:</span>
+<span class="s2">    qtype: pbspro</span>
+<span class="s2">    qname: fat_exclusive</span>
+<span class="s2">    qnodes: exclusive</span>
+<span class="s2">    qparams:</span>
+<span class="s2">        group_list: naps</span>
+<span class="s2">limits:</span>
+<span class="s2">    timelimit: 0:0:10</span>
+<span class="s2">    min_cores: 3</span>
+<span class="s2">    max_cores: 200</span>
+<span class="s2">    min_mem_per_proc: 2000</span>
+<span class="s2">master_mem_overhead: 1000</span>
+<span class="s2">job:</span>
+<span class="s2">    mpi_runner: mpirun</span>
+<span class="s2">hardware:</span>
+<span class="s2">    num_nodes: 100</span>
+<span class="s2">    sockets_per_node: 2</span>
+<span class="s2">    cores_per_socket: 12</span>
+<span class="s2">    mem_per_node: 48000 Mb&quot;&quot;&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PbsProadapterTest.test_methods"><a class="viewcode-back" href="../../../../../pymatgen.io.abinit.tests.test_qadapters.html#pymatgen.io.abinit.tests.test_qadapters.PbsProadapterTest.test_methods">[docs]</a>    <span class="k">def</span> <span class="nf">test_methods</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">maxDiff</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">aequal</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span>
+
+        <span class="n">qad</span> <span class="o">=</span> <span class="n">make_qadapter</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">QDICT</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertMSONable</span><span class="p">(</span><span class="n">qad</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">qad</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">mpi_runner</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="n">qad</span><span class="o">.</span><span class="n">QTYPE</span> <span class="o">==</span> <span class="s2">&quot;pbspro&quot;</span> <span class="ow">and</span> <span class="n">qad</span><span class="o">.</span><span class="n">has_mpi</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">qad</span><span class="o">.</span><span class="n">has_omp</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="n">qad</span><span class="o">.</span><span class="n">mpi_procs</span><span class="p">,</span> <span class="n">qad</span><span class="o">.</span><span class="n">omp_threads</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">qad</span><span class="o">.</span><span class="n">priority</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">qad</span><span class="o">.</span><span class="n">num_launches</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">qad</span><span class="o">.</span><span class="n">last_launch</span> <span class="ow">is</span> <span class="kc">None</span>
+
+        <span class="c1">#qad.set_mpi_procs(4)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">qad</span><span class="o">.</span><span class="n">get_script_str</span><span class="p">(</span><span class="s2">&quot;job_name&quot;</span><span class="p">,</span> <span class="s2">&quot;/launch_dir&quot;</span><span class="p">,</span> <span class="s2">&quot;executable&quot;</span><span class="p">,</span> <span class="s2">&quot;qout_path&quot;</span><span class="p">,</span> <span class="s2">&quot;qerr_path&quot;</span><span class="p">,</span>
+                               <span class="n">stdin</span><span class="o">=</span><span class="s2">&quot;stdin&quot;</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="s2">&quot;stdout&quot;</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="s2">&quot;stderr&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertMultiLineEqual</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s2">#!/bin/bash</span>
+
+<span class="s2">#PBS -q fat</span>
+<span class="s2">#PBS -N job_name</span>
+<span class="s2">#PBS -l select=3:ncpus=1:vmem=1024mb:mpiprocs=1</span>
+<span class="s2">#PBS -l pvmem=1024mb</span>
+<span class="s2">#PBS -l walltime=0:0:10</span>
+<span class="s2">#PBS -W group_list=naps</span>
+<span class="s2">#PBS -o qout_path</span>
+<span class="s2">#PBS -e qerr_path</span>
+<span class="s2">cd /launch_dir</span>
+<span class="s2"># OpenMp Environment</span>
+<span class="s2">export OMP_NUM_THREADS=1</span>
+<span class="s2">mpirun -n 3 executable &lt; stdin &gt; stdout 2&gt; stderr</span>
+<span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">mem</span> <span class="o">=</span> <span class="mi">1024</span>
+        <span class="n">qad</span><span class="o">.</span><span class="n">set_mem_per_proc</span><span class="p">(</span><span class="n">mem</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">qad</span><span class="p">)</span>
+
+        <span class="n">qad</span><span class="o">.</span><span class="n">set_mpi_procs</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+        <span class="n">s</span><span class="p">,</span> <span class="n">params</span> <span class="o">=</span> <span class="n">qad</span><span class="o">.</span><span class="n">get_select</span><span class="p">(</span><span class="n">ret_dict</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="c1"># IN_CORE PURE MPI: MPI: 4, OMP: 1</span>
+        <span class="n">aequal</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> 
+          <span class="p">{</span><span class="s1">&#39;ncpus&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;chunks&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;mpiprocs&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;vmem&quot;</span><span class="p">:</span> <span class="n">mem</span><span class="p">})</span>
+
+        <span class="n">qad</span><span class="o">.</span><span class="n">set_omp_threads</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">s</span><span class="p">,</span> <span class="n">params</span> <span class="o">=</span> <span class="n">qad</span><span class="o">.</span><span class="n">get_select</span><span class="p">(</span><span class="n">ret_dict</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="c1"># HYBRID MPI-OPENMP run, perfectly divisible among nodes:  MPI: 4, OMP: 2</span>
+        <span class="n">aequal</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> 
+            <span class="p">{</span><span class="s1">&#39;vmem&#39;</span><span class="p">:</span> <span class="n">mem</span><span class="p">,</span> <span class="s1">&#39;ncpus&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;chunks&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;ompthreads&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;mpiprocs&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
+
+        <span class="n">qad</span><span class="o">.</span><span class="n">set_mpi_procs</span><span class="p">(</span><span class="mi">12</span><span class="p">)</span>
+        <span class="n">s</span><span class="p">,</span> <span class="n">params</span> <span class="o">=</span> <span class="n">qad</span><span class="o">.</span><span class="n">get_select</span><span class="p">(</span><span class="n">ret_dict</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="c1"># HYBRID MPI-OPENMP run, perfectly divisible among nodes:  MPI: 12, OMP: 2</span>
+        <span class="n">aequal</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> 
+            <span class="p">{</span><span class="s1">&#39;vmem&#39;</span><span class="p">:</span> <span class="n">mem</span><span class="p">,</span> <span class="s1">&#39;ncpus&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;chunks&#39;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span> <span class="s1">&#39;ompthreads&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;mpiprocs&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
+
+        <span class="n">qad</span><span class="o">.</span><span class="n">set_omp_threads</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+        <span class="n">qad</span><span class="o">.</span><span class="n">set_mpi_procs</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+        <span class="n">s</span><span class="p">,</span> <span class="n">params</span> <span class="o">=</span> <span class="n">qad</span><span class="o">.</span><span class="n">get_select</span><span class="p">(</span><span class="n">ret_dict</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="c1"># HYBRID MPI-OPENMP, NOT commensurate with nodes:  MPI: 3, OMP: 5</span>
+        <span class="n">aequal</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> 
+            <span class="p">{</span><span class="s1">&#39;vmem&#39;</span><span class="p">:</span> <span class="n">mem</span><span class="p">,</span> <span class="s1">&#39;ncpus&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;chunks&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;ompthreads&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;mpiprocs&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
+
+        <span class="c1"># Testing the handling of master memory overhead</span>
+        <span class="c1"># Shared mode (the nodes might be shared amongst different jobs from different users)</span>
+        <span class="n">qad_shared</span> <span class="o">=</span> <span class="n">make_qadapter</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">QDICT_SHARED</span><span class="p">)</span>
+        <span class="n">aequal</span><span class="p">(</span><span class="n">qad_shared</span><span class="o">.</span><span class="n">hw</span><span class="o">.</span><span class="n">mem_per_node</span><span class="p">,</span> <span class="mi">48000</span><span class="p">)</span>
+        <span class="n">qad_shared</span><span class="o">.</span><span class="n">set_mpi_procs</span><span class="p">(</span><span class="mi">15</span><span class="p">)</span>
+        <span class="n">qad_shared</span><span class="o">.</span><span class="n">set_mem_per_proc</span><span class="p">(</span><span class="mi">6000</span><span class="p">)</span>
+        <span class="n">aequal</span><span class="p">(</span><span class="n">qad_shared</span><span class="o">.</span><span class="n">get_select</span><span class="p">(),</span> <span class="s1">&#39;1:ncpus=1:vmem=7000mb:mpiprocs=1+&#39;</span>
+                                        <span class="s1">&#39;14:ncpus=1:vmem=6000mb:mpiprocs=1&#39;</span><span class="p">)</span>
+        <span class="n">qad_shared</span><span class="o">.</span><span class="n">set_mpi_procs</span><span class="p">(</span><span class="mi">64</span><span class="p">)</span>
+        <span class="n">qad_shared</span><span class="o">.</span><span class="n">set_mem_per_proc</span><span class="p">(</span><span class="mi">3500</span><span class="p">)</span>
+        <span class="n">qad_shared</span><span class="o">.</span><span class="n">set_master_mem_overhead</span><span class="p">(</span><span class="mi">4000</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertMSONable</span><span class="p">(</span><span class="n">qad_shared</span><span class="p">)</span>
+        <span class="n">aequal</span><span class="p">(</span><span class="n">qad_shared</span><span class="o">.</span><span class="n">get_select</span><span class="p">(),</span> <span class="s1">&#39;1:ncpus=1:vmem=7500mb:mpiprocs=1+&#39;</span>
+                                        <span class="s1">&#39;63:ncpus=1:vmem=3500mb:mpiprocs=1&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Exclusive mode (the nodes are attributed exclusively to a given user)</span>
+        <span class="n">qad_exclusive</span> <span class="o">=</span> <span class="n">make_qadapter</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">QDICT_EXCLUSIVE</span><span class="p">)</span>
+        <span class="n">aequal</span><span class="p">(</span><span class="n">qad_exclusive</span><span class="o">.</span><span class="n">hw</span><span class="o">.</span><span class="n">mem_per_node</span><span class="p">,</span> <span class="mi">48000</span><span class="p">)</span>
+        <span class="n">qad_exclusive</span><span class="o">.</span><span class="n">set_mpi_procs</span><span class="p">(</span><span class="mi">47</span><span class="p">)</span>
+        <span class="n">qad_exclusive</span><span class="o">.</span><span class="n">set_mem_per_proc</span><span class="p">(</span><span class="mi">2000</span><span class="p">)</span>
+        <span class="n">qad_exclusive</span><span class="o">.</span><span class="n">set_master_mem_overhead</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertMSONable</span><span class="p">(</span><span class="n">qad_exclusive</span><span class="p">)</span>
+        <span class="n">aequal</span><span class="p">(</span><span class="n">qad_exclusive</span><span class="o">.</span><span class="n">get_select</span><span class="p">(),</span> <span class="s1">&#39;1:ncpus=23:vmem=48000mb:mpiprocs=23+&#39;</span>
+                                           <span class="s1">&#39;1:ncpus=24:vmem=48000mb:mpiprocs=24&#39;</span><span class="p">)</span>
+        <span class="n">qad_exclusive</span><span class="o">.</span><span class="n">set_mpi_procs</span><span class="p">(</span><span class="mi">48</span><span class="p">)</span>
+        <span class="n">aequal</span><span class="p">(</span><span class="n">qad_exclusive</span><span class="o">.</span><span class="n">get_select</span><span class="p">(),</span> <span class="s1">&#39;1:ncpus=1:vmem=48000mb:mpiprocs=1+&#39;</span>
+                                           <span class="s1">&#39;1:ncpus=24:vmem=48000mb:mpiprocs=24+&#39;</span>
+                                           <span class="s1">&#39;1:ncpus=23:vmem=48000mb:mpiprocs=23&#39;</span><span class="p">)</span>
+        <span class="n">qad_exclusive</span><span class="o">.</span><span class="n">set_mpi_procs</span><span class="p">(</span><span class="mi">50</span><span class="p">)</span>
+        <span class="n">aequal</span><span class="p">(</span><span class="n">qad_exclusive</span><span class="o">.</span><span class="n">get_select</span><span class="p">(),</span> <span class="s1">&#39;1:ncpus=2:vmem=48000mb:mpiprocs=2+&#39;</span>
+                                           <span class="s1">&#39;2:ncpus=24:vmem=48000mb:mpiprocs=24&#39;</span><span class="p">)</span></div></div>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">unittest2</span> <span class="k">as</span> <span class="nn">unittest</span>
+    <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2011, Pymatgen Development Team.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
+    </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+<script type="text/javascript">
+  (function() {
+    var ga = document.createElement('script');
+    ga.src = ('https:' == document.location.protocol ?
+              'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    ga.setAttribute('async', 'true');
+    document.documentElement.firstChild.appendChild(ga);
+  })();
+</script>
+</div>
+
+  </body>
+</html>

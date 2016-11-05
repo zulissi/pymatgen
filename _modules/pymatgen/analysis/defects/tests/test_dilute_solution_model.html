@@ -1,0 +1,241 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pymatgen.analysis.defects.tests.test_dilute_solution_model &#8212; pymatgen 4.5.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../_static/proBlue.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '4.5.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../../../_static/favicon.ico"/>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" />
+    <link rel="top" title="pymatgen 4.5.0 documentation" href="../../../../../index.html" />
+    <link rel="up" title="Module code" href="../../../../index.html" />
+ 
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-33990148-1']);
+  _gaq.push(['_trackPageview']);
+</script>
+
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pymatgen.analysis.defects.tests.test_dilute_solution_model</h1><div class="highlight"><pre>
+<span></span><span class="c1"># coding: utf-8</span>
+<span class="c1"># Copyright (c) Pymatgen Development Team.</span>
+<span class="c1"># Distributed under the terms of the MIT License.</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">unicode_literals</span>
+
+<span class="kn">import</span> <span class="nn">unittest2</span> <span class="k">as</span> <span class="nn">unittest</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+<span class="kn">from</span> <span class="nn">monty.json</span> <span class="k">import</span> <span class="n">MontyDecoder</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.defects.dilute_solution_model</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">random</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">sympy</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">sympy</span> <span class="o">=</span> <span class="kc">None</span>
+
+<span class="n">test_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">__file__</span><span class="p">),</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span>
+                        <span class="s1">&#39;test_files&#39;</span><span class="p">)</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;mp1048_defect_formation_energies.json&#39;</span><span class="p">))</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+    <span class="n">formation_energy_dict</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">MontyDecoder</span><span class="p">)</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;mp1048_raw_defect_energies.json&#39;</span><span class="p">))</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+    <span class="n">raw_energy_dict</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">MontyDecoder</span><span class="p">)</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_dir</span><span class="p">,</span> <span class="s1">&#39;mp1487_raw_defect_energies.json&#39;</span><span class="p">))</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+    <span class="n">mp1487_raw_energy_dict</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">cls</span><span class="o">=</span><span class="n">MontyDecoder</span><span class="p">)</span>
+
+
+<span class="c1"># TODO (from SP): You MUST redo this entire test. The whole tset is</span>
+<span class="c1"># monstrously slow. It takes more than 10 mins to get through this test alone.</span>
+
+
+<span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">((</span><span class="ow">not</span> <span class="n">sympy</span><span class="p">)</span> <span class="ow">or</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span>
+                 <span class="s2">&quot;sympy not present or random skip.&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="DiluteSolutionModelTest"><a class="viewcode-back" href="../../../../../pymatgen.analysis.defects.tests.test_dilute_solution_model.html#pymatgen.analysis.defects.tests.test_dilute_solution_model.DiluteSolutionModelTest">[docs]</a><span class="k">class</span> <span class="nc">DiluteSolutionModelTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="DiluteSolutionModelTest.setUp"><a class="viewcode-back" href="../../../../../pymatgen.analysis.defects.tests.test_dilute_solution_model.html#pymatgen.analysis.defects.tests.test_dilute_solution_model.DiluteSolutionModelTest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Setup mandatory inputs for dilute_solution_model</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">e0</span> <span class="o">=</span> <span class="n">raw_energy_dict</span><span class="p">[</span><span class="s1">&#39;bulk_energy&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">asites</span> <span class="o">=</span> <span class="n">raw_energy_dict</span><span class="p">[</span><span class="s1">&#39;antisites&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vac</span> <span class="o">=</span> <span class="n">raw_energy_dict</span><span class="p">[</span><span class="s1">&#39;vacancies&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">struct</span> <span class="o">=</span> <span class="n">raw_energy_dict</span><span class="p">[</span><span class="s1">&#39;structure&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">T</span> <span class="o">=</span> <span class="mi">600</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trial_mu</span> <span class="o">=</span> <span class="n">formation_energy_dict</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="p">)][</span><span class="s1">&#39;chemical_potential&#39;</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="DiluteSolutionModelTest.test_formation_energies_without_chem_pot"><a class="viewcode-back" href="../../../../../pymatgen.analysis.defects.tests.test_dilute_solution_model.html#pymatgen.analysis.defects.tests.test_dilute_solution_model.DiluteSolutionModelTest.test_formation_energies_without_chem_pot">[docs]</a>    <span class="k">def</span> <span class="nf">test_formation_energies_without_chem_pot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Should generate formation energies without input chempot</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">energies</span><span class="p">,</span> <span class="n">chem_pot</span> <span class="o">=</span> <span class="n">dilute_solution_model</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">struct</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">e0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vac</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">asites</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+            <span class="n">generate</span><span class="o">=</span><span class="s1">&#39;energy&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">energies</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">chem_pot</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DiluteSolutionModelTest.test_formation_energies_with_chem_pot"><a class="viewcode-back" href="../../../../../pymatgen.analysis.defects.tests.test_dilute_solution_model.html#pymatgen.analysis.defects.tests.test_dilute_solution_model.DiluteSolutionModelTest.test_formation_energies_with_chem_pot">[docs]</a>    <span class="k">def</span> <span class="nf">test_formation_energies_with_chem_pot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">energies</span><span class="p">,</span> <span class="n">chem_pot</span> <span class="o">=</span> <span class="n">dilute_solution_model</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">struct</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">e0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vac</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">asites</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+            <span class="n">trial_chem_pot</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">trial_mu</span><span class="p">,</span> <span class="n">generate</span><span class="o">=</span><span class="s1">&#39;energy&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">energies</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">chem_pot</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DiluteSolutionModelTest.test_plot_data_without_chem_pot"><a class="viewcode-back" href="../../../../../pymatgen.analysis.defects.tests.test_dilute_solution_model.html#pymatgen.analysis.defects.tests.test_dilute_solution_model.DiluteSolutionModelTest.test_plot_data_without_chem_pot">[docs]</a>    <span class="k">def</span> <span class="nf">test_plot_data_without_chem_pot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conc_data</span><span class="p">,</span> <span class="n">en_data</span><span class="p">,</span> <span class="n">mu_data</span> <span class="o">=</span> <span class="n">dilute_solution_model</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">struct</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">e0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vac</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">asites</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+            <span class="n">generate</span><span class="o">=</span><span class="s1">&#39;plot&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">conc_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">en_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">mu_data</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">conc_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">mu_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">en_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DiluteSolutionModelTest.test_plot_data_with_chem_pot"><a class="viewcode-back" href="../../../../../pymatgen.analysis.defects.tests.test_dilute_solution_model.html#pymatgen.analysis.defects.tests.test_dilute_solution_model.DiluteSolutionModelTest.test_plot_data_with_chem_pot">[docs]</a>    <span class="k">def</span> <span class="nf">test_plot_data_with_chem_pot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">conc_data</span><span class="p">,</span> <span class="n">en_data</span><span class="p">,</span> <span class="n">mu_data</span> <span class="o">=</span> <span class="n">dilute_solution_model</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">struct</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">e0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vac</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">asites</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+            <span class="n">trial_chem_pot</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">trial_mu</span><span class="p">,</span> <span class="n">generate</span><span class="o">=</span><span class="s1">&#39;plot&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">conc_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">en_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">mu_data</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">conc_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">mu_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">en_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div></div>
+            <span class="c1"># print(plot_data[&#39;y&#39;])</span>
+
+
+<span class="nd">@unittest</span><span class="o">.</span><span class="n">skipIf</span><span class="p">((</span><span class="ow">not</span> <span class="n">sympy</span><span class="p">)</span> <span class="ow">or</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span>
+                 <span class="s2">&quot;sympy not present or random skip.&quot;</span><span class="p">)</span>
+<div class="viewcode-block" id="SoluteSiteFinderTest"><a class="viewcode-back" href="../../../../../pymatgen.analysis.defects.tests.test_dilute_solution_model.html#pymatgen.analysis.defects.tests.test_dilute_solution_model.SoluteSiteFinderTest">[docs]</a><span class="k">class</span> <span class="nc">SoluteSiteFinderTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+<div class="viewcode-block" id="SoluteSiteFinderTest.setUp"><a class="viewcode-back" href="../../../../../pymatgen.analysis.defects.tests.test_dilute_solution_model.html#pymatgen.analysis.defects.tests.test_dilute_solution_model.SoluteSiteFinderTest.setUp">[docs]</a>    <span class="k">def</span> <span class="nf">setUp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Setup mandatory inputs for dilute_solution_model</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">e0</span> <span class="o">=</span> <span class="n">mp1487_raw_energy_dict</span><span class="p">[</span><span class="s1">&#39;bulk_energy&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">asites</span> <span class="o">=</span> <span class="n">mp1487_raw_energy_dict</span><span class="p">[</span><span class="s1">&#39;antisites&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vac</span> <span class="o">=</span> <span class="n">mp1487_raw_energy_dict</span><span class="p">[</span><span class="s1">&#39;vacancies&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">solutes</span> <span class="o">=</span> <span class="n">mp1487_raw_energy_dict</span><span class="p">[</span><span class="s1">&#39;solutes&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">struct</span> <span class="o">=</span> <span class="n">mp1487_raw_energy_dict</span><span class="p">[</span><span class="s1">&#39;structure&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">T</span> <span class="o">=</span> <span class="mi">1000</span></div>
+
+<div class="viewcode-block" id="SoluteSiteFinderTest.test_plot_data_without_chem_pot"><a class="viewcode-back" href="../../../../../pymatgen.analysis.defects.tests.test_dilute_solution_model.html#pymatgen.analysis.defects.tests.test_dilute_solution_model.SoluteSiteFinderTest.test_plot_data_without_chem_pot">[docs]</a>    <span class="k">def</span> <span class="nf">test_plot_data_without_chem_pot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">plot_data</span> <span class="o">=</span> <span class="n">solute_site_preference_finder</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">struct</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">e0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vac</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">asites</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">solutes</span><span class="p">,</span>
+            <span class="n">solute_concen</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">plot_data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SoluteSiteFinderTest.still_wait_plot_data_with_chem_pot"><a class="viewcode-back" href="../../../../../pymatgen.analysis.defects.tests.test_dilute_solution_model.html#pymatgen.analysis.defects.tests.test_dilute_solution_model.SoluteSiteFinderTest.still_wait_plot_data_with_chem_pot">[docs]</a>    <span class="k">def</span> <span class="nf">still_wait_plot_data_with_chem_pot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">plot_data</span> <span class="o">=</span> <span class="n">dilute_solution_model</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">struct</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">e0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vac</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">asites</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+            <span class="n">trial_chem_pot</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">trial_mu</span><span class="p">,</span> <span class="n">generate</span><span class="o">=</span><span class="s1">&#39;plot&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">plot_data</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">plot_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">assertIsNotNone</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div></div>
+
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../index.html">pymatgen 4.5.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2011, Pymatgen Development Team.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
+    </div>
+<div class="footer">This page uses <a href="http://analytics.google.com/">
+Google Analytics</a> to collect statistics. You can disable it by blocking
+the JavaScript coming from www.google-analytics.com.
+<script type="text/javascript">
+  (function() {
+    var ga = document.createElement('script');
+    ga.src = ('https:' == document.location.protocol ?
+              'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    ga.setAttribute('async', 'true');
+    document.documentElement.firstChild.appendChild(ga);
+  })();
+</script>
+</div>
+
+  </body>
+</html>

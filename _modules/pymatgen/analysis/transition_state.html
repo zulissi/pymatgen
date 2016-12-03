@@ -101,7 +101,7 @@
 <span class="sd">    An NEBAnalysis class.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">energies</span><span class="p">,</span> <span class="n">forces</span><span class="p">,</span> <span class="n">structures</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">energies</span><span class="p">,</span> <span class="n">forces</span><span class="p">,</span> <span class="n">structures</span><span class="p">,</span> <span class="n">spline_options</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initializes an NEBAnalysis from the cumulative root mean squared distances</span>
 <span class="sd">        between structures, the energies, the forces, the structures and the</span>
@@ -113,23 +113,54 @@
 <span class="sd">            forces: Tangent forces along the reaction coordinate.</span>
 <span class="sd">            structures ([Structure]): List of Structures along reaction</span>
 <span class="sd">                coordinate.</span>
+<span class="sd">            spline_options (dict): Options for cubic spline. For example,</span>
+<span class="sd">                {&quot;saddle_point&quot;: &quot;zero_slope&quot;} forces the slope at the saddle to</span>
+<span class="sd">                be zero.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">energies</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">energies</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">forces</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">forces</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">structures</span> <span class="o">=</span> <span class="n">structures</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spline_options</span> <span class="o">=</span> <span class="n">spline_options</span> <span class="k">if</span> <span class="n">spline_options</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> \
+            <span class="k">else</span> <span class="p">{}</span>
 
         <span class="c1"># We do a piecewise interpolation between the points. Each spline (</span>
         <span class="c1"># cubic by default) is constrained by the boundary conditions of the</span>
         <span class="c1"># energies and the tangent force, i.e., the derivative of</span>
         <span class="c1"># the energy at each pair of points.</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_spline</span><span class="p">(</span><span class="n">spline_options</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">spline_options</span><span class="p">)</span>
+
+<div class="viewcode-block" id="NEBAnalysis.setup_spline"><a class="viewcode-back" href="../../../pymatgen.analysis.transition_state.html#pymatgen.analysis.transition_state.NEBAnalysis.setup_spline">[docs]</a>    <span class="k">def</span> <span class="nf">setup_spline</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spline_options</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Setup of the options for the spline interpolation</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            spline_options (dict): Options for cubic spline. For example,</span>
+<span class="sd">                {&quot;saddle_point&quot;: &quot;zero_slope&quot;} forces the slope at the saddle to</span>
+<span class="sd">                be zero.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">spline_options</span> <span class="o">=</span> <span class="n">spline_options</span>
         <span class="k">if</span> <span class="n">scipy_old_piecewisepolynomial</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">spline_options</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Option for saddle point not available with&#39;</span>
+                                   <span class="s1">&#39;old scipy implementation&#39;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">spline</span> <span class="o">=</span> <span class="n">PiecewisePolynomial</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">energies</span><span class="p">,</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">forces</span><span class="p">])</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
                 <span class="n">orders</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># New scipy implementation for scipy &gt; 0.18.0</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">spline</span> <span class="o">=</span> <span class="n">CubicSpline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">energies</span><span class="p">,</span> <span class="n">bc_type</span><span class="o">=</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">spline_options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;saddle_point&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;zero_slope&#39;</span><span class="p">:</span>
+                <span class="n">imax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">energies</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">spline</span> <span class="o">=</span> <span class="n">CubicSpline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[:</span><span class="n">imax</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span>
+                                          <span class="n">y</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">energies</span><span class="p">[:</span><span class="n">imax</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span>
+                                          <span class="n">bc_type</span><span class="o">=</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span>
+                <span class="n">cspline2</span> <span class="o">=</span> <span class="n">CubicSpline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="n">imax</span><span class="p">:],</span> <span class="n">y</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">energies</span><span class="p">[</span><span class="n">imax</span><span class="p">:],</span>
+                                       <span class="n">bc_type</span><span class="o">=</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">spline</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">c</span><span class="o">=</span><span class="n">cspline2</span><span class="o">.</span><span class="n">c</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">cspline2</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">spline</span> <span class="o">=</span> <span class="n">CubicSpline</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">energies</span><span class="p">,</span>
+                                          <span class="n">bc_type</span><span class="o">=</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span></div>
 
     <span class="nd">@classmethod</span>
 <div class="viewcode-block" id="NEBAnalysis.from_outcars"><a class="viewcode-back" href="../../../pymatgen.analysis.transition_state.html#pymatgen.analysis.transition_state.NEBAnalysis.from_outcars">[docs]</a>    <span class="k">def</span> <span class="nf">from_outcars</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">outcars</span><span class="p">,</span> <span class="n">structures</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -176,7 +207,8 @@
         <span class="n">energies</span> <span class="o">-=</span> <span class="n">energies</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">forces</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">forces</span><span class="p">)</span>
         <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">r</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">energies</span><span class="o">=</span><span class="n">energies</span><span class="p">,</span> <span class="n">forces</span><span class="o">=</span><span class="n">forces</span><span class="p">,</span> <span class="n">structures</span><span class="o">=</span><span class="n">structures</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">cls</span><span class="p">(</span><span class="n">r</span><span class="o">=</span><span class="n">r</span><span class="p">,</span> <span class="n">energies</span><span class="o">=</span><span class="n">energies</span><span class="p">,</span> <span class="n">forces</span><span class="o">=</span><span class="n">forces</span><span class="p">,</span>
+                   <span class="n">structures</span><span class="o">=</span><span class="n">structures</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="NEBAnalysis.get_extrema"><a class="viewcode-back" href="../../../pymatgen.analysis.transition_state.html#pymatgen.analysis.transition_state.NEBAnalysis.get_extrema">[docs]</a>    <span class="k">def</span> <span class="nf">get_extrema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">normalize_rxn_coordinate</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>

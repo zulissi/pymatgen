@@ -65,24 +65,40 @@
 <span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span><span class="p">,</span> <span class="n">unicode_literals</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">This module defines classes for point defects</span>
+<span class="sd">This module defines classes for point defects.</span>
 <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;Bharat Medasani, Nils E. R. Zimmermann&quot;</span>
+<span class="n">__copyright__</span> <span class="o">=</span> <span class="s2">&quot;Copyright 2011, The Materials Project&quot;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="s2">&quot;1.0&quot;</span>
+<span class="n">__maintainer__</span> <span class="o">=</span> <span class="s2">&quot;Bharat Medasani, Nils E. R. Zimmermann&quot;</span>
+<span class="n">__email__</span> <span class="o">=</span> <span class="s2">&quot;mbkumar@gmail.com, n.zimmermann@tuhh.de&quot;</span>
+<span class="n">__status__</span> <span class="o">=</span> <span class="s2">&quot;Production&quot;</span>
+<span class="n">__date__</span> <span class="o">=</span> <span class="s2">&quot;Nov 28, 2016&quot;</span>
+
 
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">abc</span>
 <span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">bisect</span> <span class="k">import</span> <span class="n">bisect_left</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">math</span> <span class="k">import</span> <span class="n">fabs</span>
 
 <span class="kn">from</span> <span class="nn">pymatgen.core.periodic_table</span> <span class="k">import</span> <span class="n">Specie</span><span class="p">,</span> <span class="n">Element</span>
 <span class="kn">from</span> <span class="nn">pymatgen.core.sites</span> <span class="k">import</span> <span class="n">PeriodicSite</span>
-<span class="kn">from</span> <span class="nn">pymatgen.symmetry.analyzer</span> <span class="k">import</span> <span class="n">SpacegroupAnalyzer</span>
+<span class="kn">from</span> <span class="nn">pymatgen.core.structure</span> <span class="k">import</span> <span class="n">Structure</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.structure_analyzer</span> <span class="k">import</span> <span class="n">OrderParameters</span>
+<span class="kn">from</span> <span class="nn">pymatgen.symmetry.analyzer</span> <span class="k">import</span> <span class="n">SpacegroupAnalyzer</span><span class="p">,</span> \
+    <span class="n">SpacegroupOperations</span>
 <span class="kn">from</span> <span class="nn">pymatgen.io.zeopp</span> <span class="k">import</span> <span class="n">get_voronoi_nodes</span><span class="p">,</span> <span class="n">get_void_volume_surfarea</span><span class="p">,</span> \
     <span class="n">get_high_accuracy_voronoi_nodes</span>
 <span class="kn">from</span> <span class="nn">pymatgen.command_line.gulp_caller</span> <span class="k">import</span> <span class="n">get_energy_buckingham</span><span class="p">,</span> \
     <span class="n">get_energy_relax_structure_buckingham</span>
 <span class="kn">from</span> <span class="nn">pymatgen.analysis.structure_analyzer</span> <span class="k">import</span> <span class="n">VoronoiCoordFinder</span><span class="p">,</span> \
     <span class="n">RelaxationAnalyzer</span>
-<span class="kn">from</span> <span class="nn">pymatgen.analysis.structure_matcher</span> <span class="k">import</span> <span class="n">StructureMatcher</span>
+<span class="kn">from</span> <span class="nn">pymatgen.analysis.structure_matcher</span> <span class="k">import</span> <span class="n">StructureMatcher</span><span class="p">,</span> \
+    <span class="n">SpeciesComparator</span>
 <span class="kn">from</span> <span class="nn">pymatgen.analysis.bond_valence</span> <span class="k">import</span> <span class="n">BVAnalyzer</span>
 <span class="kn">import</span> <span class="nn">six</span>
 <span class="kn">from</span> <span class="nn">six.moves</span> <span class="k">import</span> <span class="nb">filter</span>
@@ -1560,6 +1576,831 @@
         <span class="c1">#    facecenter_dist_sites = vor_facecenter_struct.sites</span>
 
         <span class="c1">#return node_dist_sites, edgecenter_dist_sites, facecenter_dist_sites</span>
+
+
+<div class="viewcode-block" id="StructureMotifInterstitial"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.point_defects.html#pymatgen.analysis.defects.point_defects.StructureMotifInterstitial">[docs]</a><span class="k">class</span> <span class="nc">StructureMotifInterstitial</span><span class="p">(</span><span class="n">Defect</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Subclass of Defect to generate interstitial sites at positions</span>
+<span class="sd">    where the interstitialcy is coordinated by nearest neighbors</span>
+<span class="sd">    in a way that resembles basic structure motifs</span>
+<span class="sd">    (tetrahedra, octahedra, bcc) or an overlay of two motifs</span>
+<span class="sd">    (tetrahedral-octahedral).</span>
+<span class="sd">    The algorithm will be formally introducted in an upcoming publication</span>
+<span class="sd">    by Nils E. R. Zimmermann and Maciej Haranczyk,</span>
+<span class="sd">    and it is already used by the Python Charged Defect Toolkit</span>
+<span class="sd">    (PyCDT, https://arxiv.org/abs/1611.07481).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">__supported_types</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;tet&quot;</span><span class="p">,</span> <span class="s2">&quot;oct&quot;</span><span class="p">,</span> <span class="s2">&quot;bcc&quot;</span><span class="p">,</span> <span class="s2">&quot;tetoct&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">structure</span><span class="p">,</span> <span class="n">inter_elem</span><span class="p">,</span>
+                 <span class="n">motif_types</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;tet&quot;</span><span class="p">,</span> <span class="s2">&quot;oct&quot;</span><span class="p">,</span> <span class="s2">&quot;tetoct&quot;</span><span class="p">],</span>
+                 <span class="n">op_targets</span><span class="o">=</span><span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="n">op_threshs</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span>
+                 <span class="n">dl</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">fac_max_radius</span><span class="o">=</span><span class="mf">4.5</span><span class="p">,</span> <span class="n">drel_overlap</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                 <span class="n">write_timings</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate symmetrically distinct interstitial sites at positions</span>
+<span class="sd">        where the interstitial is coordinated by nearest neighbors</span>
+<span class="sd">        in a pattern that resembles a supported structure motif</span>
+<span class="sd">        (tetrahedra, octahedra, bcc) or an overlay of some motifs</span>
+<span class="sd">        (tetrahedral-octahedral).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            struct (Structure): input structure for which symmetrically</span>
+<span class="sd">                distinct interstitial sites are to be found.</span>
+<span class="sd">            inter_elem (string): element symbol of desired interstitial.</span>
+<span class="sd">            motif_types ([string]): list of structure motif types that are</span>
+<span class="sd">                to be considered.  Permissible types are:</span>
+<span class="sd">                tet (tetrahedron), oct (octahedron),</span>
+<span class="sd">                tetoct (tetrahedron-octahedron overlay).</span>
+<span class="sd">            op_targets ([float]): target values for the underlying order</span>
+<span class="sd">                parameters to recognize a given structural motif.</span>
+<span class="sd">            op_threshs ([float]): threshold values for the underlying order</span>
+<span class="sd">                parameters to still recognize a given structural motif</span>
+<span class="sd">                (i.e., for an OP value &gt;= threshold the coordination pattern</span>
+<span class="sd">                match is positive, for OP &lt; threshold the match is</span>
+<span class="sd">                negative.</span>
+<span class="sd">            dl (float): grid fineness in Angstrom.  The input</span>
+<span class="sd">                structure is divided into a grid of dimension</span>
+<span class="sd">                a/dl x b/dl x c/dl along the three crystallographic</span>
+<span class="sd">                directions, with a, b, and c being the lengths of</span>
+<span class="sd">                the three lattice vectors of the input unit cell.</span>
+<span class="sd">            fac_max_radius (float): factor to generate a (large) neighbor</span>
+<span class="sd">                list per grid point with a fixed large cutoff distance,</span>
+<span class="sd">                d_cutoff.  The list is then sorted to give the</span>
+<span class="sd">                neighbors in an ascending list in relative distance from</span>
+<span class="sd">                the interstitial site.  The relative distance between</span>
+<span class="sd">                an interstitial trial site and a &quot;bulk&quot; atom is calculated</span>
+<span class="sd">                by the distance, d, and the (ionic) radii of the two</span>
+<span class="sd">                species involved, (r_inter+r_bulk), yielding</span>
+<span class="sd">                d_rel = d / (r_inter+r_bulk).</span>
+<span class="sd">                Because d_cutoff = fac_max_radius * r_max,</span>
+<span class="sd">                where r_max is the largest site radius encountered in the</span>
+<span class="sd">                structure, fac_max_radius should always be larger than 2.</span>
+<span class="sd">            drel_overlap (float): relative distance that is considered</span>
+<span class="sd">                to flag an overlap between any two atoms.  It is used</span>
+<span class="sd">                a) to skip a given grid point because of overlap</span>
+<span class="sd">                between an interstitial trial site and any one atom</span>
+<span class="sd">                from the input structure and</span>
+<span class="sd">                b) to remove trial sites that are too close to each other.</span>
+<span class="sd">                The latter may or may not be desirable.  A future revision</span>
+<span class="sd">                should make this step optional.</span>
+<span class="sd">            write_timings (boolean): flag indicating whether or not to</span>
+<span class="sd">                write out times for sections of the interstitial search</span>
+<span class="sd">                (default: False).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">write_timings</span><span class="p">:</span>
+            <span class="n">file_time</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;time_interfinding.dat&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span>
+            <span class="n">tt0</span><span class="p">,</span> <span class="n">tc0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_structure</span> <span class="o">=</span> <span class="n">structure</span>
+        <span class="n">sgops</span> <span class="o">=</span> <span class="n">SpacegroupAnalyzer</span><span class="p">(</span><span class="n">structure</span><span class="p">)</span><span class="o">.</span><span class="n">get_space_group_operations</span><span class="p">()</span> <span class="c1"># get_spacegroup()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_motif_types</span> <span class="o">=</span> <span class="n">motif_types</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_unique_op_types</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_map_imotif_iop</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">imotif</span><span class="p">,</span> <span class="n">motif</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_motif_types</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">motif</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__supported_types</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;unsupported motif type: </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">motif</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_map_imotif_iop</span><span class="o">.</span><span class="n">append</span><span class="p">([])</span>
+            <span class="k">if</span> <span class="n">motif</span> <span class="o">==</span> <span class="s2">&quot;tet&quot;</span> <span class="ow">or</span> <span class="n">motif</span> <span class="o">==</span> <span class="s2">&quot;oct&quot;</span> <span class="ow">or</span> <span class="n">motif</span> <span class="o">==</span> <span class="s2">&quot;bcc&quot;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">motif</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unique_op_types</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_unique_op_types</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">motif</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_map_imotif_iop</span><span class="p">[</span><span class="n">imotif</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_unique_op_types</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">motif</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="n">motif</span> <span class="o">==</span> <span class="s2">&quot;tetoct&quot;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="s2">&quot;tet&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unique_op_types</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_unique_op_types</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;tet&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_map_imotif_iop</span><span class="p">[</span><span class="n">imotif</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_unique_op_types</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;tet&quot;</span><span class="p">))</span>
+                <span class="k">if</span> <span class="s2">&quot;oct&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unique_op_types</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_unique_op_types</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;oct&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_map_imotif_iop</span><span class="p">[</span><span class="n">imotif</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_unique_op_types</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;oct&quot;</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;cannot associate motif </span><span class="si">{}</span><span class="s2"> to any&quot;</span>
+                        <span class="s2">&quot; order parameter type.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">motif</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">motif_types</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">op_targets</span><span class="p">)</span> <span class="ow">or</span> \
+                <span class="nb">len</span><span class="p">(</span><span class="n">motif_types</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">op_threshs</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;list sizes of structure motif types,&quot;</span>
+                    <span class="s2">&quot; OP target values and OP threshold values are&quot;</span>
+                    <span class="s2">&quot; not equal.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_op_targets</span> <span class="o">=</span> <span class="n">op_targets</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_op_threshs</span> <span class="o">=</span> <span class="n">op_threshs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dl</span> <span class="o">=</span> <span class="n">dl</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_defect_sites</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_defect_types</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_defect_cns</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_defect_site_multiplicity</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Set up list of elements found in the input structure.</span>
+        <span class="n">elem_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">natoms_uc</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">structure</span><span class="p">:</span>
+            <span class="n">natoms_uc</span> <span class="o">=</span> <span class="n">natoms_uc</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">specie</span><span class="p">,</span> <span class="n">Element</span><span class="p">):</span>
+                <span class="n">elem</span> <span class="o">=</span> <span class="n">site</span><span class="o">.</span><span class="n">specie</span><span class="o">.</span><span class="n">symbol</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">specie</span><span class="p">,</span> <span class="n">Specie</span><span class="p">):</span>
+                <span class="n">elem</span> <span class="o">=</span> <span class="n">site</span><span class="o">.</span><span class="n">specie</span><span class="o">.</span><span class="n">element</span><span class="o">.</span><span class="n">symbol</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;unexpected instance type&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">elem</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">elem_list</span><span class="p">:</span>
+                <span class="n">elem_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">elem</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">inter_elem</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">elem_list</span><span class="p">:</span>
+            <span class="n">elem_list_plus_inter</span> <span class="o">=</span> <span class="n">elem_list</span> <span class="o">+</span> <span class="p">[</span><span class="n">inter_elem</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">elem_list_plus_inter</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">elem_list</span><span class="p">)</span>
+        <span class="n">nelems</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">elem_list</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">nelems</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;nelems &lt; 1&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Create a working supercell.</span>
+        <span class="n">sc_struct</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_structure</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">sc_struct</span><span class="o">.</span><span class="n">make_supercell</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]])</span>
+        <span class="n">natoms</span> <span class="o">=</span> <span class="n">natoms_uc</span>
+        <span class="n">lat</span> <span class="o">=</span> <span class="n">sc_struct</span><span class="o">.</span><span class="n">lattice</span>
+
+        <span class="k">if</span> <span class="n">write_timings</span><span class="p">:</span>
+            <span class="n">tt1</span><span class="p">,</span> <span class="n">tc1</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+            <span class="n">file_time</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;init </span><span class="si">{}</span><span class="s2"> </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tt1</span><span class="o">-</span><span class="n">tt0</span><span class="p">,</span> <span class="n">tc1</span><span class="o">-</span><span class="n">tc0</span><span class="p">))</span>
+            <span class="n">tt0</span><span class="p">,</span> <span class="n">tc0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+
+        <span class="c1"># Determine sensible radii of each site in the input structure.</span>
+        <span class="n">vire</span> <span class="o">=</span> <span class="n">ValenceIonicRadiusEvaluator</span><span class="p">(</span><span class="n">sc_struct</span><span class="p">)</span>
+        <span class="n">radii_sites</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">species_string_sites</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">isite</span><span class="p">,</span> <span class="n">site</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">vire</span><span class="o">.</span><span class="n">structure</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span>
+                    <span class="n">site</span><span class="o">.</span><span class="n">coords</span><span class="o">-</span><span class="n">sc_struct</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="n">isite</span><span class="p">]</span><span class="o">.</span><span class="n">coords</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">1.0e-6</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;inconsistent structures (coords)&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sc_struct</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="n">isite</span><span class="p">]</span><span class="o">.</span><span class="n">species_string</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">site</span><span class="o">.</span><span class="n">species_string</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> \
+                        <span class="n">sc_struct</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="n">isite</span><span class="p">]</span><span class="o">.</span><span class="n">species_string</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;inconsistent structures&quot;</span>
+                            <span class="s2">&quot; (species string (len 1))&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">sc_struct</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="n">isite</span><span class="p">]</span><span class="o">.</span><span class="n">species_string</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">site</span><span class="o">.</span><span class="n">species_string</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> \
+                        <span class="n">sc_struct</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="n">isite</span><span class="p">]</span><span class="o">.</span><span class="n">species_string</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">or</span> \
+                        <span class="n">site</span><span class="o">.</span><span class="n">species_string</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> \
+                        <span class="n">sc_struct</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="n">isite</span><span class="p">]</span><span class="o">.</span><span class="n">species_string</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;inconsistent structures&quot;</span>
+                            <span class="s2">&quot; (species string (len 2))&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;inconsistent structures&quot;</span>
+                        <span class="s2">&quot; (len species string)&quot;</span><span class="p">)</span>
+            <span class="n">radii_sites</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vire</span><span class="o">.</span><span class="n">radii</span><span class="p">[</span><span class="n">site</span><span class="o">.</span><span class="n">species_string</span><span class="p">])</span>
+            <span class="n">species_string_sites</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">species_string</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">write_timings</span><span class="p">:</span>
+            <span class="n">tt1</span><span class="p">,</span> <span class="n">tc1</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+            <span class="n">file_time</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;radiideter </span><span class="si">{}</span><span class="s2"> </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tt1</span><span class="o">-</span><span class="n">tt0</span><span class="p">,</span> <span class="n">tc1</span><span class="o">-</span><span class="n">tc0</span><span class="p">))</span>
+            <span class="n">tt0</span><span class="p">,</span> <span class="n">tc0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+
+        <span class="c1"># Insert interstitial site into structure.</span>
+        <span class="n">sc_struct</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">inter_elem</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="n">natoms</span> <span class="o">=</span> <span class="n">natoms</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">radii_sites</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Element</span><span class="p">(</span><span class="n">inter_elem</span><span class="p">)</span><span class="o">.</span><span class="n">average_ionic_radius</span><span class="p">)</span>
+        <span class="n">species_string_sites</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Element</span><span class="p">(</span><span class="n">inter_elem</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sc_struct</span><span class="o">.</span><span class="n">sites</span><span class="p">)</span> <span class="o">!=</span> <span class="n">natoms</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sc_struct</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">species_string</span> <span class="o">!=</span> <span class="n">inter_elem</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> != </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                    <span class="n">sc_struct</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">species_string</span><span class="p">,</span> <span class="n">inter_elem</span><span class="p">))</span>
+        <span class="n">max_radius_sphere</span> <span class="o">=</span> <span class="n">fac_max_radius</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="n">radii_sites</span><span class="p">)</span>
+
+        <span class="c1"># Set up index list of all possible tet- and oct-subset neighbor lists</span>
+        <span class="c1"># for tet-oct overlay motif, given CN = 10.</span>
+        <span class="c1"># Note that the interstitial is always placed at index 0 in the</span>
+        <span class="c1"># site lists so that the neighbor indeces start with 1---not with 0.</span>
+        <span class="c1"># Hence, the indeces i, j, k, and m are shifted one position &quot;upwards&quot;</span>
+        <span class="c1"># before included in lists_tet_indeces and lists_oct_indeces.</span>
+        <span class="n">lists_tet_indeces</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">lists_oct_indeces</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">i_lists_tet_indeces</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="s2">&quot;tetoct&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_motif_types</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">6</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="mi">7</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+                    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">j</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+                        <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="mi">9</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+                            <span class="n">lists_tet_indeces</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">j</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">k</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">m</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span>
+                            <span class="n">lists_oct_indeces</span><span class="o">.</span><span class="n">append</span><span class="p">([])</span>
+                            <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+                                <span class="k">if</span> <span class="n">n</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">lists_tet_indeces</span><span class="p">[</span><span class="n">i_lists_tet_indeces</span><span class="p">]:</span>
+                                    <span class="n">lists_oct_indeces</span><span class="p">[</span><span class="n">i_lists_tet_indeces</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+                            <span class="n">i_lists_tet_indeces</span> <span class="o">=</span> <span class="n">i_lists_tet_indeces</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="c1"># Number of voxels in input structure</span>
+        <span class="c1"># and working supercell</span>
+        <span class="c1"># to span an equally fine grid in both structures.</span>
+        <span class="n">nbins</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_structure</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">a</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dl</span><span class="p">),</span> \
+                <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_structure</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">b</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dl</span><span class="p">),</span> \
+                <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_structure</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">c</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dl</span><span class="p">)]</span>
+        <span class="n">nbins_sc</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="n">nbins</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="n">nbins</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> \
+                <span class="nb">float</span><span class="p">(</span><span class="mi">1</span> <span class="o">*</span> <span class="n">nbins</span><span class="p">[</span><span class="mi">2</span><span class="p">])]</span>
+
+        <span class="k">if</span> <span class="n">write_timings</span><span class="p">:</span>
+            <span class="n">tt1</span><span class="p">,</span> <span class="n">tc1</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+            <span class="n">file_time</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;init2 </span><span class="si">{}</span><span class="s2"> </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tt1</span><span class="o">-</span><span class="n">tt0</span><span class="p">,</span> <span class="n">tc1</span><span class="o">-</span><span class="n">tc0</span><span class="p">))</span>
+            <span class="n">tt0</span><span class="p">,</span> <span class="n">tc0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+
+        <span class="c1"># Prescreen to find the site with the largest nearest-neighbor</span>
+        <span class="c1"># distance.  Use that location to determine a sensible</span>
+        <span class="c1"># global r_inter.</span>
+        <span class="n">max_min_dist</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.0</span>
+        <span class="n">coords_max_min_dist</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">ia</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nbins</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">ia</span><span class="p">)</span><span class="o">+</span><span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="n">nbins_sc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">ib</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nbins</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">b</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">ib</span><span class="p">)</span><span class="o">+</span><span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="n">nbins_sc</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">ic</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nbins</span><span class="p">[</span><span class="mi">2</span><span class="p">]):</span>
+                    <span class="n">c</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">ic</span><span class="p">)</span><span class="o">+</span><span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="n">nbins_sc</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+                    <span class="n">sc_struct</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+                            <span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">inter_elem</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="p">[</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">],</span>
+                            <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                    <span class="n">neighs_dists</span> <span class="o">=</span> <span class="n">sc_struct</span><span class="o">.</span><span class="n">get_neighbors</span><span class="p">(</span>
+                            <span class="n">sc_struct</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                            <span class="n">max_radius_sphere</span><span class="p">,</span> <span class="n">include_index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">neighs_dists</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">tmp</span> <span class="o">=</span> <span class="nb">min</span><span class="p">([</span><span class="n">dist</span> <span class="k">for</span> <span class="p">(</span><span class="n">neigh</span><span class="p">,</span> <span class="n">dist</span><span class="p">)</span> <span class="ow">in</span> <span class="n">neighs_dists</span><span class="p">])</span>
+                        <span class="k">if</span> <span class="n">tmp</span> <span class="o">&gt;</span> <span class="n">max_min_dist</span><span class="p">:</span>
+                            <span class="n">max_min_dist</span> <span class="o">=</span> <span class="n">tmp</span>
+                            <span class="n">coords_max_min_dist</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">write_timings</span><span class="p">:</span>
+            <span class="n">tt1</span><span class="p">,</span> <span class="n">tc1</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+            <span class="n">file_time</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;prescreen </span><span class="si">{}</span><span class="s2"> </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tt1</span><span class="o">-</span><span class="n">tt0</span><span class="p">,</span> <span class="n">tc1</span><span class="o">-</span><span class="n">tc0</span><span class="p">))</span>
+            <span class="n">tt0</span><span class="p">,</span> <span class="n">tc0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">coords_max_min_dist</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;could not find any neighbor during presreening&quot;</span>
+                    <span class="s2">&quot; to assign hard-sphere radius to interstitial species.&quot;</span>
+                    <span class="s2">&quot; Suggesting to increase fac_max_radius.&quot;</span><span class="p">)</span>
+        <span class="n">sc_struct</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">inter_elem</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="n">coords_max_min_dist</span><span class="p">,</span>
+                <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">vire</span> <span class="o">=</span> <span class="n">ValenceIonicRadiusEvaluator</span><span class="p">(</span><span class="n">sc_struct</span><span class="p">)</span>
+        <span class="n">radii_sites</span><span class="p">[</span><span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">vire</span><span class="o">.</span><span class="n">radii</span><span class="p">[</span><span class="n">vire</span><span class="o">.</span><span class="n">structure</span><span class="p">[</span><span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">species_string</span><span class="p">]</span>
+        <span class="n">species_string_sites</span><span class="p">[</span><span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">vire</span><span class="o">.</span><span class="n">structure</span><span class="p">[</span><span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">species_string</span>
+
+        <span class="c1"># Create underlying order parameter objects.</span>
+        <span class="n">ops</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">iop</span><span class="o">=</span><span class="mi">0</span>
+        <span class="k">for</span> <span class="n">optype</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unique_op_types</span><span class="p">:</span>
+            <span class="n">ops</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">OrderParameters</span><span class="p">([</span><span class="n">optype</span><span class="p">],</span> <span class="n">cutoff</span><span class="o">=-</span><span class="mf">10.0</span><span class="p">))</span>
+            <span class="n">iop</span><span class="o">=</span><span class="n">iop</span><span class="o">+</span><span class="mi">1</span>
+
+        <span class="c1"># Create lists to store tentative interstitial positions</span>
+        <span class="c1"># and further information.</span>
+        <span class="n">inter_sites</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">inter_sites_pruned</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i_elem</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nelems</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="n">inter_sites</span><span class="o">.</span><span class="n">append</span><span class="p">({})</span>
+            <span class="n">inter_sites_pruned</span><span class="o">.</span><span class="n">append</span><span class="p">({})</span>
+            <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_motif_types</span><span class="p">:</span>
+                <span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">inter_sites_pruned</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="n">write_timings</span><span class="p">:</span>
+            <span class="n">tt1</span><span class="p">,</span> <span class="n">tc1</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+            <span class="n">file_time</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;init3 </span><span class="si">{}</span><span class="s2"> </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tt1</span><span class="o">-</span><span class="n">tt0</span><span class="p">,</span> <span class="n">tc1</span><span class="o">-</span><span class="n">tc0</span><span class="p">))</span>
+            <span class="n">tt0</span><span class="p">,</span> <span class="n">tc0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+
+        <span class="c1"># Loop over trial positions that are based on a regular</span>
+        <span class="c1"># grid in fractional coordinate space</span>
+        <span class="c1"># within the unit cell.</span>
+        <span class="n">ntrials_tet</span> <span class="o">=</span> <span class="n">ntrials_oct</span> <span class="o">=</span> <span class="n">ntrials_tetoct</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">ia</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nbins</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">ia</span><span class="p">)</span><span class="o">+</span><span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="n">nbins_sc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">ib</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nbins</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">b</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">ib</span><span class="p">)</span><span class="o">+</span><span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="n">nbins_sc</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">ic</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nbins</span><span class="p">[</span><span class="mi">2</span><span class="p">]):</span>
+                    <span class="n">c</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">ic</span><span class="p">)</span><span class="o">+</span><span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="n">nbins_sc</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+                    <span class="c1"># Place interstitial at next trial position.</span>
+                    <span class="n">r</span> <span class="o">=</span> <span class="n">lat</span><span class="o">.</span><span class="n">get_cartesian_coords</span><span class="p">([</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">])</span>
+                    <span class="n">sc_struct</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+                            <span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">inter_elem</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="p">[</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">],</span>
+                            <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+                    <span class="c1"># Determine the current list of neighbors using</span>
+                    <span class="c1"># max_radius_sphere which is the product of the</span>
+                    <span class="c1"># largest species radius encountered in the bulk</span>
+                    <span class="c1"># structure and the input factor fac_max_radius.</span>
+                    <span class="n">rinter</span> <span class="o">=</span> <span class="n">radii_sites</span><span class="p">[</span><span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="n">two_rinter</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">rinter</span>
+                    <span class="n">neighs_dists_indeces</span> <span class="o">=</span> <span class="n">sc_struct</span><span class="o">.</span><span class="n">get_neighbors</span><span class="p">(</span>
+                            <span class="n">sc_struct</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                            <span class="n">max_radius_sphere</span><span class="p">,</span> <span class="n">include_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+                    <span class="c1"># Calculate relative distances between trial site</span>
+                    <span class="c1"># and neighbors and check whether trial site</span>
+                    <span class="c1"># overlaps with any of the neighbors using the</span>
+                    <span class="c1"># input relative distance drel_overlap.</span>
+                    <span class="n">skip_this</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="n">rel_dist</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="k">for</span> <span class="n">i_rel_dist</span><span class="p">,</span> <span class="p">(</span><span class="n">neigh_site</span><span class="p">,</span> <span class="n">dist</span><span class="p">,</span> <span class="n">index</span><span class="p">)</span> <span class="ow">in</span> \
+                            <span class="nb">enumerate</span><span class="p">(</span><span class="n">neighs_dists_indeces</span><span class="p">):</span>
+                        <span class="n">dhs_inter_neigh</span> <span class="o">=</span> <span class="n">radii_sites</span><span class="p">[</span><span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="n">radii_sites</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+                        <span class="c1"># Multiplication and subsequent division with 20</span>
+                        <span class="c1"># makes it possible that we identify neighbors that</span>
+                        <span class="c1"># are equally far from the interstitial trial site</span>
+                        <span class="c1"># to a reasonable numerical precision of 1/20 = 0.05</span>
+                        <span class="c1"># (typically, Angstrom).</span>
+                        <span class="n">rel_dist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="mf">20.0</span> <span class="o">*</span> <span class="n">dist</span> <span class="o">/</span> <span class="n">dhs_inter_neigh</span><span class="p">))</span> <span class="o">/</span> <span class="mf">20.0</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">rel_dist</span><span class="p">[</span><span class="n">i_rel_dist</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">drel_overlap</span><span class="p">:</span>
+                            <span class="n">skip_this</span> <span class="o">=</span> <span class="kc">True</span>
+                            <span class="k">break</span>
+
+                    <span class="k">if</span> <span class="n">skip_this</span><span class="p">:</span>
+                        <span class="k">continue</span>
+
+                    <span class="c1"># Sort relative distances and determine unique values.</span>
+                    <span class="n">rel_dist_sorted</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">rel_dist</span><span class="p">)</span>
+                    <span class="n">change</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">while</span> <span class="n">change</span><span class="p">:</span>
+                        <span class="n">change</span> <span class="o">=</span> <span class="kc">False</span>
+                        <span class="k">for</span> <span class="n">irds</span><span class="p">,</span> <span class="n">rds</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">rel_dist_sorted</span><span class="p">):</span>
+                            <span class="k">if</span> <span class="n">irds</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                                <span class="k">if</span> <span class="n">fabs</span><span class="p">(</span><span class="n">rds</span> <span class="o">-</span> <span class="n">rel_dist_sorted</span><span class="p">[</span><span class="n">irds</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">&lt;</span> <span class="mf">0.049</span><span class="p">:</span>
+                                    <span class="k">del</span> <span class="n">rel_dist_sorted</span><span class="p">[</span><span class="n">irds</span><span class="p">]</span>
+                                    <span class="n">change</span> <span class="o">=</span> <span class="kc">True</span>
+                                    <span class="k">break</span>
+
+                    <span class="c1"># Create correspondence map between list storing</span>
+                    <span class="c1"># unique sorted relative distances (rel_dist_sorted) and</span>
+                    <span class="c1"># list storing neighbors, distances, and</span>
+                    <span class="c1"># indeces of sites in Structure object (neighs_dists_indeces).</span>
+                    <span class="n">map_urds_ndi</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="n">ncheck</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="k">for</span> <span class="n">iurds</span><span class="p">,</span> <span class="n">urds</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">rel_dist_sorted</span><span class="p">):</span>
+                        <span class="n">map_urds_ndi</span><span class="o">.</span><span class="n">append</span><span class="p">([])</span>
+                        <span class="k">for</span> <span class="n">ird</span><span class="p">,</span> <span class="n">rd</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">rel_dist</span><span class="p">):</span>
+                            <span class="k">if</span> <span class="n">fabs</span><span class="p">(</span><span class="n">urds</span> <span class="o">-</span> <span class="n">rd</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.049</span><span class="p">:</span>
+                                <span class="n">ncheck</span> <span class="o">=</span> <span class="n">ncheck</span> <span class="o">+</span> <span class="mi">1</span>
+                                <span class="n">map_urds_ndi</span><span class="p">[</span><span class="n">iurds</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ird</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">map_urds_ndi</span><span class="p">[</span><span class="n">iurds</span><span class="p">])</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span> <span class="c1"># xxx new May 24, 2016</span>
+                            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;expected at least one entry&quot;</span>
+                                    <span class="s2">&quot; in rel_dist per unique relative distance&quot;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">ncheck</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">neighs_dists_indeces</span><span class="p">):</span>
+                        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;found incorrect number (</span><span class="si">{}</span><span class="s2">) of entries&quot;</span>
+                                <span class="s2">&quot; (expected: </span><span class="si">{}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ncheck</span><span class="p">,</span>
+                                <span class="nb">len</span><span class="p">(</span><span class="n">neighs_dists_indeces</span><span class="p">)))</span>
+
+                    <span class="n">site_lists</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">nelems</span><span class="p">)]</span>
+                    <span class="n">skip_elem_list</span> <span class="o">=</span> <span class="p">[</span><span class="kc">False</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">nelems</span><span class="p">)]</span>
+                    <span class="n">last_iurds</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                    <span class="k">for</span> <span class="n">iurds</span><span class="p">,</span> <span class="n">urds</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">rel_dist_sorted</span><span class="p">):</span>
+                        <span class="n">last_iurds</span> <span class="o">=</span> <span class="n">iurds</span>
+
+                        <span class="c1"># Put interstitial at first place in first site list.</span>
+                        <span class="k">if</span> <span class="n">iurds</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                            <span class="c1"># Put interstitial at first place in first site list</span>
+                            <span class="c1"># for each (elemental sub)lattice.</span>
+                            <span class="k">for</span> <span class="n">site_list_elem</span> <span class="ow">in</span> <span class="n">site_lists</span><span class="p">:</span>
+                                <span class="n">site_list_elem</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">sc_struct</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">]])</span>
+
+                        <span class="c1"># Add all sites associated with previous relative distance.</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="k">for</span> <span class="n">i_site_list_elem</span><span class="p">,</span> <span class="n">site_list_elem</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">site_lists</span><span class="p">):</span>
+                                <span class="n">site_list_elem</span><span class="o">.</span><span class="n">append</span><span class="p">([])</span>
+                                <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">site_list_elem</span><span class="p">[</span><span class="n">iurds</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+                                    <span class="n">site_list_elem</span><span class="p">[</span><span class="n">iurds</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">site</span><span class="p">)</span>
+
+                        <span class="c1"># Add new sites asssociated with the current relative distance.</span>
+                        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">map_urds_ndi</span><span class="p">[</span><span class="n">iurds</span><span class="p">]:</span>
+                            <span class="n">neigh_site</span> <span class="o">=</span> <span class="n">neighs_dists_indeces</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">neigh_site</span><span class="o">.</span><span class="n">specie</span><span class="p">,</span> <span class="n">Element</span><span class="p">):</span>
+                                <span class="n">this_elem</span> <span class="o">=</span> <span class="n">neigh_site</span><span class="o">.</span><span class="n">specie</span><span class="o">.</span><span class="n">symbol</span>
+                            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">neigh_site</span><span class="o">.</span><span class="n">specie</span><span class="p">,</span> <span class="n">Specie</span><span class="p">):</span>
+                                <span class="n">this_elem</span> <span class="o">=</span> <span class="n">neigh_site</span><span class="o">.</span><span class="n">specie</span><span class="o">.</span><span class="n">element</span><span class="o">.</span><span class="n">symbol</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;unexpected instance type&quot;</span><span class="p">)</span>
+                            <span class="k">if</span> <span class="n">this_elem</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">elem_list_plus_inter</span><span class="p">:</span>
+                                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;this_elem is not in elem_list&quot;</span><span class="p">)</span>
+                            <span class="k">if</span> <span class="ow">not</span> <span class="n">skip_elem_list</span><span class="p">[</span><span class="n">nelems</span><span class="p">]:</span>
+                                <span class="n">site_lists</span><span class="p">[</span><span class="n">nelems</span><span class="p">][</span><span class="n">iurds</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">neigh_site</span><span class="p">)</span>
+                            <span class="k">for</span> <span class="n">i_this_elem</span><span class="p">,</span> <span class="n">elem</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">elem_list_plus_inter</span><span class="p">):</span>
+                                <span class="k">if</span> <span class="n">this_elem</span> <span class="o">==</span> <span class="n">elem</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">skip_elem_list</span><span class="p">[</span><span class="n">i_this_elem</span><span class="p">]:</span>
+                                    <span class="n">site_lists</span><span class="p">[</span><span class="n">i_this_elem</span><span class="p">][</span><span class="n">iurds</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">neigh_site</span><span class="p">)</span>
+
+                        <span class="c1"># No structure motifs so far with &gt; 10 neighs.</span>
+                        <span class="c1"># Therefore, cutting off everything</span>
+                        <span class="c1"># that has more than 10 neighbors.</span>
+                        <span class="k">for</span> <span class="n">i_site_list_elem</span><span class="p">,</span> <span class="n">site_list_elem</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">site_lists</span><span class="p">):</span>
+                            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">site_list_elem</span><span class="p">[</span><span class="n">iurds</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">10</span><span class="p">:</span>
+                                <span class="n">site_list_elem</span><span class="p">[</span><span class="n">iurds</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+                                <span class="n">skip_elem_list</span><span class="p">[</span><span class="n">i_site_list_elem</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                        <span class="k">if</span> <span class="kc">False</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">skip_elem_list</span><span class="p">:</span>
+                            <span class="n">last_iurds</span> <span class="o">=</span> <span class="n">iurds</span> <span class="o">-</span> <span class="mi">1</span>
+                            <span class="k">break</span>
+                    <span class="k">if</span> <span class="n">last_iurds</span> <span class="o">&lt;=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                        <span class="k">continue</span>
+
+                    <span class="c1"># Remove those neighbor lists of sublattices</span>
+                    <span class="c1"># which have the same number of sites as their preceding list</span>
+                    <span class="c1"># for that element type, thus, indicating same sites.</span>
+                    <span class="k">for</span> <span class="n">i_site_list_elem</span><span class="p">,</span> <span class="n">site_list_elem</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">site_lists</span><span class="p">):</span>
+                        <span class="n">change</span> <span class="o">=</span> <span class="kc">True</span>
+                        <span class="k">while</span> <span class="n">change</span><span class="p">:</span>
+                            <span class="n">change</span> <span class="o">=</span> <span class="kc">False</span>
+                            <span class="k">for</span> <span class="n">iurds</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">site_list_elem</span><span class="p">)):</span>
+                                <span class="k">if</span> <span class="n">site_list_elem</span><span class="p">[</span><span class="n">iurds</span><span class="p">]:</span>
+                                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">site_list_elem</span><span class="p">[</span><span class="n">iurds</span><span class="p">])</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">site_list_elem</span><span class="p">[</span><span class="n">iurds</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
+                                        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;next nonempty site list&quot;</span>
+                                                <span class="s2">&quot; should have more than or equal&quot;</span>
+                                                <span class="s2">&quot; number of sites as previous list.&quot;</span><span class="p">)</span>
+                                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">site_list_elem</span><span class="p">[</span><span class="n">iurds</span><span class="p">])</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">site_list_elem</span><span class="p">[</span><span class="n">iurds</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
+                                        <span class="k">if</span> <span class="n">i_site_list_elem</span> <span class="o">==</span> <span class="n">nelems</span><span class="p">:</span>
+                                            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;there should not be any&quot;</span>
+                                                    <span class="s2">&quot; consecutive neighbor lists that&quot;</span>
+                                                    <span class="s2">&quot; have the same number of sites for&quot;</span>
+                                                    <span class="s2">&quot; the entire lattice.&quot;</span><span class="p">)</span>
+                                        <span class="k">for</span> <span class="n">iurds2</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">iurds</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">site_list_elem</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+                                            <span class="n">site_list_elem</span><span class="p">[</span><span class="n">iurds2</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">site_list_elem</span><span class="p">[</span><span class="n">iurds2</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span>
+                                        <span class="n">site_list_elem</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">site_list_elem</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+                                        <span class="n">change</span> <span class="o">=</span> <span class="kc">True</span>
+
+                    <span class="c1"># Create lists of indeces representing the sites</span>
+                    <span class="c1"># in a given neighbor site list.</span>
+                    <span class="n">indeces_lists</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">nelems</span><span class="p">)]</span>
+                    <span class="k">for</span> <span class="n">i_site_list_elem</span><span class="p">,</span> <span class="n">site_list_elem</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">site_lists</span><span class="p">):</span>
+                        <span class="k">for</span> <span class="n">iurds</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">last_iurds</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+                            <span class="k">if</span> <span class="ow">not</span> <span class="n">site_list_elem</span><span class="p">[</span><span class="n">iurds</span><span class="p">]:</span>
+                                <span class="k">break</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="n">indeces_lists</span><span class="p">[</span><span class="n">i_site_list_elem</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">([])</span>
+                                <span class="k">for</span> <span class="n">i_site</span><span class="p">,</span> <span class="n">site</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">site_list_elem</span><span class="p">[</span><span class="n">iurds</span><span class="p">]):</span>
+                                    <span class="k">if</span> <span class="n">site</span> <span class="o">!=</span> <span class="n">sc_struct</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+                                        <span class="k">if</span> <span class="n">i_site</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                                            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;unexpected index of noncentral site!&quot;</span><span class="p">)</span>
+                                        <span class="n">indeces_lists</span><span class="p">[</span><span class="n">i_site_list_elem</span><span class="p">][</span><span class="n">iurds</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i_site</span><span class="p">)</span>
+                                    <span class="k">elif</span> <span class="n">i_site</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                                        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;unexpected index of central site!&quot;</span><span class="p">)</span>
+                                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">indeces_lists</span><span class="p">[</span><span class="n">i_site_list_elem</span><span class="p">][</span><span class="n">iurds</span><span class="p">])</span><span class="o">+</span><span class="mi">1</span> <span class="o">!=</span> \
+                                        <span class="nb">len</span><span class="p">(</span><span class="n">site_lists</span><span class="p">[</span><span class="n">i_site_list_elem</span><span class="p">][</span><span class="n">iurds</span><span class="p">]):</span>
+                                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;inconsistency between indeces_lists&quot;</span>
+                                                       <span class="s2">&quot; and site_lists!&quot;</span><span class="p">)</span>
+
+                    <span class="c1"># Check whether this trial position looks like</span>
+                    <span class="c1"># a coordination pattern-resembling interstitial site.</span>
+                    <span class="c1"># Because we prefer to get motifs from all-element lattice</span>
+                    <span class="c1"># we iterate backwardly (i.e., from nelems to 0 (inclusive)).</span>
+                    <span class="k">for</span> <span class="n">i_elem</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nelems</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+
+                        <span class="k">for</span> <span class="n">iurds</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">indeces_lists</span><span class="p">[</span><span class="n">i_elem</span><span class="p">])):</span>
+
+                            <span class="k">for</span> <span class="n">it</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_motif_types</span><span class="p">):</span>
+
+                                <span class="c1"># 1st criterion (very stringent)</span>
+                                <span class="c1"># to consider the trial position as interstitial site:</span>
+                                <span class="c1"># does the total coordination number comply with the</span>
+                                <span class="c1"># target structure motif (tetrahedral --&gt; 4,</span>
+                                <span class="c1"># octahedral --&gt; 6, bcc --&gt; 8, tet-oct overlay --&gt; 10)?</span>
+                                <span class="n">cn_total</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">indeces_lists</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">iurds</span><span class="p">])</span>
+
+                                <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="s2">&quot;tet&quot;</span> <span class="ow">and</span> <span class="n">cn_total</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">:</span>
+                                    <span class="k">continue</span>
+                                <span class="k">elif</span> <span class="n">t</span> <span class="o">==</span> <span class="s2">&quot;oct&quot;</span> <span class="ow">and</span> <span class="n">cn_total</span> <span class="o">!=</span> <span class="mi">6</span><span class="p">:</span>
+                                    <span class="k">continue</span>
+                                <span class="k">elif</span> <span class="n">t</span> <span class="o">==</span> <span class="s2">&quot;bcc&quot;</span> <span class="ow">and</span> <span class="n">cn_total</span> <span class="o">!=</span> <span class="mi">8</span><span class="p">:</span>
+                                    <span class="k">continue</span>
+                                <span class="k">elif</span> <span class="n">t</span> <span class="o">==</span> <span class="s2">&quot;tetoct&quot;</span> <span class="ow">and</span> <span class="n">cn_total</span> <span class="o">!=</span> <span class="mi">10</span><span class="p">:</span>
+                                    <span class="k">continue</span>
+                                <span class="c1">#elif (t == &quot;fcc&quot; or t == &quot;hcp&quot;) and cn_total != 12:</span>
+                                <span class="c1">#    continue</span>
+
+                                <span class="c1"># 2nd criterion: does any existing</span>
+                                <span class="c1"># interstitial site of the current</span>
+                                <span class="c1"># coordination pattern type</span>
+                                <span class="c1"># that is within 2*rinter distance</span>
+                                <span class="c1"># of the current trial site</span>
+                                <span class="c1"># possess the same chemical environment?</span>
+                                <span class="c1"># First, determine element-wise CNs.</span>
+                                <span class="n">index</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                                <span class="n">cns</span> <span class="o">=</span> <span class="p">{}</span>
+                                <span class="k">for</span> <span class="n">isite</span><span class="p">,</span> <span class="n">site</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">site_lists</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">iurds</span><span class="p">]):</span>
+                                    <span class="c1"># Skip the interstitial itself.</span>
+                                    <span class="k">if</span> <span class="n">isite</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                                        <span class="k">continue</span>
+                                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">specie</span><span class="p">,</span> <span class="n">Element</span><span class="p">):</span>
+                                        <span class="n">elem</span> <span class="o">=</span> <span class="n">site</span><span class="o">.</span><span class="n">specie</span><span class="o">.</span><span class="n">symbol</span>
+                                    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">site</span><span class="o">.</span><span class="n">specie</span><span class="p">,</span> <span class="n">Specie</span><span class="p">):</span>
+                                        <span class="n">elem</span> <span class="o">=</span> <span class="n">site</span><span class="o">.</span><span class="n">specie</span><span class="o">.</span><span class="n">element</span><span class="o">.</span><span class="n">symbol</span>
+                                    <span class="k">else</span><span class="p">:</span>
+                                        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;unexpected instance type&quot;</span><span class="p">)</span>
+                                    <span class="k">if</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">cns</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                                        <span class="n">cns</span><span class="p">[</span><span class="n">elem</span><span class="p">]</span> <span class="o">=</span> <span class="n">cns</span><span class="p">[</span><span class="n">elem</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+                                    <span class="k">else</span><span class="p">:</span>
+                                        <span class="n">cns</span><span class="p">[</span><span class="n">elem</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                                <span class="c1"># Now, is there already another site</span>
+                                <span class="c1"># with the same chemical environment</span>
+                                <span class="c1"># within 2*rinter distance?</span>
+                                <span class="c1"># If yes, register for potential replacement.</span>
+                                <span class="k">for</span> <span class="n">i_intersite</span><span class="p">,</span> <span class="n">intersite</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">]):</span>
+                                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">intersite</span><span class="p">[</span><span class="s2">&quot;cns&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">cns</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                                        <span class="k">for</span> <span class="n">elem</span><span class="p">,</span> <span class="n">cn</span> <span class="ow">in</span> <span class="n">cns</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                                            <span class="k">if</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">intersite</span><span class="p">[</span><span class="s2">&quot;cns&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                                                <span class="k">if</span> <span class="n">cn</span> <span class="o">==</span> <span class="n">intersite</span><span class="p">[</span><span class="s2">&quot;cns&quot;</span><span class="p">][</span><span class="n">elem</span><span class="p">]:</span>
+                                                    <span class="p">(</span><span class="n">dist</span><span class="p">,</span> <span class="n">jimage</span><span class="p">)</span>  <span class="o">=</span> \
+                                                            <span class="n">lat</span><span class="o">.</span><span class="n">get_distance_and_image</span><span class="p">(</span>
+                                                            <span class="p">[</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">],</span>
+                                                            <span class="n">intersite</span><span class="p">[</span><span class="s2">&quot;frac_coords&quot;</span><span class="p">])</span>
+                                                    <span class="k">if</span> <span class="n">dist</span> <span class="o">&lt;</span> <span class="n">two_rinter</span><span class="p">:</span>
+                                                        <span class="n">index</span> <span class="o">=</span> <span class="n">i_intersite</span>
+                                                <span class="k">else</span><span class="p">:</span>
+                                                    <span class="k">break</span>
+                                            <span class="k">else</span><span class="p">:</span>
+                                                <span class="k">break</span>
+
+                                <span class="k">if</span> <span class="n">t</span> <span class="o">!=</span> <span class="s2">&quot;tetoct&quot;</span><span class="p">:</span>
+                                    <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="s2">&quot;tet&quot;</span><span class="p">:</span>
+                                        <span class="n">ntrials_tet</span> <span class="o">=</span> <span class="n">ntrials_tet</span> <span class="o">+</span> <span class="mi">1</span>
+                                    <span class="k">elif</span> <span class="n">t</span> <span class="o">==</span> <span class="s2">&quot;oct&quot;</span><span class="p">:</span>
+                                        <span class="n">ntrials_oct</span> <span class="o">=</span> <span class="n">ntrials_oct</span> <span class="o">+</span> <span class="mi">1</span>
+
+                                    <span class="n">opvals</span> <span class="o">=</span> <span class="n">ops</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_map_imotif_iop</span><span class="p">[</span><span class="n">it</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">get_order_parameters</span><span class="p">(</span>
+                                            <span class="n">site_lists</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">iurds</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span>
+                                            <span class="n">indeces_neighs</span><span class="o">=</span><span class="n">indeces_lists</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">iurds</span><span class="p">])</span>
+                                    <span class="k">if</span> <span class="ow">not</span> <span class="n">opvals</span><span class="p">:</span>
+                                        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;unable to compute OPs&quot;</span><span class="p">)</span>
+                                    <span class="n">opval</span> <span class="o">=</span> <span class="n">opvals</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                                    <span class="c1"># Introduce sensible threshold</span>
+                                    <span class="c1"># to keep the number of potential sites small enough.</span>
+                                    <span class="k">if</span> <span class="n">opval</span> <span class="o">&gt;</span> <span class="n">op_threshs</span><span class="p">[</span><span class="n">it</span><span class="p">]:</span>
+                                        <span class="k">if</span> <span class="ow">not</span> <span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">]:</span>
+                                            <span class="n">insert_index</span> <span class="o">=</span> <span class="mi">0</span>
+                                            <span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({})</span>
+                                        <span class="k">elif</span> <span class="n">index</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                                            <span class="n">insert_index</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">])</span>
+                                            <span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({})</span>
+                                        <span class="k">else</span><span class="p">:</span>
+                                            <span class="k">if</span> <span class="n">fabs</span><span class="p">(</span><span class="n">opval</span><span class="o">-</span><span class="n">op_targets</span><span class="p">[</span><span class="n">it</span><span class="p">])</span> <span class="o">&lt;</span> \
+                                                        <span class="n">fabs</span><span class="p">(</span><span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">][</span><span class="n">index</span><span class="p">][</span><span class="s2">&quot;op_value&quot;</span><span class="p">]</span><span class="o">-</span><span class="n">op_targets</span><span class="p">[</span><span class="n">it</span><span class="p">]):</span>
+                                                <span class="n">insert_index</span> <span class="o">=</span> <span class="n">index</span>
+                                            <span class="k">else</span><span class="p">:</span>
+                                                <span class="n">insert_index</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                                        <span class="k">if</span> <span class="n">insert_index</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                                            <span class="k">if</span> <span class="n">insert_index</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">])</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                                                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+                                            <span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">][</span><span class="n">insert_index</span><span class="p">][</span><span class="s2">&quot;frac_coords&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">]</span>
+                                            <span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">][</span><span class="n">insert_index</span><span class="p">][</span><span class="s2">&quot;position&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">r</span>
+                                            <span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">][</span><span class="n">insert_index</span><span class="p">][</span><span class="s2">&quot;cns&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cns</span>
+                                            <span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">][</span><span class="n">insert_index</span><span class="p">][</span><span class="s2">&quot;op_value&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">opval</span>
+                                            <span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">][</span><span class="n">insert_index</span><span class="p">][</span><span class="s2">&quot;site_list&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">site_lists</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">iurds</span><span class="p">]</span>
+
+                                <span class="c1"># Note that we only search until one combination is successful.</span>
+                                <span class="k">else</span><span class="p">:</span> <span class="c1"># if t == &quot;tetoct&quot;</span>
+                                    <span class="n">ntrials_tetoct</span> <span class="o">=</span> <span class="n">ntrials_tetoct</span> <span class="o">+</span> <span class="mi">1</span>
+                                    <span class="k">for</span> <span class="n">i_tet_indeces</span><span class="p">,</span> <span class="n">tet_indeces</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lists_tet_indeces</span><span class="p">):</span>
+                                        <span class="n">qtet_tetmot</span> <span class="o">=</span> <span class="n">ops</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_map_imotif_iop</span><span class="p">[</span><span class="n">it</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">get_order_parameters</span><span class="p">(</span>
+                                                <span class="n">site_lists</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">iurds</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span>
+                                                <span class="n">indeces_neighs</span><span class="o">=</span><span class="n">tet_indeces</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                                        <span class="n">qoct_tetmot</span> <span class="o">=</span> <span class="n">ops</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_map_imotif_iop</span><span class="p">[</span><span class="n">it</span><span class="p">][</span><span class="mi">1</span><span class="p">]]</span><span class="o">.</span><span class="n">get_order_parameters</span><span class="p">(</span>
+                                                <span class="n">site_lists</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">iurds</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span>
+                                                <span class="n">indeces_neighs</span><span class="o">=</span><span class="n">tet_indeces</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                                        <span class="n">qtet_octmot</span> <span class="o">=</span> <span class="n">ops</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_map_imotif_iop</span><span class="p">[</span><span class="n">it</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">get_order_parameters</span><span class="p">(</span>
+                                                <span class="n">site_lists</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">iurds</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span>
+                                                <span class="n">indeces_neighs</span><span class="o">=</span><span class="n">lists_oct_indeces</span><span class="p">[</span><span class="n">i_tet_indeces</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+                                        <span class="n">qoct_octmot</span> <span class="o">=</span> <span class="n">ops</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_map_imotif_iop</span><span class="p">[</span><span class="n">it</span><span class="p">][</span><span class="mi">1</span><span class="p">]]</span><span class="o">.</span><span class="n">get_order_parameters</span><span class="p">(</span>
+                                                <span class="n">site_lists</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">iurds</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span>
+                                                <span class="n">indeces_neighs</span><span class="o">=</span><span class="n">lists_oct_indeces</span><span class="p">[</span><span class="n">i_tet_indeces</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+                                        <span class="k">if</span> <span class="ow">not</span> <span class="n">qtet_tetmot</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">qoct_tetmot</span> \
+                                                <span class="ow">or</span> <span class="ow">not</span> <span class="n">qtet_octmot</span> <span class="ow">or</span> \
+                                                <span class="ow">not</span> <span class="n">qoct_octmot</span><span class="p">:</span>
+                                            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;could not&quot;</span>
+                                                    <span class="s2">&quot; compute one or more&quot;</span>
+                                                    <span class="s2">&quot; order parameters.&quot;</span><span class="p">)</span>
+
+                                        <span class="c1"># Introduce sensible threshold</span>
+                                        <span class="c1"># to keep the number of potential sites small enough.</span>
+                                        <span class="k">if</span> <span class="n">qtet_tetmot</span> <span class="o">&gt;</span> <span class="n">op_threshs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> \
+                                                <span class="n">qoct_tetmot</span> <span class="o">&lt;</span> <span class="n">op_threshs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> \
+                                                <span class="n">qoct_octmot</span> <span class="o">&gt;</span> <span class="n">op_threshs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> \
+                                                <span class="n">qtet_octmot</span> <span class="o">&lt;</span> <span class="n">op_threshs</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                                            <span class="k">if</span> <span class="ow">not</span> <span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">]:</span>
+                                                <span class="n">insert_index</span> <span class="o">=</span> <span class="mi">0</span>
+                                                <span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({})</span>
+                                            <span class="k">elif</span> <span class="n">index</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                                                <span class="n">insert_index</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">])</span>
+                                                <span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({})</span>
+                                            <span class="k">else</span><span class="p">:</span>
+                                                <span class="k">if</span> <span class="n">fabs</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">qtet_tetmot</span> <span class="o">+</span> <span class="n">qoct_octmot</span><span class="p">)</span> <span class="o">-</span> <span class="n">op_targets</span><span class="p">[</span><span class="n">it</span><span class="p">])</span> <span class="o">&lt;</span> \
+                                                            <span class="n">fabs</span><span class="p">(</span><span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">][</span><span class="n">index</span><span class="p">][</span><span class="s2">&quot;op_value&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">op_targets</span><span class="p">[</span><span class="n">it</span><span class="p">]):</span>
+                                                    <span class="n">insert_index</span> <span class="o">=</span> <span class="n">index</span>
+                                                <span class="k">else</span><span class="p">:</span>
+                                                    <span class="n">insert_index</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                                            <span class="k">if</span> <span class="n">insert_index</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                                                <span class="k">if</span> <span class="n">insert_index</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">])</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                                                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+                                                <span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">][</span><span class="n">insert_index</span><span class="p">][</span><span class="s2">&quot;frac_coords&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">]</span>
+                                                <span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">][</span><span class="n">insert_index</span><span class="p">][</span><span class="s2">&quot;position&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">r</span>
+                                                <span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">][</span><span class="n">insert_index</span><span class="p">][</span><span class="s2">&quot;cns&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cns</span>
+                                                <span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">][</span><span class="n">insert_index</span><span class="p">][</span><span class="s2">&quot;op_value&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">qtet_tetmot</span> <span class="o">+</span> <span class="n">qoct_octmot</span><span class="p">)</span>
+                                                <span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">][</span><span class="n">insert_index</span><span class="p">][</span><span class="s2">&quot;site_list&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">site_lists</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">iurds</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">write_timings</span><span class="p">:</span>
+            <span class="n">tt1</span><span class="p">,</span> <span class="n">tc1</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+            <span class="n">file_time</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;findinters </span><span class="si">{}</span><span class="s2"> </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tt1</span><span class="o">-</span><span class="n">tt0</span><span class="p">,</span> <span class="n">tc1</span><span class="o">-</span><span class="n">tc0</span><span class="p">))</span>
+            <span class="n">tt0</span><span class="p">,</span> <span class="n">tc0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+
+        <span class="c1"># Check whether any trial site</span>
+        <span class="c1"># from the sublattice structure-motif search</span>
+        <span class="c1"># overlaps with any discarded neighbor</span>
+        <span class="c1"># using drel_overlap * (rinter+rneigh).</span>
+        <span class="n">dont_include</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">i_elem</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nelems</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">it</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_motif_types</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">i_intersite</span><span class="p">,</span> <span class="n">intersite</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">]):</span>
+                    <span class="n">sc_struct</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+                            <span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+                            <span class="n">inter_elem</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="n">intersite</span><span class="p">[</span><span class="s2">&quot;frac_coords&quot;</span><span class="p">],</span>
+                            <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                    <span class="n">neighs_dists_indeces</span> <span class="o">=</span> <span class="n">sc_struct</span><span class="o">.</span><span class="n">get_neighbors</span><span class="p">(</span>
+                            <span class="n">sc_struct</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                            <span class="n">max_radius_sphere</span><span class="p">,</span> <span class="n">include_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">neighsite</span><span class="p">,</span> <span class="n">dist</span><span class="p">,</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">neighs_dists_indeces</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">dist</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">radii_sites</span><span class="p">[</span><span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="n">radii_sites</span><span class="p">[</span><span class="n">index</span><span class="p">])</span> <span class="o">*</span> <span class="n">drel_overlap</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="p">[</span><span class="n">i_elem</span><span class="p">,</span> <span class="n">it</span><span class="p">,</span> <span class="n">i_intersite</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dont_include</span><span class="p">:</span>
+                                <span class="n">dont_include</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">i_elem</span><span class="p">,</span> <span class="n">it</span><span class="p">,</span> <span class="n">i_intersite</span><span class="p">])</span>
+                                <span class="k">break</span>
+
+        <span class="k">if</span> <span class="n">write_timings</span><span class="p">:</span>
+            <span class="n">tt1</span><span class="p">,</span> <span class="n">tc1</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+            <span class="n">file_time</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;pruneatomoverlap </span><span class="si">{}</span><span class="s2"> </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tt1</span><span class="o">-</span><span class="n">tt0</span><span class="p">,</span> <span class="n">tc1</span><span class="o">-</span><span class="n">tc0</span><span class="p">))</span>
+            <span class="n">tt0</span><span class="p">,</span> <span class="n">tc0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+
+        <span class="c1"># Check whether any two trial sites</span>
+        <span class="c1"># overlap in the primitive unit cell</span>
+        <span class="c1"># using drel_overlap * 2*rinter or</span>
+        <span class="c1"># whether their positions yield</span>
+        <span class="c1"># similar structure using the StructureMatcher</span>
+        <span class="c1"># class.  If so, remove the site with the</span>
+        <span class="c1"># OP value farthest from the respective target</span>
+        <span class="c1"># value.</span>
+
+        <span class="n">lat</span> <span class="o">=</span> <span class="n">sc_struct</span><span class="o">.</span><span class="n">lattice</span>
+        <span class="n">overlap</span> <span class="o">=</span> <span class="mf">2.0</span><span class="o">*</span><span class="n">radii_sites</span><span class="p">[</span><span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">drel_overlap</span>
+        <span class="n">sc_struct2</span> <span class="o">=</span> <span class="n">sc_struct</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">i_elem1</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nelems</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">it1</span><span class="p">,</span> <span class="n">t1</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_motif_types</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">i_intersite1</span><span class="p">,</span> <span class="n">intersite1</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem1</span><span class="p">][</span><span class="n">t1</span><span class="p">]):</span>
+                    <span class="k">for</span> <span class="n">i_elem2</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nelems</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+                        <span class="k">for</span> <span class="n">it2</span><span class="p">,</span> <span class="n">t2</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_motif_types</span><span class="p">):</span>
+                            <span class="k">for</span> <span class="n">i_intersite2</span><span class="p">,</span> <span class="n">intersite2</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem2</span><span class="p">][</span><span class="n">t2</span><span class="p">]):</span>
+                                <span class="k">if</span> <span class="n">i_elem1</span> <span class="o">!=</span> <span class="n">i_elem2</span> <span class="ow">or</span> \
+                                        <span class="n">it1</span> <span class="o">!=</span> <span class="n">it2</span> <span class="ow">or</span> \
+                                        <span class="n">i_intersite1</span> <span class="o">!=</span> <span class="n">i_intersite2</span><span class="p">:</span>
+                                    <span class="k">if</span> <span class="p">[</span><span class="n">i_elem1</span><span class="p">,</span> <span class="n">it1</span><span class="p">,</span> <span class="n">i_intersite1</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dont_include</span> <span class="ow">and</span> \
+                                            <span class="p">[</span><span class="n">i_elem2</span><span class="p">,</span> <span class="n">it2</span><span class="p">,</span> <span class="n">i_intersite2</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dont_include</span><span class="p">:</span>
+                                        <span class="n">dist</span><span class="p">,</span> <span class="n">jimage</span> <span class="o">=</span> <span class="n">lat</span><span class="o">.</span><span class="n">get_distance_and_image</span><span class="p">(</span>
+                                                <span class="n">intersite1</span><span class="p">[</span><span class="s2">&quot;frac_coords&quot;</span><span class="p">],</span> <span class="n">intersite2</span><span class="p">[</span><span class="s2">&quot;frac_coords&quot;</span><span class="p">])</span>
+                                        <span class="k">if</span> <span class="n">dist</span> <span class="o">&lt;</span> <span class="n">overlap</span><span class="p">:</span>
+                                            <span class="k">if</span> <span class="n">fabs</span><span class="p">(</span><span class="n">intersite1</span><span class="p">[</span><span class="s2">&quot;op_value&quot;</span><span class="p">]</span><span class="o">-</span><span class="n">op_targets</span><span class="p">[</span><span class="n">it1</span><span class="p">])</span> <span class="o">&lt;</span> \
+                                                    <span class="n">fabs</span><span class="p">(</span><span class="n">intersite2</span><span class="p">[</span><span class="s2">&quot;op_value&quot;</span><span class="p">]</span><span class="o">-</span><span class="n">op_targets</span><span class="p">[</span><span class="n">it2</span><span class="p">]):</span>
+                                                <span class="n">dont_include</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">i_elem2</span><span class="p">,</span> <span class="n">it2</span><span class="p">,</span> <span class="n">i_intersite2</span><span class="p">])</span>
+                                            <span class="k">else</span><span class="p">:</span>
+                                                <span class="n">dont_include</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">i_elem1</span><span class="p">,</span> <span class="n">it1</span><span class="p">,</span> <span class="n">i_intersite1</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">write_timings</span><span class="p">:</span>
+            <span class="n">tt1</span><span class="p">,</span> <span class="n">tc1</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+            <span class="n">file_time</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;pruneinteroverlap </span><span class="si">{}</span><span class="s2"> </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tt1</span><span class="o">-</span><span class="n">tt0</span><span class="p">,</span> <span class="n">tc1</span><span class="o">-</span><span class="n">tc0</span><span class="p">))</span>
+            <span class="n">tt0</span><span class="p">,</span> <span class="n">tc0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+
+        <span class="c1"># Repeating same loop to have the smallest number of sites</span>
+        <span class="c1"># to be checked for symmetric equivalence</span>
+        <span class="c1"># because that can take a lot of time.</span>
+        <span class="k">for</span> <span class="n">i_elem1</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nelems</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">it1</span><span class="p">,</span> <span class="n">t1</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_motif_types</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">i_intersite1</span><span class="p">,</span> <span class="n">intersite1</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem1</span><span class="p">][</span><span class="n">t1</span><span class="p">]):</span>
+                    <span class="k">for</span> <span class="n">i_elem2</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nelems</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+                        <span class="k">for</span> <span class="n">it2</span><span class="p">,</span> <span class="n">t2</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_motif_types</span><span class="p">):</span>
+                            <span class="k">for</span> <span class="n">i_intersite2</span><span class="p">,</span> <span class="n">intersite2</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem2</span><span class="p">][</span><span class="n">t2</span><span class="p">]):</span>
+                                <span class="k">if</span> <span class="n">i_elem1</span> <span class="o">!=</span> <span class="n">i_elem2</span> <span class="ow">or</span> \
+                                        <span class="n">it1</span> <span class="o">!=</span> <span class="n">it2</span> <span class="ow">or</span> \
+                                        <span class="n">i_intersite1</span> <span class="o">!=</span> <span class="n">i_intersite2</span><span class="p">:</span>
+                                    <span class="k">if</span> <span class="p">[</span><span class="n">i_elem1</span><span class="p">,</span> <span class="n">it1</span><span class="p">,</span> <span class="n">i_intersite1</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dont_include</span> <span class="ow">and</span> \
+                                            <span class="p">[</span><span class="n">i_elem2</span><span class="p">,</span> <span class="n">it2</span><span class="p">,</span> <span class="n">i_intersite2</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dont_include</span><span class="p">:</span>
+                                        <span class="n">sc_struct</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+                                                <span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+                                                <span class="n">inter_elem</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="n">intersite1</span><span class="p">[</span><span class="s2">&quot;frac_coords&quot;</span><span class="p">],</span>
+                                                <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                                        <span class="n">sc_struct2</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+                                                <span class="n">natoms</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+                                                <span class="n">inter_elem</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="n">intersite2</span><span class="p">[</span><span class="s2">&quot;frac_coords&quot;</span><span class="p">],</span>
+                                                <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                                        <span class="k">if</span> <span class="n">sgops</span><span class="o">.</span><span class="n">are_symmetrically_equivalent</span><span class="p">(</span>
+                                                <span class="n">sc_struct</span><span class="p">,</span> <span class="n">sc_struct2</span><span class="p">):</span>
+                                            <span class="k">if</span> <span class="n">fabs</span><span class="p">(</span><span class="n">intersite1</span><span class="p">[</span><span class="s2">&quot;op_value&quot;</span><span class="p">]</span><span class="o">-</span><span class="n">op_targets</span><span class="p">[</span><span class="n">it1</span><span class="p">])</span> <span class="o">&lt;</span> \
+                                                    <span class="n">fabs</span><span class="p">(</span><span class="n">intersite2</span><span class="p">[</span><span class="s2">&quot;op_value&quot;</span><span class="p">]</span><span class="o">-</span><span class="n">op_targets</span><span class="p">[</span><span class="n">it2</span><span class="p">]):</span>
+                                                <span class="n">dont_include</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">i_elem2</span><span class="p">,</span> <span class="n">it2</span><span class="p">,</span> <span class="n">i_intersite2</span><span class="p">])</span>
+                                            <span class="k">else</span><span class="p">:</span>
+                                                <span class="n">dont_include</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">i_elem1</span><span class="p">,</span> <span class="n">it1</span><span class="p">,</span> <span class="n">i_intersite1</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">write_timings</span><span class="p">:</span>
+            <span class="n">tt1</span><span class="p">,</span> <span class="n">tc1</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+            <span class="n">file_time</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;prunesymequiv </span><span class="si">{}</span><span class="s2"> </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tt1</span><span class="o">-</span><span class="n">tt0</span><span class="p">,</span> <span class="n">tc1</span><span class="o">-</span><span class="n">tc0</span><span class="p">))</span>
+            <span class="n">tt0</span><span class="p">,</span> <span class="n">tc0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="n">time</span><span class="o">.</span><span class="n">clock</span><span class="p">()</span>
+
+        <span class="c1"># Set-up final interstitial site lists, taking into account only</span>
+        <span class="c1"># those that are not mentioned in dont_include.</span>
+        <span class="k">for</span> <span class="n">i_elem</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nelems</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">it</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_motif_types</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">i_intersite</span><span class="p">,</span> <span class="n">intersite</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inter_sites</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">]):</span>
+                    <span class="k">if</span> <span class="p">[</span><span class="n">i_elem</span><span class="p">,</span> <span class="n">it</span><span class="p">,</span> <span class="n">i_intersite</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dont_include</span><span class="p">:</span>
+                        <span class="n">inter_sites_pruned</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">intersite</span><span class="p">)</span>
+
+        <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">i_elem</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nelems</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">it</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_motif_types</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">i_intersite</span><span class="p">,</span> <span class="n">intersite</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">inter_sites_pruned</span><span class="p">[</span><span class="n">i_elem</span><span class="p">][</span><span class="n">t</span><span class="p">]):</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_defect_sites</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="n">PeriodicSite</span><span class="p">(</span>
+                            <span class="n">Element</span><span class="p">(</span><span class="n">inter_elem</span><span class="p">),</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">_structure</span><span class="o">.</span><span class="n">lattice</span><span class="o">.</span><span class="n">get_fractional_coords</span><span class="p">(</span>
+                                <span class="n">intersite</span><span class="p">[</span><span class="s2">&quot;position&quot;</span><span class="p">]),</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">_structure</span><span class="o">.</span><span class="n">lattice</span><span class="p">,</span>
+                            <span class="n">to_unit_cell</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                            <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                            <span class="n">properties</span><span class="o">=</span><span class="kc">None</span><span class="p">))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_defect_types</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_defect_cns</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">intersite</span><span class="p">[</span><span class="s2">&quot;cns&quot;</span><span class="p">])</span>
+                    <span class="c1"># xxx still have to change this</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_defect_site_multiplicity</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+                    <span class="n">i</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="n">write_timings</span><span class="p">:</span>
+            <span class="n">file_time</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="StructureMotifInterstitial.enumerate_defectsites"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.point_defects.html#pymatgen.analysis.defects.point_defects.StructureMotifInterstitial.enumerate_defectsites">[docs]</a>    <span class="k">def</span> <span class="nf">enumerate_defectsites</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get all defect sites.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            defect_sites ([PeriodicSite]): list of periodic sites</span>
+<span class="sd">                    representing the interstitials.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_defect_sites</span></div>
+
+
+<div class="viewcode-block" id="StructureMotifInterstitial.get_motif_type"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.point_defects.html#pymatgen.analysis.defects.point_defects.StructureMotifInterstitial.get_motif_type">[docs]</a>    <span class="k">def</span> <span class="nf">get_motif_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the motif type of defect with index i (e.g., &quot;tet&quot;).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            motif (string): motif type.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_defect_types</span><span class="p">[</span><span class="n">i</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="StructureMotifInterstitial.get_coordinating_elements_cns"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.point_defects.html#pymatgen.analysis.defects.point_defects.StructureMotifInterstitial.get_coordinating_elements_cns">[docs]</a>    <span class="k">def</span> <span class="nf">get_coordinating_elements_cns</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get element-specific coordination numbers of defect with index i.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            elem_cn (dict): dictionary storing the coordination numbers (int)</span>
+<span class="sd">                    with string representation of elements as keys.</span>
+<span class="sd">                    (i.e., {elem1 (string): cn1 (int), ...}).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_defect_cns</span><span class="p">[</span><span class="n">i</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="StructureMotifInterstitial.make_supercells_with_defects"><a class="viewcode-back" href="../../../../pymatgen.analysis.defects.point_defects.html#pymatgen.analysis.defects.point_defects.StructureMotifInterstitial.make_supercells_with_defects">[docs]</a>    <span class="k">def</span> <span class="nf">make_supercells_with_defects</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scaling_matrix</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate a sequence of supercells</span>
+<span class="sd">        in which each supercell contains a single interstitial,</span>
+<span class="sd">        except for the first supercell in the sequence</span>
+<span class="sd">        which is a copy of the defect-free input structure.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            scaling_matrix (3x3 integer array): scaling matrix</span>
+<span class="sd">                to transform the lattice vectors.</span>
+<span class="sd">        Returns:</span>
+<span class="sd">            scs ([Structure]): sequence of supercells.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">scs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">sc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_structure</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">sc</span><span class="o">.</span><span class="n">make_supercell</span><span class="p">(</span><span class="n">scaling_matrix</span><span class="p">)</span>
+        <span class="n">scs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sc</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">ids</span><span class="p">,</span> <span class="n">defect_site</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_defect_sites</span><span class="p">):</span>
+            <span class="n">sc_with_inter</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">sc_with_inter</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">defect_site</span><span class="o">.</span><span class="n">species_string</span><span class="p">,</span>
+                    <span class="n">defect_site</span><span class="o">.</span><span class="n">frac_coords</span><span class="p">,</span>
+                    <span class="n">coords_are_cartesian</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">validate_proximity</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">properties</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">sc_with_inter</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;could not generate supercell with&quot;</span>
+                        <span class="s2">&quot; interstitial </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ids</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span>
+            <span class="n">scs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sc_with_inter</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">scs</span></div></div>
+
+
 </pre></div>
 
           </div>

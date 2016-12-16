@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>pymatgen.io.gaussian &#8212; pymatgen 4.5.3 documentation</title>
+    <title>pymatgen.io.gaussian &#8212; pymatgen 4.5.4 documentation</title>
     
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
@@ -14,7 +14,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../../',
-        VERSION:     '4.5.3',
+        VERSION:     '4.5.4',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -27,7 +27,7 @@
     <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="top" title="pymatgen 4.5.3 documentation" href="../../../index.html" />
+    <link rel="top" title="pymatgen 4.5.4 documentation" href="../../../index.html" />
     <link rel="up" title="Module code" href="../../index.html" />
  
 <script type="text/javascript">
@@ -47,7 +47,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.5.3 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.5.4 documentation</a> &#187;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
       </ul>
     </div>  
@@ -669,6 +669,11 @@
 
 <span class="sd">        atom_basis_labels[iatom] = [AO_k, AO_k, ...]</span>
 
+<span class="sd">    .. attribute:: resumes</span>
+
+<span class="sd">        List of gaussian data resume given at the end of the output file before</span>
+<span class="sd">        the quotation. The resumes are given as string.</span>
+
 <span class="sd">    Methods:</span>
 
 <span class="sd">    .. method:: to_input()</span>
@@ -746,6 +751,8 @@
         <span class="n">mo_coeff_name_patt</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">&quot;\d+\s((\d+|\s+)\s+([a-zA-Z]{1,2}|\s+))\s+(\d+\S+)&quot;</span><span class="p">)</span>
 
         <span class="n">hessian_patt</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">&quot;Force constants in Cartesian coordinates:&quot;</span><span class="p">)</span>
+        <span class="n">resume_patt</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">r&quot;^\s1</span><span class="se">\\</span><span class="s2">1</span><span class="se">\\</span><span class="s2">GINC-\S*&quot;</span><span class="p">)</span>
+        <span class="n">resume_end_patt</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">r&quot;^\s.*</span><span class="se">\\\\</span><span class="s2">@&quot;</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">properly_terminated</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_pcm</span> <span class="o">=</span> <span class="kc">False</span>
@@ -762,6 +769,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">eigenvalues</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_spin</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">hessian</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resumes</span> <span class="o">=</span> <span class="p">[]</span>
 
         <span class="n">coord_txt</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">read_coord</span> <span class="o">=</span> <span class="mi">0</span>
@@ -1041,6 +1049,16 @@
                         <span class="n">read_mo</span> <span class="o">=</span> <span class="kc">True</span>
                     <span class="k">elif</span> <span class="n">hessian_patt</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">line</span><span class="p">):</span>
                         <span class="n">parse_hessian</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">elif</span> <span class="n">resume_patt</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">line</span><span class="p">):</span>
+                        <span class="n">resume</span> <span class="o">=</span> <span class="p">[]</span>
+                        <span class="k">while</span> <span class="ow">not</span> <span class="n">resume_end_patt</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">line</span><span class="p">):</span>
+                            <span class="n">resume</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+                            <span class="n">line</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span>
+                            <span class="k">if</span> <span class="n">line</span> <span class="o">==</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">:</span> <span class="c1"># security if \\@ not in one line !</span>
+                                <span class="k">break</span>
+                        <span class="n">resume</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+                        <span class="n">resume</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">r</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">resume</span><span class="p">])</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">resumes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">resume</span><span class="p">)</span>
 
                     <span class="k">if</span> <span class="n">read_mulliken</span><span class="p">:</span>
                         <span class="k">if</span> <span class="ow">not</span> <span class="n">end_mulliken_patt</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">line</span><span class="p">):</span>
@@ -1055,6 +1073,7 @@
                                     <span class="n">mulliken_charges</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
                             <span class="n">read_mulliken</span> <span class="o">=</span> <span class="kc">False</span>
                             <span class="bp">self</span><span class="o">.</span><span class="n">Mulliken_charges</span> <span class="o">=</span> <span class="n">mulliken_charges</span>
+
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">terminated</span><span class="p">:</span>
             <span class="c1">#raise IOError(&quot;Bad Gaussian output file.&quot;)</span>
@@ -1406,7 +1425,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.5.3 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 4.5.4 documentation</a> &#187;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
       </ul>
     </div>

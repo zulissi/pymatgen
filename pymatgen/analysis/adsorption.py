@@ -19,8 +19,10 @@ import subprocess
 import itertools
 import os
 from monty.serialization import loadfn
-from scipy.spatial import Delaunay
-
+from pyhull.delaunay import DelaunayTri
+from matplotlib import patches
+from matplotlib.path import Path
+from pyhull.voronoi import VoronoiTess
 from pymatgen.core.operations import SymmOp
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.symmetry.analyzer import generate_full_symmops
@@ -28,9 +30,6 @@ from pymatgen.util.coord_utils import in_coord_list, in_coord_list_pbc
 from pymatgen.core.sites import PeriodicSite
 from pymatgen.analysis.structure_analyzer import VoronoiCoordFinder
 from pymatgen.core.surface import generate_all_slabs
-
-from matplotlib import patches
-from matplotlib.path import Path
 
 __author__ = "Joseph Montoya"
 __copyright__ = "Copyright 2016, The Materials Project"
@@ -58,7 +57,7 @@ class AdsorbateSiteFinder(object):
     """
 
     def __init__(self, slab, selective_dynamics=False, 
-                 height=0.9, mi_vec=None):
+                 height=0.9):
         """
         Create an AdsorbateSiteFinder object.  
 
@@ -67,17 +66,12 @@ class AdsorbateSiteFinder(object):
             selective_dynamics (bool): flag for whether to assign
                 non-surface sites as fixed for selective dynamics
             height (float): height criteria for selection of surface sites
-            mi_vec (3-D array-like): vector corresponding to the vector
-                concurrent with the miller index, this enables use with
-                slabs that have been reoriented, but the miller vector
-                must be supplied manually
         """
-        self.mi_string = ''.join([str(i) for i in slab.miller_index])
+        self.mi_string = ''
+        #.join([str(i) for i in slab.miller_index])
         # get surface normal from miller index
-        if mi_vec:
-            self.mvec = mi_vec
-        else:
-            self.mvec = get_mi_vec(slab.miller_index)
+        #self.mvec = mi_vec(slab.miller_index)
+        self.mvec=np.array([0,0,1])
         slab = self.assign_site_properties(slab, height)
         if selective_dynamics:
             slab = self.assign_selective_dynamics(slab)
@@ -127,9 +121,9 @@ class AdsorbateSiteFinder(object):
 
         this_slab = slab_dict[miller_index]
 
-        vcf_surface = VoronoiCoordFinder(this_slab, allow_pathological=True)
+        vcf_surface = VoronoiCoordFinder(this_slab)
         surf_props = []
-        this_mi_vec = get_mi_vec(this_slab.miller_index)
+        this_mi_vec = mi_vec(this_slab.miller_index)
         mi_mags = [np.dot(this_mi_vec, site.coords) for site in this_slab]
         average_mi_mag = np.average(mi_mags)
         for n, site in enumerate(this_slab):
@@ -223,10 +217,10 @@ class AdsorbateSiteFinder(object):
         """
         ads_sites = []
         mesh = self.get_extended_surface_mesh()
-        sop = get_rot(self.slab)
-        dt = Delaunay([sop.operate(m.coords)[:2] for m in mesh])
+        #sop = get_rot(self.slab)
+        dt = DelaunayTri([m.coords[:2] for m in mesh])
         # TODO: refactor below to properly account for >3-fold
-        for v in dt.simplices:
+        for v in dt.vertices:
             if -1 not in v:
                 dots = []
                 for i_corner, i_opp in zip(range(3), ((1,2), (0,2), (0,1))):
@@ -402,7 +396,7 @@ class AdsorbateSiteFinder(object):
                 molecule, coords, repeat=repeat, reorient=reorient))
         return structs
 
-def get_mi_vec(mi_index):
+def mi_vec(mi_index):
     """
     Convenience function which returns the unit vector aligned 
     with the miller index.
@@ -415,7 +409,7 @@ def get_rot(slab):
     """
     Gets the transformation to rotate the z axis into the miller index
     """
-    new_z = get_mi_vec(slab.miller_index)
+    new_z = mi_vec(slab.miller_index)
     a, b, c = slab.lattice.matrix
     new_x = a / np.linalg.norm(a)
     new_y = np.cross(new_z, new_x)
@@ -503,9 +497,9 @@ def plot_slab(slab, ax, scale=0.8, repeat=5, window=1.5,
     if adsorption_sites:
         asf = AdsorbateSiteFinder(orig_slab)
         ads_sites = asf.find_adsorption_sites()
-        sop = get_rot(orig_slab)
-        ads_sites = [sop.operate(ads_site)[:2].tolist()
-                     for ads_site in ads_sites]
+        #sop = get_rot(orig_slab)
+        #ads_sites = [sop.operate(ads_site)[:2].tolist()
+        #             for ads_site in ads_sites]
         ax.plot(*zip(*ads_sites), color='k', marker='x',
                 markersize=10, mew=1, linestyle='', zorder=10000)
     # Draw unit cell
